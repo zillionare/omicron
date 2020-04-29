@@ -1,4 +1,4 @@
-Welcome to zdata's documentation!
+Welcome to omicron's documentation!
 ======================================
 
 .. toctree::

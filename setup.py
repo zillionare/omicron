@@ -25,7 +25,7 @@ test_requirements = []
 setup(
     author="Aaron Yang",
     author_email='code@jieyu.ai',
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -37,7 +37,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Data module for Zillionare",
+    description="Core module for Zillionare",
     entry_points={
         'console_scripts': [
             'omicron=omicron.cli:main',

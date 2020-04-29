@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=zdata
+set SPHINXPROJ=omicron
 
 if "%1" == "" goto help
 

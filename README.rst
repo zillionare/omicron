@@ -1,16 +1,16 @@
 =====
-zdata
+omicron
 =====
 
 
-.. image:: https://img.shields.io/pypi/v/zdata.svg
-        :target: https://pypi.python.org/pypi/zdata
+.. image:: https://img.shields.io/pypi/v/omicron.svg
+        :target: https://pypi.python.org/pypi/omicron
 
-.. image:: https://img.shields.io/travis/zillionare/zdata.svg
-        :target: https://travis-ci.com/zillionare/zdata
+.. image:: https://img.shields.io/travis/zillionare/omicron.svg
+        :target: https://travis-ci.com/zillionare/omicron
 
-.. image:: https://readthedocs.org/projects/zdata/badge/?version=latest
-        :target: https://zdata.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/omicron/badge/?version=latest
+        :target: https://omicron.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
 
@@ -20,7 +20,7 @@ Data module for Zillionare
 
 
 * Free software: MIT license
-* Documentation: https://zdata.readthedocs.io.
+* Documentation: https://omicron.readthedocs.io.
 
 
 Features
