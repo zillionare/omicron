@@ -56,6 +56,6 @@ class TestOmicron(unittest.TestCase):
         sec = '000001.XSHE'
         end = arrow.get('2020-04-04')
         fq = FetchQuotes(sec, end, 10, FrameType.DAY)
-        bars = await fq.execute()
+        bars = await fq.invoke()
         self.assertEqual(bars[0]['frame'], arrow.get('2020-03-23').date())
         self.assertEqual(bars[-1]['frame'], arrow.get('2020-04-03').date())
