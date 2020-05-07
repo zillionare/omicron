@@ -13,11 +13,12 @@ import unittest
 import cfg4py
 from pyemit import emit
 
+import omicron
 from omicron.models.securities import Securities
 
 from omicron.core.lang import async_run
 
-from omicron.dal import cache, RedisDB
+from omicron.dal import cache
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ class TestSecurity(unittest.TestCase):
         config_path = os.path.join(home, '../omicron/config')
 
         cfg = cfg4py.init(config_path)
-        await cache.init()
-        await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn, exchange='zillionare-omega')
+        await omicron.init()
+        await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn)
 
     def tearDown(self):
         """Tear down test fixtures, if any."""
@@ -44,7 +45,7 @@ class TestSecurity(unittest.TestCase):
         s = Securities()
 
         # invalidate cache, then load from remote
-        await cache.get_db(RedisDB.SECURITY).delete('securities')
+        await cache.security.delete('securities')
         await s.load()
         logger.info(s)
         self.assertEqual(s[0]['code'], '000001.XSHE')
@@ -54,3 +55,8 @@ class TestSecurity(unittest.TestCase):
         await s.load()
         self.assertEqual(s[0]['code'], '000001.XSHE')
         self.assertEqual(s['000001.XSHE']['display_name'], '平安银行')
+
+    @async_run
+    async def test_001_choose(self):
+        s = Securities()
+        result = s.choose()

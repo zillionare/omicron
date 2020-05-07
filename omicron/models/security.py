@@ -9,10 +9,18 @@ Contributors:
 import datetime
 import logging
 import re
+from typing import Union
 
 import arrow
-from ..core import tf, SecurityType, MarketType
+from arrow import Arrow
+from omega.remote.fetchquotes import FetchQuotes
+from pyemit import emit
 
+from ..core import tf, SecurityType, MarketType, FrameType
+from ..dal import cache, security_cache
+import numpy as np
+
+from ..dal.security_cache import get_bars_range, clear_bars_range
 from ..models.securities import Securities
 
 logger = logging.getLogger(__name__)
@@ -24,6 +32,7 @@ class Security(object):
 
         _, self._display_name, self._name, self._start_date, self._end_date, _type = Securities()[code]
         self._type = SecurityType(_type)
+        self._bars = None
 
     def __str__(self):
         return f"{self.display_name}[{self.code}]"
@@ -59,6 +68,10 @@ class Security(object):
     @staticmethod
     def simplify_code(code) -> str:
         return re.sub(r"\.XSH[EG]", "", code)
+
+    @property
+    def bars(self):
+        return self._bars
 
     def to_canonical_code(self, simple_code: str) -> str:
         """
@@ -125,3 +138,48 @@ class Security(object):
                 _type = SecurityType.STOCK_B
 
         return _type
+
+    def __getitem__(self, key):
+        return self._bars[key]
+
+    def qfq(self)->np.ndarray:
+        last = self._bars[-1]['factor']
+        for field in ['open', 'high', 'low', 'close']:
+            self._bars[field] = (self._bars[field] / last ) * self._bars['factor']
+
+        return self._bars
+
+    async def load_bars(self, start: Arrow, offset: int, frame_type: FrameType, fq=True) -> np.ndarray:
+        self._bars = None
+        start = tf.shift(start, 0, frame_type)
+        exclude_edge = -1 if offset > 0 else 1
+        end = tf.shift(start, offset + exclude_edge, frame_type)
+        start, end = (start, end) if start < end else (end, start)
+
+        offset = abs(offset)
+
+        head, tail = await security_cache.get_bars_range(self.code, frame_type)
+
+        if not all([head, tail]):
+            # not cached at all, ensure cache pointers are clear
+            await security_cache.clear_bars_range(self.code, frame_type)
+
+            self._bars = await FetchQuotes(self.code, end, offset, frame_type).invoke()
+            return self.qfq() if fq else self._bars
+
+        time_converter = tf.int2time if frame_type in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
+                                                       FrameType.MIN60] else tf.int2date
+        dt_head, dt_tail = time_converter(head), time_converter(tail)
+
+        if start < dt_head:
+            await FetchQuotes(self.code, tf.shift(dt_head, -1, frame_type), tf.count_frames(start, dt_head, frame_type),
+                              frame_type).invoke()
+
+        if end > dt_tail:
+            n = tf.count_frames(dt_tail, end, frame_type)
+            if n > 0:
+                await FetchQuotes(self.code, end, n, frame_type).invoke()
+
+        # now all bars in [start, end] should exist in cache
+        self._bars = await security_cache.get_bars(self.code, end, offset, frame_type)
+        return self.qfq() if fq else self._bars

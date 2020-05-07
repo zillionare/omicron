@@ -6,12 +6,14 @@ Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
 
 """
+import datetime
 import logging
 from functools import lru_cache
 
+import arrow
 import numpy as np
 from ..core.lang import singleton
-from ..dal import cache, RedisDB
+from ..dal import cache
 from omega.remote.fetchsecuritylist import FetchSecurityList
 
 logger = logging.getLogger(__name__)
@@ -55,24 +57,33 @@ class Securities(object):
         self._secs = np.array([])
 
     async def load(self):
-        db = cache.get_db(RedisDB.SECURITY)
-        secs = await db.lrange('securities', 0, -1, encoding='utf-8')
+        secs = await cache.get_securities()
         if len(secs) != 0:
             self._secs = np.array([tuple(x.split(',')) for x in secs], dtype=self.dtypes)
         else:
-            secs = await FetchSecurityList().execute()
+            secs = await FetchSecurityList().invoke()
             self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
             if len(secs) == 0:
                 raise ValueError("Failed to load security list")
 
+        # apply_alon_axis doesn't work on structured array. The following will cost 0.03 secs on 11370 recs
+        self._secs['ipo'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in self._secs['ipo']]
+        self._secs['end'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in self._secs['end']]
+
+
     @lru_cache
-    def choose(self, block: str) -> list:
+    def choose(self, _type='stock', exclude_exit=True, block: str = '') -> list:
         """
         根据指定的类型（板块）来选择证券列表
         Args:
+            _type:
             block:
+            exclude_exit:
 
         Returns:
 
         """
-        pass
+        result = self._secs[self._secs['type'] == _type]
+        if exclude_exit:
+            result = result[result['end'] > arrow.now().date()]
+        return result

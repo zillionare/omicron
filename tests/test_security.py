@@ -1,15 +1,22 @@
 import os
 import unittest
+
+import arrow
 import cfg4py
 
 from pyemit import emit
 
-from omicron.core import SecurityType
+from omicron.core import SecurityType, FrameType
 from omicron.models.security import Security
 from omicron.models.securities import Securities
 from omicron.core.lang import async_run
+import numpy as np
 
-from omicron.dal import cache
+from omicron.dal import cache, security_cache
+import logging
+
+logger = logging.getLogger(__name__)
+cfg4py.enable_logging()
 
 
 class MyTestCase(unittest.TestCase):
@@ -24,6 +31,14 @@ class MyTestCase(unittest.TestCase):
         await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn, exchange='zillionare-omega')
         self.securities = Securities()
         await self.securities.load()
+
+    def assert_bars_equal(self, expected, actual):
+        self.assertEqual(expected[0][0], actual[0][0])
+        self.assertEqual(expected[-1][0], actual[-1][0])
+        np.testing.assert_array_almost_equal(expected[0][1:5], list(actual[0])[1:5], 2)
+        np.testing.assert_array_almost_equal(expected[-1][1:5], list(actual[-1])[1:5], 2)
+        self.assertAlmostEqual(expected[0][6] / 10000, list(actual[0])[6] / 10000, 0)
+        self.assertAlmostEqual(expected[-1][6] / 10000, list(actual[-1])[6] / 10000, 0)
 
     def test_000_properties(self):
         sec = Security('000001.XSHE')
@@ -72,6 +87,105 @@ class MyTestCase(unittest.TestCase):
         for i, code in enumerate(codes):
             self.assertEqual(Security.parse_security_type(code), expected[i])
 
+    @async_run
+    async def test_002_load_bars(self):
+        sec = Security('000001.XSHE')
+        start = arrow.get('2020-01-04')  # started at 2020-01-03 actually
+        frame_type = FrameType.DAY
 
-if __name__ == '__main__':
-    unittest.main()
+        expected = [
+            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8, 1914495474.63, 118.73],
+            [arrow.get('2020-01-16').date(), 16.52, 16.57, 16.2, 16.33, 1.02810467e8, 1678888507.83, 118.73]
+        ]
+
+        logger.info("scenario: no cache")
+        await security_cache.clear_bars_range(sec.code, frame_type)
+        bars = await sec.load_bars(start, 10, frame_type)
+
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: load from cache")
+        bars = await sec.load_bars(start, 10, frame_type)
+
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: partial data fetch: head")
+        await security_cache.set_bars_range(sec.code, frame_type, start=arrow.get('2020-01-03').date())
+        bars = await sec.load_bars(start, 10, frame_type)
+
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: partial data fetch: tail")
+        await security_cache.set_bars_range(sec.code, frame_type, end=arrow.get('2020-01-14').date())
+        bars = await sec.load_bars(start, 10, frame_type)
+
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: backward")
+        expected = [
+            [arrow.get('2019-12-20').date(), 16.55, 16.68, 16.44, 16.59, 6.44478380e7, 1067869779.78, 118.73],
+            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8, 1914495474.63, 118.73]
+        ]
+        bars = await sec.load_bars(start, -10, frame_type)
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: 1min level backward")
+        frame_type = FrameType.MIN1
+        start = arrow.get('2020-05-06 15:00:00')
+        await security_cache.clear_bars_range(sec.code, frame_type)
+        bars = await sec.load_bars(start, -250, frame_type)
+        expected = [
+            [arrow.get('2020-04-30 14:51').naive, 13.99, 14., 13.98, 13.99, 281000., 3931001., 118.725646],
+            [arrow.get('2020-05-06 15:00').naive, 13.77, 13.77, 13.77, 13.77, 1383400.0, 19049211.45000005, 118.725646]
+        ]
+
+        self.assert_bars_equal(expected, bars)
+
+        logger.info("scenario: 30 min level")
+        frame_type = FrameType.MIN15
+        start = arrow.get('2020-05-06 15:00:00')
+        await security_cache.clear_bars_range(sec.code, frame_type)
+        bars = await sec.load_bars(start, -14, frame_type)
+        expected = [
+            [arrow.get('2020-05-06 10:15').naive, 13.67, 13.74, 13.66, 13.72, 8341905., 1.14258451e+08, 118.725646],
+            [arrow.get('2020-05-06 15:00').naive, 13.72, 13.77, 13.72, 13.77, 7053085., 97026350.76999998, 118.725646]
+        ]
+        self.assert_bars_equal(expected, bars)
+
+    @async_run
+    async def test_004_fq(self):
+        sec = Security('002320.XSHE')
+        start = arrow.get('2020-05-06')
+        # bars with no fq
+        bars1 = await sec.load_bars(start, -250, FrameType.DAY, fq=False)
+        bars2 = await sec.load_bars(start, -250, FrameType.DAY)
+        expected1 = [
+            [arrow.get("2019-04-24").date(), 16.26, 16.38, 15.76, 16.00, 5981087.0, 9.598480e+07, 3.846000],
+            [arrow.get("2020-05-06").date(), 10.94, 11.22, 10.90, 11.15, 22517883.0, 2.488511e+08, 8.849346]
+        ]
+        expected2 = [
+            [arrow.get('2019-04-24').date(), 7.07, 7.12, 6.85, 6.95, 13762015.0, 9.598480e+07, 3.846000],
+            [arrow.get('2020-05-06').date(), 10.94, 11.22, 10.90, 11.15, 22517883.0, 2.488511e+08, 8.849346]
+        ]
+        self.assert_bars_equal(expected2, bars2)
+        self.assert_bars_equal(expected1, bars1)
+
+    @async_run
+    async def test_003_slice(self):
+        sec = Security('000001.XSHE')
+        await sec.load_bars(arrow.get('2020-01-03'), 10, FrameType.DAY)
+        bars = sec[0:]
+        expected = [
+            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8, 1914495474.63, 118.73],
+            [arrow.get('2020-01-16').date(), 16.52, 16.57, 16.2, 16.33, 1.02810467e8, 1678888507.83, 118.73]
+        ]
+
+        self.assert_bars_equal(expected, bars)
+        expected = [
+            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8, 1914495474.63, 118.73],
+            [arrow.get('2020-01-06').date(), 16.94, 17.31, 16.92, 17.18, 86208350.0, 1477930193.19, 118.73]
+        ]
+        self.assert_bars_equal(expected, sec[0:2])
+
+    if __name__ == '__main__':
+        unittest.main()

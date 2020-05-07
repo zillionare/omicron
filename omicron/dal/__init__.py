@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from .cache import RedisCache, RedisDB
+from .cache import RedisCache
 
 cache = RedisCache()
 
-__all__ = ['cache', 'RedisDB']
+__all__ = ['cache']
