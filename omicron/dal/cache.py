@@ -3,19 +3,12 @@
 
 """This is a awesome
         python script!"""
-import datetime
-import enum
 import logging
+from typing import TYPE_CHECKING
 
-import cfg4py
 import aioredis
-from typing import TYPE_CHECKING, Union, List
-import numpy as np
-from arrow import Arrow
+import cfg4py
 from aioredis.commands import Redis
-
-from ..core import FrameType
-from ..core.timeframe import tf
 
 if TYPE_CHECKING:
     from ..config.cfg4py_auto_gen import Config
@@ -41,8 +34,8 @@ class RedisCache:
     async def sanity_check(self, db):
         pass
 
-    async def init(self):
-        cfg: Config = cfg4py.get_instance()
+    async def init(self, cfg=None):
+        cfg: Config = cfg or cfg4py.get_instance()
         for i, name in enumerate(self.databases):
             db = await aioredis.create_redis_pool(cfg.redis.dsn, encoding='utf-8', maxsize=2, db=i)
             await self.sanity_check(db)

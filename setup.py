@@ -16,6 +16,7 @@ requirements = ['Click>=7.0',
                 'arrow==0.15.5',
                 'numpy>=1.18.1',
                 'aioredis==1.3.1',
+                'numba==0.49.1'
                 'omega']
 
 setup_requirements = []

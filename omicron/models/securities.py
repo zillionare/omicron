@@ -60,16 +60,17 @@ class Securities(object):
         secs = await cache.get_securities()
         if len(secs) != 0:
             self._secs = np.array([tuple(x.split(',')) for x in secs], dtype=self.dtypes)
+            # docme: apply_along_axis doesn't work on structured array. The following
+            # will cost 0.03 secs on 11370 recs
+            self._secs['ipo'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in
+                                 self._secs['ipo']]
+            self._secs['end'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in
+                                 self._secs['end']]
         else:
             secs = await FetchSecurityList().invoke()
             self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
             if len(secs) == 0:
                 raise ValueError("Failed to load security list")
-
-        # apply_alon_axis doesn't work on structured array. The following will cost 0.03 secs on 11370 recs
-        self._secs['ipo'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in self._secs['ipo']]
-        self._secs['end'] = [datetime.date(*[int(y) for y in x.split('-')]) for x in self._secs['end']]
-
 
     @lru_cache
     def choose(self, _type='stock', exclude_exit=True, block: str = '') -> list:
@@ -86,4 +87,4 @@ class Securities(object):
         result = self._secs[self._secs['type'] == _type]
         if exclude_exit:
             result = result[result['end'] > arrow.now().date()]
-        return result
+        return result['code']

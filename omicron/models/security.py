@@ -142,10 +142,10 @@ class Security(object):
     def __getitem__(self, key):
         return self._bars[key]
 
-    def qfq(self)->np.ndarray:
+    def qfq(self) -> np.ndarray:
         last = self._bars[-1]['factor']
         for field in ['open', 'high', 'low', 'close']:
-            self._bars[field] = (self._bars[field] / last ) * self._bars['factor']
+            self._bars[field] = (self._bars[field] / last) * self._bars['factor']
 
         return self._bars
 
@@ -167,16 +167,13 @@ class Security(object):
             self._bars = await FetchQuotes(self.code, end, offset, frame_type).invoke()
             return self.qfq() if fq else self._bars
 
-        time_converter = tf.int2time if frame_type in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
-                                                       FrameType.MIN60] else tf.int2date
-        dt_head, dt_tail = time_converter(head), time_converter(tail)
+        if start < head:
+            n = tf.count_frames(start, head, frame_type)
+            if n > 0:
+                await FetchQuotes(self.code, tf.shift(head, -1, frame_type), n, frame_type).invoke()
 
-        if start < dt_head:
-            await FetchQuotes(self.code, tf.shift(dt_head, -1, frame_type), tf.count_frames(start, dt_head, frame_type),
-                              frame_type).invoke()
-
-        if end > dt_tail:
-            n = tf.count_frames(dt_tail, end, frame_type)
+        if end > tail:
+            n = tf.count_frames(tail, end, frame_type)
             if n > 0:
                 await FetchQuotes(self.code, end, n, frame_type).invoke()
 

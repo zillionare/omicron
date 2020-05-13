@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Author: Aaron-Yang [code@jieyu.ai]
+Contributors:
+
+"""
+from numba import njit
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+# @njit
+def index(arr, item):
+    for idx, val in np.ndenumerate(arr):
+        if val == item:
+            return idx
+    # If no item was found return None, other return types might be a problem due to
+    # numbas type inference.
+    return -1
+
+
+# @njit
+def index_sorted(arr, item):
+    pos = np.searchsorted(arr, item)
+    if arr[pos] == item:
+        return pos
+    else:
+        return -1
+
+
+@njit
+def count_between(arr, start, end):
+    """
+    arr is sorted.
+    Args:
+        arr:
+        start:
+        end:
+
+    Returns:
+
+    """
+    pos_start = np.searchsorted(arr, start, side='right')
+    pos_end = np.searchsorted(arr, end, side='right')
+
+    return pos_end - pos_start + 1
+
+
+@njit
+def shift(arr, start, offset):
+    """
+    在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素
+    Args:
+        arr:
+        start:
+        offset:
+
+    Returns:
+
+    """
+    pos = np.searchsorted(arr, start, side='right')
+
+    if pos + offset - 1 >= len(arr):
+        return start
+    else:
+        return arr[pos + offset - 1]
