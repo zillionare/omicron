@@ -6,14 +6,17 @@ Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
 
 """
-from numba import njit
+from numba import njit, NumbaPendingDeprecationWarning
 import numpy as np
 import logging
+
+import warnings
+warnings.filterwarnings("ignore", category=NumbaPendingDeprecationWarning)
 
 logger = logging.getLogger(__name__)
 
 
-# @njit
+@njit
 def index(arr, item):
     for idx, val in np.ndenumerate(arr):
         if val == item:
@@ -23,7 +26,7 @@ def index(arr, item):
     return -1
 
 
-# @njit
+@njit
 def index_sorted(arr, item):
     pos = np.searchsorted(arr, item)
     if arr[pos] == item:

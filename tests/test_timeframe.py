@@ -1,6 +1,6 @@
 import unittest
 
-from omicron.core import FrameType
+from omicron.core.types import FrameType
 from omicron.core.timeframe import tf
 import arrow
 import logging

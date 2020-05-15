@@ -14,7 +14,6 @@ from arrow import Arrow
 import omicron.core.accelerate as accl
 from omicron.config import calendar
 from .types import FrameType
-from ..dal import security_cache
 
 logger = logging.getLogger(__file__)
 
@@ -52,6 +51,8 @@ class TimeFrame:
         """
 
         """
+        from ..dal import security_cache
+
         for name in ['day_frames', 'week_frames', 'month_frames']:
             frames = await security_cache.load_calendar(name)
             if len(frames):

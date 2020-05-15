@@ -6,7 +6,7 @@ import cfg4py
 import numpy as np
 from pyemit import emit
 
-from omicron.core import SecurityType, FrameType
+from omicron.core.types import SecurityType, FrameType
 from omicron.core.lang import async_run
 from omicron.core.timeframe import tf
 from omicron.dal import cache, security_cache

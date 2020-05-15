@@ -7,18 +7,14 @@ Contributors:
 
 """
 import logging
-import os
 import unittest
 
-import cfg4py
 from pyemit import emit
 
 import omicron
-from omicron.models.securities import Securities
-
 from omicron.core.lang import async_run
-
 from omicron.dal import cache
+from omicron.models.securities import Securities
 from tests import init_test_env
 
 logger = logging.getLogger(__name__)
@@ -56,4 +52,4 @@ class TestSecurity(unittest.TestCase):
     @async_run
     async def test_001_choose(self):
         s = Securities()
-        result = s.choose()
+        result = s.choose(['stock', 'index'])

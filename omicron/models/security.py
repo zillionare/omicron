@@ -9,18 +9,15 @@ Contributors:
 import datetime
 import logging
 import re
-from typing import Union
 
 import arrow
+import numpy as np
 from arrow import Arrow
 from omega.remote.fetchquotes import FetchQuotes
-from pyemit import emit
 
-from ..core import tf, SecurityType, MarketType, FrameType
-from ..dal import cache, security_cache
-import numpy as np
-
-from ..dal.security_cache import get_bars_range, clear_bars_range
+from ..core.timeframe import tf
+from ..core.types import SecurityType, MarketType, FrameType
+from ..dal import security_cache
 from ..models.securities import Securities
 
 logger = logging.getLogger(__name__)

@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 
 """Tests for `omicron` package."""
-import os
+import logging
 import unittest
 
 import arrow
-import cfg4py
 from click.testing import CliRunner
-from omicron.core.types import FrameType
+from omega.remote.fetchquotes import FetchQuotes
+from pyemit import emit
 
 from omicron import cli
 from omicron.core.lang import async_run
-from omega.remote.fetchquotes import FetchQuotes
-from pyemit import emit
-import logging
-
+from omicron.core.types import FrameType
 from omicron.dal import cache
 from tests import init_test_env
 

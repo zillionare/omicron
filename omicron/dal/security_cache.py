@@ -12,7 +12,7 @@ from typing import Union, List, Iterable
 
 from arrow import Arrow
 
-from omicron.core import FrameType
+from omicron.core.types import FrameType
 from omicron.core.timeframe import tf
 from omicron.dal import cache
 import numpy as np
