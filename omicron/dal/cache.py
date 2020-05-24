@@ -17,11 +17,12 @@ logger = logging.getLogger(__file__)
 
 
 class RedisCache:
-    databases = ['_sys_', '_security_']
+    databases = ['_sys_', '_security_', '_temp_']
 
     def __init__(self):
         self._security_ = None
         self._sys_ = None
+        self._temp_ = None
 
     @property
     def security(self)->Redis:
@@ -30,6 +31,10 @@ class RedisCache:
     @property
     def sys(self)->Redis:
         return self._sys_
+
+    @property
+    def temp(self)->Redis:
+        return self._temp_
 
     async def sanity_check(self, db):
         pass

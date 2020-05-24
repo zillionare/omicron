@@ -22,10 +22,9 @@ class TimeFrame:
     _tz = pytz.timezone('Asia/Chongqing')
     back_test_mode = False
     _now: Optional[Arrow] = None
-    minute_level_frames = {FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
-                           FrameType.MIN30, FrameType.MIN60}
-    day_level_frames = {FrameType.DAY, FrameType.MONTH, FrameType.QUARTER,
-                        FrameType.WEEK}
+    minute_level_frames = [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
+                           FrameType.MIN30, FrameType.MIN60]
+    day_level_frames = [FrameType.DAY, FrameType.WEEK, FrameType.MONTH, FrameType.YEAR]
 
     ticks = {
         FrameType.MIN1:
@@ -38,13 +37,13 @@ class TimeFrame:
         FrameType.MIN30: [int(s[:2]) * 60 + int(s[2:]) for s in ["1000", "1030", "1100",
                                                                  "1130", "1330", "1400",
                                                                  "1430", "1500"]],
-        FrameType.MIN60: [int(s[:2]) * 60 + int(s[2:]) for s in ["1000", "1100",
+        FrameType.MIN60: [int(s[:2]) * 60 + int(s[2:]) for s in ["1030", "1130",
                                                                  "1400", "1500"]]
     }
 
-    day_frames = calendar.day_frames
-    week_frames = calendar.week_frames
-    month_frames = calendar.month_frames
+    day_frames = np.array(calendar.day_frames)
+    week_frames = np.array(calendar.week_frames)
+    month_frames = np.array(calendar.month_frames)
 
     @classmethod
     async def update_calendar(cls):
@@ -101,7 +100,7 @@ class TimeFrame:
         return int(f"{d.year:04}{d.month:02}{d.day:02}")
 
     @classmethod
-    def int2date(cls, d: int) -> datetime.date:
+    def int2date(cls, d: Union[int, str]) -> datetime.date:
         """
         convert a special formatted int to date, for example, from 20200501 to date(
         2020,5,1)
@@ -313,6 +312,33 @@ class TimeFrame:
     @classmethod
     def round_down(cls, tm: Arrow, frame_type: FrameType) -> Arrow:
         pass
+
+    @classmethod
+    def get_start_frame(cls, frame_type: FrameType) -> Union[datetime.date,
+                                                             datetime.datetime]:
+        if frame_type == FrameType.DAY:
+            return cls.int2date(cls.day_frames[0])
+        elif frame_type == FrameType.WEEK:
+            return cls.int2date(cls.week_frames[0])
+        elif frame_type == FrameType.MONTH:
+            return cls.int2date(cls.month_frames[0])
+        elif frame_type == FrameType.MIN1:
+            day = cls.int2date(cls.day_frames[0])
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=31)
+        elif frame_type == FrameType.MIN5:
+            day = cls.int2date(cls.day_frames[0])
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=35)
+        elif frame_type == FrameType.MIN15:
+            day = cls.int2date(cls.day_frames[0])
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=45)
+        elif frame_type == FrameType.MIN30:
+            day = cls.int2date(cls.day_frames[0])
+            return datetime.datetime(day.year, day.month, day.day, hour=10)
+        elif frame_type == FrameType.MIN60:
+            day = cls.int2date(cls.day_frames[0])
+            return datetime.datetime(day.year, day.month, day.day, hour=10, minute=30)
+        else:
+            raise ValueError(f"{frame_type} not supported")
 
 
 tf = TimeFrame()

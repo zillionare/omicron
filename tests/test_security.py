@@ -220,7 +220,7 @@ class MyTestCase(unittest.TestCase):
             end, n = tf.int2date(days[i]), i + 1
             expected = days[:n]
             actual = construct_frame_keys(end, n, FrameType.DAY)
-            self.assertListEqual(expected, actual)
+            self.assertListEqual(expected, list(actual))
 
         X = [
             (202002041030, 1, [202002041030]),

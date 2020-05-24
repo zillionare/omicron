@@ -6,8 +6,6 @@ __version__ = '0.1.0'
 
 import logging
 
-from omicron.core.events import Events
-
 logger = logging.getLogger(__name__)
 
 
