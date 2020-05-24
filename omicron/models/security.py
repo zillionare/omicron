@@ -27,7 +27,8 @@ class Security(object):
     def __init__(self, code: str):
         self._code = code
 
-        _, self._display_name, self._name, self._start_date, self._end_date, _type = Securities()[code]
+        _, self._display_name, self._name, self._start_date, self._end_date, _type = \
+        Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
 
@@ -146,7 +147,8 @@ class Security(object):
 
         return self._bars
 
-    async def load_bars(self, start: Arrow, offset: int, frame_type: FrameType, fq=True) -> np.ndarray:
+    async def load_bars(self, start: Arrow, offset: int, frame_type: FrameType,
+                        fq=True) -> np.ndarray:
         self._bars = None
         start = tf.shift(start, 0, frame_type)
         exclude_edge = -1 if offset > 0 else 1
@@ -167,7 +169,8 @@ class Security(object):
         if start < head:
             n = tf.count_frames(start, head, frame_type)
             if n > 0:
-                await FetchQuotes(self.code, tf.shift(head, -1, frame_type), n, frame_type).invoke()
+                await FetchQuotes(self.code, tf.shift(head, -1, frame_type), n,
+                                  frame_type).invoke()
 
         if end > tail:
             n = tf.count_frames(tail, end, frame_type)

@@ -173,17 +173,10 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
 
 
 async def get_bars_raw_data(code: str, end: Union[datetime.date, datetime.datetime,
-                            Arrow], n: int, frame_type:FrameType) -> bytes:
+                                                  Arrow], n: int,
+                            frame_type: FrameType) -> bytes:
     """
     如果没有数据，返回空字节串b''
-    Args:
-        code:
-        end:
-        n:
-        frame_type:
-
-    Returns:
-
     """
     if n == 0: return b''
     frames = construct_frame_keys(end, n, frame_type)
@@ -194,7 +187,6 @@ async def get_bars_raw_data(code: str, end: Union[datetime.date, datetime.dateti
     recs = await pl.execute()
 
     return b''.join(filter(None, recs))
-
 
 
 def construct_frame_keys(end: Arrow, n: int, frame_type: FrameType) -> List[int]:

@@ -6,11 +6,12 @@ Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
 
 """
-from numba import njit, NumbaPendingDeprecationWarning
-import numpy as np
 import logging
-
 import warnings
+
+import numpy as np
+from numba import njit, NumbaPendingDeprecationWarning
+
 warnings.filterwarnings("ignore", category=NumbaPendingDeprecationWarning)
 
 logger = logging.getLogger(__name__)
@@ -39,13 +40,6 @@ def index_sorted(arr, item):
 def count_between(arr, start, end):
     """
     arr is sorted.
-    Args:
-        arr:
-        start:
-        end:
-
-    Returns:
-
     """
     pos_start = np.searchsorted(arr, start, side='right')
     pos_end = np.searchsorted(arr, end, side='right')
@@ -57,13 +51,6 @@ def count_between(arr, start, end):
 def shift(arr, start, offset):
     """
     在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素
-    Args:
-        arr:
-        start:
-        offset:
-
-    Returns:
-
     """
     pos = np.searchsorted(arr, start, side='right')
 

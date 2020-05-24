@@ -1,6 +1,6 @@
-=====
+========
 omicron
-=====
+========
 
 
 .. image:: https://img.shields.io/pypi/v/omicron.svg
