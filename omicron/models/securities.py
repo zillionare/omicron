@@ -11,14 +11,15 @@ import logging
 from typing import List
 
 import arrow
+import cfg4py
 import numpy as np
-from omega.remote.fetchsecuritylist import FetchSecurityList
 
 from ..core.lang import singleton
+from ..core.remote import get_security_list
 from ..dal import cache
 
 logger = logging.getLogger(__name__)
-
+cfg = cfg4py.get_instance()
 
 @singleton
 class Securities(object):
@@ -71,7 +72,7 @@ class Securities(object):
             logger.info("%s securities loaded from database", len(self._secs))
         else:
             logger.info("no securities in database, fetching from server...")
-            secs = await FetchSecurityList().invoke()
+            secs = await get_security_list()
             self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
             if len(self._secs) == 0:
                 raise ValueError("Failed to load security list")

@@ -39,8 +39,8 @@ class RedisCache:
     async def sanity_check(self, db):
         pass
 
-    async def init(self, cfg=None):
-        cfg: Config = cfg or cfg4py.get_instance()
+    async def init(self):
+        cfg: Config = cfg4py.get_instance()
         for i, name in enumerate(self.databases):
             db = await aioredis.create_redis_pool(cfg.redis.dsn, encoding='utf-8', maxsize=2, db=i)
             await self.sanity_check(db)

@@ -9,10 +9,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def init(cfg):
+async def init():
     from omicron.dal import cache
     from omicron.models.securities import Securities
-    logger.info("init omicron with %s", cfg)
-    await cache.init(cfg)
+    await cache.init()
     sec = Securities()
     await sec.load()

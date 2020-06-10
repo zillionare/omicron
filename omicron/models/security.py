@@ -13,8 +13,8 @@ import re
 import arrow
 import numpy as np
 from arrow import Arrow
-from omega.remote.fetchquotes import FetchQuotes
 
+from ..core.remote import get_bars
 from ..core.timeframe import tf
 from ..core.types import SecurityType, MarketType, FrameType
 from ..dal import security_cache
@@ -163,19 +163,19 @@ class Security(object):
             # not cached at all, ensure cache pointers are clear
             await security_cache.clear_bars_range(self.code, frame_type)
 
-            self._bars = await FetchQuotes(self.code, end, offset, frame_type).invoke()
+            self._bars = await get_bars(self.code, end, offset, frame_type)
             return self.qfq() if fq else self._bars
 
         if start < head:
             n = tf.count_frames(start, head, frame_type)
             if n > 0:
-                await FetchQuotes(self.code, tf.shift(head, -1, frame_type), n,
-                                  frame_type).invoke()
+                _end = tf.shift(head, -1, frame_type)
+                self._bars = await get_bars(self.code, _end, n, frame_type)
 
         if end > tail:
             n = tf.count_frames(tail, end, frame_type)
             if n > 0:
-                await FetchQuotes(self.code, end, n, frame_type).invoke()
+                self._bars = await get_bars(self.code, end, n, frame_type)
 
         # now all bars in [start, end] should exist in cache
         self._bars = await security_cache.get_bars(self.code, end, offset, frame_type)
