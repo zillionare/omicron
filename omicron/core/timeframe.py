@@ -173,7 +173,7 @@ class TimeFrame:
             return cls._tz.localize(datetime.datetime(date_part.year, date_part.month,
                                                       date_part.day) +
                                     datetime.timedelta(
-                                        minutes=cls.ticks[frame_type][min_part]))
+                                            minutes=cls.ticks[frame_type][min_part]))
         else:
             raise ValueError(f"{frame_type} is not supported.")
 
@@ -306,36 +306,113 @@ class TimeFrame:
         pass
 
     @classmethod
-    def round_up(cls, tm: Arrow, frame_type: FrameType) -> Arrow:
-        pass
+    def ceil(cls, day: Union[str, Arrow, datetime.date],
+             frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+        """
+        获取指定日期的结束frame。注意这个frame可能位于将来。
+        Args:
+            day:
+            frame_type:
 
-    @classmethod
-    def round_down(cls, tm: Arrow, frame_type: FrameType) -> Arrow:
-        pass
+        Returns:
 
-    @classmethod
-    def get_start_frame(cls, frame_type: FrameType) -> Union[datetime.date,
-                                                             datetime.datetime]:
+        """
+        if isinstance(day, str):
+            day = cls.date2int(arrow.get(day).date())
+        elif isinstance(day, Arrow) or isinstance(day, datetime.datetime):
+            day = cls.date2int(day.date())
+        elif isinstance(day, datetime.date):
+            day = cls.date2int(day)
+        else:
+            raise TypeError(f"{type(day)} is not supported.")
+
         if frame_type == FrameType.DAY:
-            return cls.int2date(cls.day_frames[0])
+            raise ValueError("calling ceil on FrameType.DAY is meaningless.")
         elif frame_type == FrameType.WEEK:
-            return cls.int2date(cls.week_frames[0])
+            ceil_day = cls.week_frames[cls.week_frames >= day][0]
+            return cls.int2date(ceil_day)
         elif frame_type == FrameType.MONTH:
-            return cls.int2date(cls.month_frames[0])
+            ceil_day = cls.month_frames[cls.month_frames >= day][0]
+            return cls.int2date(ceil_day)
+        elif frame_type in cls.minute_level_frames:
+            last_close_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(last_close_day)
+            return datetime.datetime(day.year, day.month, day.day, hour=15, minute=0)
+        else:
+            raise ValueError(f"{frame_type} not supported")
+
+    @classmethod
+    def first_frame(cls, frame_type: FrameType):
+        """
+        获取行情软件支持的最早的一个frame
+        Args:
+            frame_type (FrameType):
+
+        Returns:
+
+        """
+        day = None
+        if frame_type == FrameType.WEEK:
+            day = cls.week_frames[0]
+        elif frame_type == FrameType.MONTH:
+            day = cls.month_frames[0]
+        elif frame_type == FrameType.DAY or frame_type in cls.minute_level_frames:
+            day = cls.day_frames[0]
+
+        if day is not None:
+            return cls.int2date(day)
+        else:
+            raise TypeError(f"{frame_type} is not supported.")
+
+    @classmethod
+    def floor(cls, day: Union[str, Arrow, datetime.date],
+              frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+        """
+        获取指定日期的起始的frame。
+        Args:
+            day (Any):
+            frame_type (FrameType):
+
+        Returns:
+
+        """
+        if isinstance(day, str):
+            day = cls.date2int(arrow.get(day).date())
+        elif isinstance(day, Arrow) or isinstance(day, datetime.datetime):
+            day = cls.date2int(day.date())
+        elif isinstance(day, datetime.date):
+            day = cls.date2int(day)
+        elif day is not None:
+            raise TypeError(f"{type(day)} is not supported.")
+
+        if frame_type == FrameType.DAY:
+            raise ValueError("calling floor on FrameType.DAY is meaningless. Maybe "
+                             "you are looking for call tf.shift()?")
+        elif frame_type == FrameType.WEEK:
+            floor_day = cls.week_frames[cls.week_frames <= day][-1]
+            return cls.int2date(floor_day)
+        elif frame_type == FrameType.MONTH:
+            floor_day = cls.month_frames[cls.month_frames <= day][-1]
+            return cls.int2date(floor_day)
         elif frame_type == FrameType.MIN1:
-            day = cls.int2date(cls.day_frames[0])
+            floor_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(floor_day)
             return datetime.datetime(day.year, day.month, day.day, hour=9, minute=31)
         elif frame_type == FrameType.MIN5:
-            day = cls.int2date(cls.day_frames[0])
+            floor_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(floor_day)
             return datetime.datetime(day.year, day.month, day.day, hour=9, minute=35)
         elif frame_type == FrameType.MIN15:
-            day = cls.int2date(cls.day_frames[0])
+            floor_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(floor_day)
             return datetime.datetime(day.year, day.month, day.day, hour=9, minute=45)
         elif frame_type == FrameType.MIN30:
-            day = cls.int2date(cls.day_frames[0])
+            floor_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(floor_day)
             return datetime.datetime(day.year, day.month, day.day, hour=10)
         elif frame_type == FrameType.MIN60:
-            day = cls.int2date(cls.day_frames[0])
+            floor_day = cls.day_frames[cls.day_frames <= day][-1]
+            day = cls.int2date(floor_day)
             return datetime.datetime(day.year, day.month, day.day, hour=10, minute=30)
         else:
             raise ValueError(f"{frame_type} not supported")

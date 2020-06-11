@@ -1,10 +1,10 @@
+import logging
 import unittest
 
-from omicron.core.types import FrameType
-from omicron.core.timeframe import tf
 import arrow
-import logging
 
+from omicron.core.timeframe import tf
+from omicron.core.types import FrameType
 from tests import init_test_env
 
 cfg = init_test_env()
@@ -208,6 +208,50 @@ class MyTestCase(unittest.TestCase):
 
             actual = tf.month_shift(arrow.get(start).date(), n)
             self.assertEqual(arrow.get(expected).date(), actual)
+
+    def test_floor(self):
+        X = [
+            ('2005-1-10', FrameType.WEEK, '2005-1-7'),
+            ('2005-2-1', FrameType.MONTH, '2005-1-31'),
+            ('2005-1-5', FrameType.MIN1, '2005-1-5 09:31'),
+            ('2005-1-5', FrameType.MIN5, '2005-1-5 09:35'),
+            ('2005-1-5', FrameType.MIN15, '2005-1-5 09:45'),
+            ('2005-1-5', FrameType.MIN30, '2005-1-5 10:00'),
+            ('2005-1-5', FrameType.MIN60, '2005-1-5 10:30'),
+        ]
+
+        for i, (day, frame_type, expected) in enumerate(X):
+            logger.info("testing %s", X[i])
+
+            actual = tf.floor(day, frame_type)
+            if frame_type in tf.day_level_frames:
+                expected = arrow.get(expected).date()
+            else:
+                expected = arrow.get(expected).naive
+
+            self.assertEqual(expected, actual)
+
+    def test_ceil(self):
+        X = [
+            ('2005-1-4', FrameType.WEEK, '2005-1-7'),
+            ('2005-1-1', FrameType.MONTH, '2005-1-31'),
+            ('2005-1-5', FrameType.MIN1, '2005-1-5 15:00'),
+            ('2005-1-5', FrameType.MIN5, '2005-1-5 15:00'),
+            ('2005-1-5', FrameType.MIN15, '2005-1-5 15:00'),
+            ('2005-1-5', FrameType.MIN30, '2005-1-5 15:00'),
+            ('2005-1-5', FrameType.MIN60, '2005-1-5 15:00'),
+        ]
+
+        for i, (day, frame_type, expected) in enumerate(X):
+            logger.info("testing %s", X[i])
+
+            actual = tf.ceil(day, frame_type)
+            if frame_type in tf.day_level_frames:
+                expected = arrow.get(expected).date()
+            else:
+                expected = arrow.get(expected).naive
+
+            self.assertEqual(expected, actual)
 
     if __name__ == '__main__':
         unittest.main()
