@@ -337,7 +337,8 @@ class TimeFrame:
         elif frame_type in cls.minute_level_frames:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=15, minute=0)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=15, minute=0)
+            return cls._tz.localize(naive)
         else:
             raise ValueError(f"{frame_type} not supported")
 
@@ -377,18 +378,17 @@ class TimeFrame:
 
         """
         if isinstance(day, str):
-            day = cls.date2int(arrow.get(day).date())
+            day = arrow.get(day).date()
         elif isinstance(day, Arrow) or isinstance(day, datetime.datetime):
-            day = cls.date2int(day.date())
-        elif isinstance(day, datetime.date):
-            day = cls.date2int(day)
+            day = day.date()
         elif day is not None:
             raise TypeError(f"{type(day)} is not supported.")
 
         if frame_type == FrameType.DAY:
-            raise ValueError("calling floor on FrameType.DAY is meaningless. Maybe "
-                             "you are looking for call tf.shift()?")
-        elif frame_type == FrameType.WEEK:
+            return cls.day_shift(day, 0)
+
+        day = cls.date2int(day)
+        if frame_type == FrameType.WEEK:
             floor_day = cls.week_frames[cls.week_frames <= day][-1]
             return cls.int2date(floor_day)
         elif frame_type == FrameType.MONTH:
@@ -397,23 +397,28 @@ class TimeFrame:
         elif frame_type == FrameType.MIN1:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=31)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=9, minute=31)
+            return cls._tz.localize(naive)
         elif frame_type == FrameType.MIN5:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=35)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=9, minute=35)
+            return cls._tz.localize(naive)
         elif frame_type == FrameType.MIN15:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=45)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=9, minute=45)
+            return cls._tz.localize(naive)
         elif frame_type == FrameType.MIN30:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=10)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=10)
+            return cls._tz.localize(naive)
         elif frame_type == FrameType.MIN60:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=10, minute=30)
+            naive = datetime.datetime(day.year, day.month, day.day, hour=10, minute=30)
+            return cls._tz.localize(naive)
         else:
             raise ValueError(f"{frame_type} not supported")
 
