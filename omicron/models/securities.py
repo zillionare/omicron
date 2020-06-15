@@ -8,11 +8,11 @@ Contributors:
 """
 import datetime
 import logging
-from typing import List
 
 import arrow
 import cfg4py
 import numpy as np
+from typing import List
 
 from ..core.lang import singleton
 from ..core.remote import get_security_list
@@ -20,6 +20,7 @@ from ..dal import cache
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
+
 
 @singleton
 class Securities(object):
@@ -63,21 +64,25 @@ class Securities(object):
         if len(secs) != 0:
             self._secs = np.array([tuple(x.split(',')) for x in secs],
                                   dtype=self.dtypes)
-            # docme: apply_along_axis doesn't work on structured array. The following
-            # will cost 0.03 secs on 11370 recs
-            self._secs['ipo'] = [datetime.date(*map(int, x.split('-'))) for x in
-                                 self._secs['ipo']]
-            self._secs['end'] = [datetime.date(*map(int, x.split('-'))) for x in
-                                 self._secs['end']]
             logger.info("%s securities loaded from database", len(self._secs))
         else:
             logger.info("no securities in database, fetching from server...")
             secs = await get_security_list()
-            self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
-            if len(self._secs) == 0:
+            logger.info("%s records fetched from server.", len(secs))
+            if len(secs) == 0:
                 raise ValueError("Failed to load security list")
 
-            logger.info("%s securities saved in database", len(self._secs))
+            self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
+
+        # docme: apply_along_axis doesn't work on structured array. The following
+        # will cost 0.03 secs on 11370 recs
+        if len(self._secs) == 0:
+            raise ValueError("No security records")
+
+        self._secs['ipo'] = [datetime.date(*map(int, x.split('-'))) for x in
+                             self._secs['ipo']]
+        self._secs['end'] = [datetime.date(*map(int, x.split('-'))) for x in
+                             self._secs['end']]
 
     def choose(self, _types: List[str], exclude_exit=True, block: str = '') -> list:
         """

@@ -20,7 +20,7 @@ cfg = cfg4py.get_instance()
 
 
 async def _quotes_server_get(item: str, params: dict = None):
-    url = f"{cfg.server.url}/quotes/{item}"
+    url = f"{cfg.omega.server.url}/quotes/{item}"
     try:
         async with aiohttp.ClientSession() as client:
             async with client.get(url, json=params) as resp:
