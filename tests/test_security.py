@@ -6,11 +6,9 @@ import cfg4py
 import numpy as np
 from pyemit import emit
 
-from omicron.core.types import SecurityType, FrameType
 from omicron.core.lang import async_run
-from omicron.core.timeframe import tf
+from omicron.core.types import SecurityType, FrameType
 from omicron.dal import cache, security_cache
-from omicron.dal.security_cache import construct_frame_keys
 from omicron.models.securities import Securities
 from omicron.models.security import Security
 from tests import init_test_env
@@ -211,45 +209,6 @@ class MyTestCase(unittest.TestCase):
         self.assert_bars_equal(expected2, bars2)
         self.assert_bars_equal(expected1, bars1)
 
-    def test_005_construct_frame_keys(self):
-        days = [20200117, 20200120, 20200121, 20200122, 20200123, 20200203,
-                20200204, 20200205, 20200206, 20200207, 20200210, 20200211]
-
-        for i in range(len(days)):
-            logger.info("testing %s, %s", days[i], i)
-            end, n = tf.int2date(days[i]), i + 1
-            expected = days[:n]
-            actual = construct_frame_keys(end, n, FrameType.DAY)
-            self.assertListEqual(expected, list(actual))
-
-        X = [
-            (202002041030, 1, [202002041030]),
-            (202002041030, 2, [202002041000, 202002041030]),
-            (202002041030, 3, [202002031500, 202002041000, 202002041030]),
-            (202002041030, 4, [202002031430, 202002031500, 202002041000, 202002041030]),
-            (202002041030, 5, [202002031400, 202002031430, 202002031500, 202002041000,
-                               202002041030]),
-            (202002041030, 6, [202002031330, 202002031400, 202002031430, 202002031500,
-                               202002041000, 202002041030]),
-            (202002041030, 7, [202002031130, 202002031330, 202002031400, 202002031430,
-                               202002031500, 202002041000, 202002041030]),
-            (202002041030, 8, [202002031100, 202002031130, 202002031330, 202002031400,
-                               202002031430, 202002031500, 202002041000, 202002041030]),
-            (202002041030, 9, [202002031030, 202002031100, 202002031130, 202002031330,
-                               202002031400, 202002031430, 202002031500, 202002041000,
-                               202002041030]),
-            (202002041030, 10, [202002031000, 202002031030, 202002031100, 202002031130,
-                                202002031330, 202002031400, 202002031430, 202002031500,
-                                202002041000, 202002041030]),
-            (202002041030, 11, [202001231500, 202002031000, 202002031030, 202002031100,
-                                202002031130, 202002031330, 202002031400, 202002031430,
-                                202002031500, 202002041000, 202002041030]),
-        ]
-        for i, (end, n, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
-            end = tf.int2time(end)
-            actual = construct_frame_keys(end, n, FrameType.MIN30)
-            self.assertListEqual(expected, actual)
 
     if __name__ == '__main__':
         unittest.main()

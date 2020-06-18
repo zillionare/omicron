@@ -4,7 +4,7 @@
 import datetime
 import itertools
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import arrow
 import numpy as np
@@ -87,7 +87,7 @@ class TimeFrame:
         return int(f"{tm.year:04}{tm.month:02}{tm.day:02}{tm.hour:02}{tm.minute:02}")
 
     @classmethod
-    def date2int(cls, d: datetime.date) -> int:
+    def date2int(cls, d: Union[datetime.datetime, datetime.date, Arrow]) -> int:
         """
         convert date into a special formatted int, for example, from date(2020,5,
         1) to 20200501
@@ -421,6 +421,61 @@ class TimeFrame:
             return cls._tz.localize(naive)
         else:
             raise ValueError(f"{frame_type} not supported")
+
+    def get_frames(cls, start: Arrow, end: Arrow, frame_type: FrameType) -> List[int]:
+        """
+        取[start, end]间所有类型为frame_type的frames。
+        Args:
+            start:
+            end:
+            frame_type:
+
+        Returns:
+
+        """
+        n = cls.count_frames(start, end, frame_type)
+        return cls.get_frames_by_count(end, n, frame_type)
+
+    def get_frames_by_count(cls, end: Arrow, n: int, frame_type: FrameType) -> List[
+        int]:
+        """
+        取以end为结束点,周期为frame_type的n个frame。
+        Args:
+            end:
+            n:
+            frame_type:
+
+        Returns:
+
+        """
+
+        if frame_type == FrameType.DAY:
+            end = tf.date2int(end)
+            pos = np.searchsorted(tf.day_frames, end, side='right')
+            return tf.day_frames[max(0, pos - n):pos]
+        elif frame_type == FrameType.WEEK:
+            end = tf.date2int(end)
+            pos = np.searchsorted(tf.week_frames, end, side='right')
+            return tf.week_frames[max(0, pos - n):pos]
+        elif frame_type == FrameType.MONTH:
+            end = tf.date2int(end)
+            pos = np.searchsorted(tf.month_frames, end, side='right')
+            return tf.month_frames[max(0, pos - n):pos]
+        elif frame_type in {FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
+                            FrameType.MIN30, FrameType.MIN60}:
+            n_days = n // len(tf.ticks[frame_type]) + 2
+            ticks = tf.ticks[frame_type] * n_days
+
+            days = cls.get_frames_by_count(end, n_days, FrameType.DAY)
+            days = np.repeat(days, len(tf.ticks[frame_type]))
+
+            ticks = [day * 10000 + int(tm / 60) * 100 + tm % 60 for day, tm in zip(days,
+                                                                                   ticks)]
+
+            pos = ticks.index(tf.time2int(end)) + 1
+            return ticks[max(0, pos - n): pos]
+        else:
+            raise ValueError(f"{frame_type} not support yet")
 
 
 tf = TimeFrame()
