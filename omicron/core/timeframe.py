@@ -209,7 +209,7 @@ class TimeFrame:
     @classmethod
     def count_month_frames(cls, start: datetime.date, end: datetime.date) -> int:
         """
-        cacl trade months between start and end date in close-to-close way. Both
+        calc trade months between start and end date in close-to-close way. Both
         start and end will be aligned to open trade day before calculation. After that,
         if start == end, this will returns 1.
         Args:
@@ -422,6 +422,7 @@ class TimeFrame:
         else:
             raise ValueError(f"{frame_type} not supported")
 
+    @classmethod
     def get_frames(cls, start: Arrow, end: Arrow, frame_type: FrameType) -> List[int]:
         """
         取[start, end]间所有类型为frame_type的frames。
@@ -436,6 +437,7 @@ class TimeFrame:
         n = cls.count_frames(start, end, frame_type)
         return cls.get_frames_by_count(end, n, frame_type)
 
+    @classmethod
     def get_frames_by_count(cls, end: Arrow, n: int, frame_type: FrameType) -> List[
         int]:
         """
@@ -469,8 +471,8 @@ class TimeFrame:
             days = cls.get_frames_by_count(end, n_days, FrameType.DAY)
             days = np.repeat(days, len(tf.ticks[frame_type]))
 
-            ticks = [day * 10000 + int(tm / 60) * 100 + tm % 60 for day, tm in zip(days,
-                                                                                   ticks)]
+            ticks = [day * 10000 + int(tm / 60) * 100 + tm % 60 for
+                     day, tm in zip(days, ticks)]
 
             pos = ticks.index(tf.time2int(end)) + 1
             return ticks[max(0, pos - n): pos]

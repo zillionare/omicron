@@ -227,7 +227,7 @@ class MyTestCase(unittest.TestCase):
             if frame_type in tf.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
-                expected = arrow.get(expected).naive
+                expected = arrow.get(expected, tzinfo=cfg.tz).datetime
 
             self.assertEqual(expected, actual)
 
@@ -249,7 +249,7 @@ class MyTestCase(unittest.TestCase):
             if frame_type in tf.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
-                expected = arrow.get(expected).naive
+                expected = arrow.get(expected, tzinfo=cfg.tz).datetime
 
             self.assertEqual(expected, actual)
 

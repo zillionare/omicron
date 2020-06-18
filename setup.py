@@ -38,11 +38,6 @@ setup(
             'Programming Language :: Python :: 3.8',
         ],
         description="Core module for Zillionare",
-        entry_points={
-            'console_scripts': [
-                'omicron=omicron.cli:main',
-            ],
-        },
         install_requires=requirements,
         license="MIT license",
         long_description=readme + '\n\n' + history,
