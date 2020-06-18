@@ -15,7 +15,7 @@ import numpy as np
 from typing import List
 
 from ..core.lang import singleton
-from ..core.remote import get_security_list
+from ..core.quotes_fetcher import get_security_list
 from ..dal import cache
 
 logger = logging.getLogger(__name__)
@@ -68,9 +68,9 @@ class Securities(object):
         else:
             logger.info("no securities in database, fetching from server...")
             secs = await get_security_list()
-            logger.info("%s records fetched from server.", len(secs))
             if len(secs) == 0:
                 raise ValueError("Failed to load security list")
+            logger.info("%s records fetched from server.", len(secs))
 
             self._secs = np.array([tuple(x) for x in secs], dtype=self.dtypes)
 

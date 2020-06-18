@@ -14,7 +14,7 @@ import arrow
 import numpy as np
 from arrow import Arrow
 
-from ..core.remote import get_bars
+from ..core.quotes_fetcher import get_bars
 from ..core.timeframe import tf
 from ..core.types import SecurityType, MarketType, FrameType
 from ..dal import security_cache

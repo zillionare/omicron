@@ -98,6 +98,8 @@ async def save_bars(sec: str, bars: np.ndarray, frame_type: FrameType,
                                                                      -1,
                                                                      frame_type) > tail:
         # don't save to database, otherwise the data is not continuous
+        logger.warning("discrete bars found, code: %s, db(%s, %s), bars(%s,%s)",
+                       sec, head, tail, bars['frame'][0], bars['frame'][-1])
         return
 
     # both head and tail exist, only save bars out of database's range
@@ -134,7 +136,7 @@ async def _save_bars(code: str, bars: np.ndarray, frame_type: FrameType,
     #     pipeline.hset(key, frame, value)
     hmset = {
         frame_convert_func(
-            frame): f"{o:.2f} {h:.2f} {l:.2f} {c:.2f} {v} {a:.2f} {fq:.2f}" for
+                frame): f"{o:.2f} {h:.2f} {l:.2f} {c:.2f} {v} {a:.2f} {fq:.2f}" for
         frame, o, h, l, c, v, a, fq in bars
     }
 
