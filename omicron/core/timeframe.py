@@ -13,7 +13,7 @@ from arrow import Arrow
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
-from .types import FrameType
+from .types import FrameType, Frame
 
 logger = logging.getLogger(__file__)
 
@@ -27,18 +27,23 @@ class TimeFrame:
     day_level_frames = [FrameType.DAY, FrameType.WEEK, FrameType.MONTH, FrameType.YEAR]
 
     ticks = {
-        FrameType.MIN1:
-                         [i for i in itertools.chain(range(571, 691), range(781, 901))],
-        FrameType.MIN5:
-                         [i for i in
-                          itertools.chain(range(575, 695, 5), range(785, 905, 5))],
-        FrameType.MIN15: [i for i in
-                          itertools.chain(range(585, 705, 15), range(795, 915, 15))],
-        FrameType.MIN30: [int(s[:2]) * 60 + int(s[2:]) for s in ["1000", "1030", "1100",
-                                                                 "1130", "1330", "1400",
-                                                                 "1430", "1500"]],
-        FrameType.MIN60: [int(s[:2]) * 60 + int(s[2:]) for s in ["1030", "1130",
-                                                                 "1400", "1500"]]
+        FrameType.MIN1:  [i for i in itertools.chain(range(571, 691), range(781, 901))],
+        FrameType.MIN5:  [i for i in itertools.chain(range(575, 695, 5),
+                                                     range(785, 905, 5))],
+        FrameType.MIN15: [i for i in itertools.chain(range(585, 705, 15),
+                                                     range(795, 915, 15))],
+        FrameType.MIN30: [int(s[:2]) * 60 + int(s[2:]) for s in ["1000",
+                                                                 "1030",
+                                                                 "1100",
+                                                                 "1130",
+                                                                 "1330",
+                                                                 "1400",
+                                                                 "1430",
+                                                                 "1500"]],
+        FrameType.MIN60: [int(s[:2]) * 60 + int(s[2:]) for s in ["1030",
+                                                                 "1130",
+                                                                 "1400",
+                                                                 "1500"]]
     }
 
     day_frames = np.array(calendar.day_frames)
@@ -148,28 +153,53 @@ class TimeFrame:
         start = cls.date2int(start)
         return cls.int2date(accl.shift(cls.month_frames, start, offset))
 
+
     @classmethod
-    def shift(cls, start: Union[Arrow, datetime.date, datetime.datetime], n: int,
-              frame_type: FrameType) -> Union[
-        datetime.date, datetime.datetime]:
+    def get_ticks(cls, frame_type: FrameType)->Union[List, np.array]:
+        if frame_type in cls.minute_level_frames:
+            return cls.ticks[frame_type]
+
         if frame_type == FrameType.DAY:
-            return cls.day_shift(start, n)
+            return cls.day_frames
+        elif frame_type == FrameType.WEEK:
+            return cls.week_frames
+        elif frame_type == FrameType.MONTH:
+            return cls.month_frames
+        else:
+            raise ValueError(f"{frame_type} not supported!")
+
+    @classmethod
+    def shift(cls, moment: Union[Arrow, datetime.date, datetime.datetime], n: int,
+              frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+        """
+        将指定的moment移动N个位置。当N为负数时，意味着向前移动；当N为正数时，意味着向后移动。
+        如果n为零，意味着移动到最接近的一个已结束的frame。
+
+        如果moment没有对齐到frame_type对应的时间，将首先进行对齐。
+        Args:
+            moment:
+            n:
+            frame_type:
+
+        Returns:
+
+        """
+        if frame_type == FrameType.DAY:
+            return cls.day_shift(moment, n)
 
         elif frame_type == FrameType.WEEK:
-            return cls.week_shift(start, n)
+            return cls.week_shift(moment, n)
         elif frame_type == FrameType.MONTH:
-            return cls.month_shift(start, n)
+            return cls.month_shift(moment, n)
         elif frame_type in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
                             FrameType.MIN30, FrameType.MIN60]:
-            tm = start.hour * 60 + start.minute
-            if tm not in cls.ticks[frame_type]:
-                raise ValueError(f"{start} is not aligned with unit {frame_type}")
+            tm = moment.hour * 60 + moment.minute
 
             new_tick_pos = cls.ticks[frame_type].index(tm) + n
             days = new_tick_pos // len(cls.ticks[frame_type])
             min_part = new_tick_pos % len(cls.ticks[frame_type])
 
-            date_part = cls.day_shift(start.date(), days)
+            date_part = cls.day_shift(moment.date(), days)
             return cls._tz.localize(datetime.datetime(date_part.year, date_part.month,
                                                       date_part.day) +
                                     datetime.timedelta(
@@ -262,7 +292,7 @@ class TimeFrame:
             return arrow.now()
 
     @classmethod
-    def is_trade_day(cls, dt: Arrow) -> bool:
+    def is_trade_day(cls, dt: Union[datetime.date, datetime.datetime,Arrow]) -> bool:
         return cls.date2int(dt) in cls.day_frames
 
     @classmethod
@@ -306,8 +336,45 @@ class TimeFrame:
         pass
 
     @classmethod
-    def ceil(cls, day: Union[str, Arrow, datetime.date],
-             frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+    def floor(cls, moment: Union[Arrow, datetime.datetime, datetime.date],
+              frame_type: FrameType)->Frame:
+        """
+        根据frame_type,将moment对齐到最接近的上一个frame。用以将类似于10:37这样的时间处理到
+        10：30（如果对应的frame_type是FrameType.MIN30)
+
+        Examples:
+
+        Args:
+            moment:
+            frame_type:
+
+        Returns:
+
+        """
+        if frame_type in tf.minute_level_frames:
+            tm, day_offset = accl.minute_frames_floor(cls.ticks[frame_type],
+                                                      moment.hour * 60 + moment.minute)
+            h, m = tm // 60, tm % 60
+            new_day = arrow.get(tf.day_shift(moment, day_offset))
+            return new_day.replace(hour=h, minute=m, tzinfo=moment.tzinfo)
+        else:
+            day = tf.date2int(moment)
+            if frame_type == FrameType.DAY:
+                arr = tf.day_frames
+            elif frame_type == FrameType.WEEK:
+                arr = tf.week_frames
+            elif frame_type == FrameType.MONTH:
+                arr = tf.month_frames
+            else:
+                raise ValueError(f"frame type {frame_type} not supported.")
+
+            floored = accl.floor(arr, day)
+            return tf.int2date(floored)
+
+
+    @classmethod
+    def last_frame(cls, day: Union[str, Arrow, datetime.date],
+                   frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
         """
         获取指定日期的结束frame。注意这个frame可能位于将来。
         Args:
@@ -327,7 +394,7 @@ class TimeFrame:
             raise TypeError(f"{type(day)} is not supported.")
 
         if frame_type == FrameType.DAY:
-            raise ValueError("calling ceil on FrameType.DAY is meaningless.")
+            raise ValueError("calling last_frame on FrameType.DAY is meaningless.")
         elif frame_type == FrameType.WEEK:
             ceil_day = cls.week_frames[cls.week_frames >= day][0]
             return cls.int2date(ceil_day)
@@ -343,31 +410,33 @@ class TimeFrame:
             raise ValueError(f"{frame_type} not supported")
 
     @classmethod
-    def first_frame(cls, frame_type: FrameType):
+    def frame_len(cls, frame_type: FrameType):
         """
-        获取行情软件支持的最早的一个frame
+        返回以分钟为单位的frame长度。对日线以上级别没有意义，但会返回240
         Args:
-            frame_type (FrameType):
+            frame_type:
 
         Returns:
 
         """
-        day = None
-        if frame_type == FrameType.WEEK:
-            day = cls.week_frames[0]
-        elif frame_type == FrameType.MONTH:
-            day = cls.month_frames[0]
-        elif frame_type == FrameType.DAY or frame_type in cls.minute_level_frames:
-            day = cls.day_frames[0]
 
-        if day is not None:
-            return cls.int2date(day)
+
+        if frame_type == FrameType.MIN1:
+            return 1
+        elif frame_type == FrameType.MIN5:
+            return 5
+        elif frame_type == FrameType.MIN15:
+            return 15
+        elif frame_type == FrameType.MIN30:
+            return 30
+        elif frame_type == FrameType.MIN60:
+            return 60
         else:
-            raise TypeError(f"{frame_type} is not supported.")
+            return 240
 
     @classmethod
-    def floor(cls, day: Union[str, Arrow, datetime.date],
-              frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+    def first_frame(cls, day: Union[str, Arrow, datetime.date],
+                    frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
         """
         获取指定日期的起始的frame。
         Args:

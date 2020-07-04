@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-
+import datetime
 from enum import Enum
+from typing import Tuple, List, Union
 
+from arrow import Arrow
+
+Frame = Union[datetime.date, datetime.datetime, Arrow]
 
 class FrameType(Enum):
     DAY = '1d'

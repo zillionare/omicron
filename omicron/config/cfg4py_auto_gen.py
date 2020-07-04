@@ -34,3 +34,9 @@ class Config(object):
 
     class redis:
         dsn: Optional[str] = None
+
+    class omega:
+        home: Optional[str] = None
+
+        class server:
+            url: Optional[str] = None

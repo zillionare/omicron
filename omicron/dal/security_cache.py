@@ -8,13 +8,13 @@ Contributors:
 """
 import datetime
 import logging
-from typing import Union, List, Iterable
+from typing import Union, Iterable, Optional, Tuple
 
 import numpy as np
 from arrow import Arrow
 
 from omicron.core.timeframe import tf
-from omicron.core.types import FrameType
+from omicron.core.types import FrameType, Frame
 from omicron.dal import cache
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ bars_dtypes = [
 ]
 
 
-async def get_bars_range(code: str, frame_type: FrameType):
+async def get_bars_range(code: str, frame_type: FrameType) -> Tuple[Frame, Frame]:
     pl = cache.security.pipeline()
     pl.hget(f"{code}:{frame_type.value}", 'head')
     pl.hget(f"{code}:{frame_type.value}", 'tail')
@@ -112,8 +112,8 @@ async def save_bars(sec: str, bars: np.ndarray, frame_type: FrameType,
 
 
 async def _save_bars(code: str, bars: np.ndarray, frame_type: FrameType,
-                     head: Arrow = None,
-                     tail: Arrow = None):
+                     head: Frame = None,
+                     tail: Frame = None):
     if frame_type not in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
                           FrameType.MIN30, FrameType.MIN60]:
         head = tf.date2int(head or bars['frame'][0])

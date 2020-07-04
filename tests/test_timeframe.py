@@ -211,23 +211,33 @@ class MyTestCase(unittest.TestCase):
 
     def test_floor(self):
         X = [
+            ('2005-01-09', FrameType.DAY, '2005-01-07'),
+            ('2005-01-07', FrameType.DAY, '2005-01-07'),
             ('2005-1-10', FrameType.WEEK, '2005-1-7'),
+            ('2005-1-13', FrameType.WEEK, '2005-1-7'),
+            ('2005-1-14', FrameType.WEEK, '2005-1-14'),
             ('2005-2-1', FrameType.MONTH, '2005-1-31'),
-            ('2005-1-5', FrameType.MIN1, '2005-1-5 09:31'),
-            ('2005-1-5', FrameType.MIN5, '2005-1-5 09:35'),
-            ('2005-1-5', FrameType.MIN15, '2005-1-5 09:45'),
-            ('2005-1-5', FrameType.MIN30, '2005-1-5 10:00'),
-            ('2005-1-5', FrameType.MIN60, '2005-1-5 10:30'),
+            ('2005-2-27', FrameType.MONTH, '2005-1-31'),
+            ('2005-2-28', FrameType.MONTH, '2005-2-28'),
+            ('2005-3-1', FrameType.MONTH, '2005-2-28'),
+            ('2005-1-5 09:30', FrameType.MIN1, '2005-1-4 15:00'),
+            ('2005-1-5 09:31', FrameType.MIN1, '2005-1-5 09:31'),
+            ('2005-1-5 09:34', FrameType.MIN5, '2005-1-4 15:00'),
+            ('2005-1-5 09:36', FrameType.MIN5, '2005-1-5 09:35'),
+            ('2005-1-5 09:46', FrameType.MIN15, '2005-1-5 09:45'),
+            ('2005-1-5 10:01', FrameType.MIN30, '2005-1-5 10:00'),
+            ('2005-1-5 10:31', FrameType.MIN60, '2005-1-5 10:30'),
         ]
 
-        for i, (day, frame_type, expected) in enumerate(X):
+        for i, (moment, frame_type, expected) in enumerate(X):
             logger.info("testing %s", X[i])
 
-            actual = tf.floor(day, frame_type)
+            frame = arrow.get(moment)
+            actual = tf.floor(frame, frame_type)
             if frame_type in tf.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
-                expected = arrow.get(expected, tzinfo=cfg.tz).datetime
+                expected = arrow.get(expected).datetime
 
             self.assertEqual(expected, actual)
 
@@ -245,7 +255,7 @@ class MyTestCase(unittest.TestCase):
         for i, (day, frame_type, expected) in enumerate(X):
             logger.info("testing %s", X[i])
 
-            actual = tf.ceil(day, frame_type)
+            actual = tf.last_frame(day, frame_type)
             if frame_type in tf.day_level_frames:
                 expected = arrow.get(expected).date()
             else:

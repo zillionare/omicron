@@ -49,8 +49,8 @@ async def get_bars(code: str, end: Arrow, n_bars: int, frame_type: FrameType):
         return await fetcher.get_bars(code, end, n_bars, frame_type)
     else:
         params = {
-            "code":       code,
-            "end":        end.format("YYYYMMDD HH:mm"),
+            "sec":       code,
+            "end":        str(end),
             "n_bars":     n_bars,
             "frame_type": frame_type.value
         }
