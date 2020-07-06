@@ -153,9 +153,8 @@ class TimeFrame:
         start = cls.date2int(start)
         return cls.int2date(accl.shift(cls.month_frames, start, offset))
 
-
     @classmethod
-    def get_ticks(cls, frame_type: FrameType)->Union[List, np.array]:
+    def get_ticks(cls, frame_type: FrameType) -> Union[List, np.array]:
         if frame_type in cls.minute_level_frames:
             return cls.ticks[frame_type]
 
@@ -292,7 +291,7 @@ class TimeFrame:
             return arrow.now()
 
     @classmethod
-    def is_trade_day(cls, dt: Union[datetime.date, datetime.datetime,Arrow]) -> bool:
+    def is_trade_day(cls, dt: Union[datetime.date, datetime.datetime, Arrow]) -> bool:
         return cls.date2int(dt) in cls.day_frames
 
     @classmethod
@@ -337,12 +336,13 @@ class TimeFrame:
 
     @classmethod
     def floor(cls, moment: Union[Arrow, datetime.datetime, datetime.date],
-              frame_type: FrameType)->Frame:
+              frame_type: FrameType) -> Frame:
         """
         根据frame_type,将moment对齐到最接近的上一个frame。用以将类似于10:37这样的时间处理到
         10：30（如果对应的frame_type是FrameType.MIN30)
 
         Examples:
+            see unittest
 
         Args:
             moment:
@@ -357,20 +357,23 @@ class TimeFrame:
             h, m = tm // 60, tm % 60
             new_day = arrow.get(tf.day_shift(moment, day_offset))
             return new_day.replace(hour=h, minute=m, tzinfo=moment.tzinfo)
+
+        if hasattr(moment, 'hour') and moment.hour * 60 + moment.minute < 900 and \
+            tf.is_trade_day(moment):
+            moment = cls.day_shift(moment, -1)
+
+        day = tf.date2int(moment)
+        if frame_type == FrameType.DAY:
+            arr = tf.day_frames
+        elif frame_type == FrameType.WEEK:
+            arr = tf.week_frames
+        elif frame_type == FrameType.MONTH:
+            arr = tf.month_frames
         else:
-            day = tf.date2int(moment)
-            if frame_type == FrameType.DAY:
-                arr = tf.day_frames
-            elif frame_type == FrameType.WEEK:
-                arr = tf.week_frames
-            elif frame_type == FrameType.MONTH:
-                arr = tf.month_frames
-            else:
-                raise ValueError(f"frame type {frame_type} not supported.")
+            raise ValueError(f"frame type {frame_type} not supported.")
 
-            floored = accl.floor(arr, day)
-            return tf.int2date(floored)
-
+        floored = accl.floor(arr, day)
+        return tf.int2date(floored)
 
     @classmethod
     def last_frame(cls, day: Union[str, Arrow, datetime.date],
@@ -419,7 +422,6 @@ class TimeFrame:
         Returns:
 
         """
-
 
         if frame_type == FrameType.MIN1:
             return 1

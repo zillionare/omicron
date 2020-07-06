@@ -96,6 +96,9 @@ class Securities(object):
 
         """
         cond = np.array([False] * len(self._secs))
+        if not _types:
+            return []
+
         for _type in _types:
             cond |= (self._secs['type'] == _type)
 

@@ -213,6 +213,8 @@ class MyTestCase(unittest.TestCase):
         X = [
             ('2005-01-09', FrameType.DAY, '2005-01-07'),
             ('2005-01-07', FrameType.DAY, '2005-01-07'),
+            ('2005-01-07 16:00:00', FrameType.DAY, '2005-01-07'),
+            ('2005-01-07 14:59:00', FrameType.DAY, '2005-01-06'),
             ('2005-1-10', FrameType.WEEK, '2005-1-7'),
             ('2005-1-13', FrameType.WEEK, '2005-1-7'),
             ('2005-1-14', FrameType.WEEK, '2005-1-14'),
@@ -233,7 +235,11 @@ class MyTestCase(unittest.TestCase):
             logger.info("testing %s", X[i])
 
             frame = arrow.get(moment)
+            if frame_type in tf.day_level_frames and frame.hour == 0:
+                frame = frame.date()
+
             actual = tf.floor(frame, frame_type)
+            expected = arrow.get(expected)
             if frame_type in tf.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
