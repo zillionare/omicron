@@ -337,7 +337,7 @@ class TimeFrame:
 
     @classmethod
     def floor(cls, moment: Union[Arrow, datetime.datetime, datetime.date],
-              frame_type: FrameType) -> Frame:
+              frame_type: FrameType) -> [datetime.datetime, datetime.date]:
         """
         根据frame_type,将moment对齐到最接近的上一个frame。用以将类似于10:37这样的时间处理到
         10：30（如果对应的frame_type是FrameType.MIN30)
@@ -356,8 +356,9 @@ class TimeFrame:
             tm, day_offset = accl.minute_frames_floor(cls.ticks[frame_type],
                                                       moment.hour * 60 + moment.minute)
             h, m = tm // 60, tm % 60
-            new_day = arrow.get(tf.day_shift(moment, day_offset))
-            return new_day.replace(hour=h, minute=m, tzinfo=moment.tzinfo)
+            new_day = tf.day_shift(moment, day_offset)
+            return datetime.datetime(new_day.year, new_day.month, new_day.day, h, m,
+                                     tzinfo=moment.tzinfo)
 
         if hasattr(moment, 'hour') and moment.hour * 60 + moment.minute < 900 and \
                 tf.is_trade_day(moment):
