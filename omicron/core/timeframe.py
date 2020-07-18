@@ -8,8 +8,8 @@ from typing import Optional, Union, List
 
 import arrow
 import numpy as np
-import pytz
 from arrow import Arrow
+from dateutil import tz
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
@@ -19,7 +19,7 @@ logger = logging.getLogger(__file__)
 
 
 class TimeFrame:
-    _tz = pytz.timezone('Asia/Chongqing')
+    _tz = tz.gettz('Asia/Chongqing')
     back_test_mode = False
     _now: Optional[Arrow] = None
     minute_level_frames = [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
@@ -74,9 +74,9 @@ class TimeFrame:
         """
         s = str(num)
         # its 8 times faster than arrow.get()
-        return cls._tz.localize(datetime.datetime(int(s[:4]), int(s[4:6]), int(s[6:8]),
-                                                  int(s[8:10]),
-                                                  int(s[10:12])))
+        return datetime.datetime(int(s[:4]), int(s[4:6]), int(s[6:8]),
+                                 int(s[8:10]),
+                                 int(s[10:12]), tzinfo=cls._tz)
 
     @classmethod
     def time2int(cls, tm: Arrow) -> int:
@@ -199,10 +199,11 @@ class TimeFrame:
             min_part = new_tick_pos % len(cls.ticks[frame_type])
 
             date_part = cls.day_shift(moment.date(), days)
-            return cls._tz.localize(datetime.datetime(date_part.year, date_part.month,
-                                                      date_part.day) +
-                                    datetime.timedelta(
-                                            minutes=cls.ticks[frame_type][min_part]))
+            minutes = cls.ticks[frame_type][min_part]
+            h, m = minutes // 60, minutes % 60
+            return datetime.datetime(date_part.year, date_part.month,
+                                     date_part.day, h, m,
+                                     tzinfo=cls._tz)
         else:
             raise ValueError(f"{frame_type} is not supported.")
 
@@ -359,7 +360,7 @@ class TimeFrame:
             return new_day.replace(hour=h, minute=m, tzinfo=moment.tzinfo)
 
         if hasattr(moment, 'hour') and moment.hour * 60 + moment.minute < 900 and \
-            tf.is_trade_day(moment):
+                tf.is_trade_day(moment):
             moment = cls.day_shift(moment, -1)
 
         day = tf.date2int(moment)
@@ -407,8 +408,8 @@ class TimeFrame:
         elif frame_type in cls.minute_level_frames:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
-            naive = datetime.datetime(day.year, day.month, day.day, hour=15, minute=0)
-            return cls._tz.localize(naive)
+            return datetime.datetime(day.year, day.month, day.day, hour=15, minute=0,
+                                     tzinfo=cls._tz)
         else:
             raise ValueError(f"{frame_type} not supported")
 
