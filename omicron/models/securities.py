@@ -105,4 +105,4 @@ class Securities(object):
         result = self._secs[cond]
         if exclude_exit:
             result = result[result['end'] > arrow.now().date()]
-        return result['code']
+        return result['code'].tolist()

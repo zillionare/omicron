@@ -13,7 +13,7 @@ from dateutil import tz
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
-from .types import FrameType, Frame
+from .types import FrameType
 
 logger = logging.getLogger(__file__)
 
@@ -222,7 +222,7 @@ class TimeFrame:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
-        return accl.count_between(cls.day_frames, start, end)
+        return int(accl.count_between(cls.day_frames, start, end))
 
     @classmethod
     def count_week_frames(cls, start: datetime.date, end: datetime.date) -> int:
@@ -234,7 +234,7 @@ class TimeFrame:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
-        return accl.count_between(cls.week_frames, start, end)
+        return int(accl.count_between(cls.week_frames, start, end))
 
     @classmethod
     def count_month_frames(cls, start: datetime.date, end: datetime.date) -> int:
@@ -252,7 +252,7 @@ class TimeFrame:
         start = cls.date2int(start)
         end = cls.date2int(end)
 
-        return accl.count_between(cls.month_frames, start, end)
+        return int(accl.count_between(cls.month_frames, start, end))
 
     @classmethod
     def count_frames(cls, start: Union[datetime.date, datetime.datetime, Arrow],
@@ -547,7 +547,9 @@ class TimeFrame:
             ticks = [day * 10000 + int(tm / 60) * 100 + tm % 60 for
                      day, tm in zip(days, ticks)]
 
+            # list index is much faster than accl.index_sorted
             pos = ticks.index(tf.time2int(end)) + 1
+
             return ticks[max(0, pos - n): pos]
         else:
             raise ValueError(f"{frame_type} not support yet")

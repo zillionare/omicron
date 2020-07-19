@@ -23,7 +23,7 @@ def index(arr, item):
         if val == item:
             return idx
     # If no item was found return None, other return types might be a problem due to
-    # numbas type inference.
+    # numba's type inference.
     return -1
 
 
@@ -34,7 +34,6 @@ def index_sorted(arr, item):
         return pos
     else:
         return -1
-
 
 @njit
 def count_between(arr, start, end):
