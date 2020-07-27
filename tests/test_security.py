@@ -1,5 +1,6 @@
 import logging
 import unittest
+from unittest import mock
 
 import arrow
 import cfg4py
@@ -7,6 +8,7 @@ import numpy as np
 from pyemit import emit
 
 from omicron.core.lang import async_run
+from omicron.core.timeframe import tf
 from omicron.core.types import SecurityType, FrameType
 from omicron.dal import cache, security_cache
 from omicron.models.securities import Securities
@@ -39,8 +41,8 @@ class MyTestCase(unittest.TestCase):
 
     def test_000_properties(self):
         sec = Security('000001.XSHE')
-        for key, value in zip('display_name name ipo_date end_date'.split(' '),
-                              '平安银行 PAYH 1991-04-03 2200-01-01'.split(' ')):
+        for key, value in zip('display_name ipo_date end_date'.split(' '),
+                              '平安银行 1991-04-03 2200-01-01'.split(' ')):
             self.assertEqual(str(getattr(sec, key)), value)
 
         sec = Security('399001.XSHE')
@@ -87,61 +89,57 @@ class MyTestCase(unittest.TestCase):
     @async_run
     async def test_002_load_bars(self):
         sec = Security('000001.XSHE')
-        start = arrow.get('2020-01-04')  # started at 2020-01-03 actually
+        start = arrow.get('2020-01-03').date()
+        stop = arrow.get('2020-1-16').date()
         frame_type = FrameType.DAY
 
         expected = [
             [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8,
              1914495474.63, 118.73],
-            [arrow.get('2020-01-16').date(), 16.52, 16.57, 16.2, 16.33, 1.02810467e8,
-             1678888507.83, 118.73]
+            [stop, 16.52, 16.57, 16.2, 16.33, 1.02810467e8, 1678888507.83, 118.73]
         ]
 
         logger.info("scenario: no cache")
         await security_cache.clear_bars_range(sec.code, frame_type)
-        bars = await sec.load_bars(start, 10, frame_type)
+        bars = await sec.load_bars(start, start, frame_type)
+        self.assert_bars_equal([expected[0]], bars)
 
+        bars = await sec.load_bars(start, stop, frame_type)
         self.assert_bars_equal(expected, bars)
 
         logger.info("scenario: load from cache")
-        bars = await sec.load_bars(start, 10, frame_type)
+        bars = await sec.load_bars(start, stop, frame_type)
 
         self.assert_bars_equal(expected, bars)
 
         logger.info("scenario: partial data fetch: head")
         await security_cache.set_bars_range(sec.code, frame_type,
-                                            start=arrow.get('2020-01-03').date())
-        bars = await sec.load_bars(start, 10, frame_type)
+                                            start=arrow.get('2020-01-07').date())
+        bars = await sec.load_bars(start, stop, frame_type)
 
         self.assert_bars_equal(expected, bars)
 
         logger.info("scenario: partial data fetch: tail")
         await security_cache.set_bars_range(sec.code, frame_type,
                                             end=arrow.get('2020-01-14').date())
-        bars = await sec.load_bars(start, 10, frame_type)
+        bars = await sec.load_bars(start, stop, frame_type)
 
-        self.assert_bars_equal(expected, bars)
-
-        logger.info("scenario: backward")
-        expected = [
-            [arrow.get('2019-12-20').date(), 16.55, 16.68, 16.44, 16.59, 6.44478380e7,
-             1067869779.78, 118.73],
-            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8,
-             1914495474.63, 118.73]
-        ]
-        bars = await sec.load_bars(start, -10, frame_type)
         self.assert_bars_equal(expected, bars)
 
         logger.info("scenario: 1min level backward")
         frame_type = FrameType.MIN1
-        start = arrow.get('2020-05-06 15:00:00')
+        start = arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime
         await security_cache.clear_bars_range(sec.code, frame_type)
-        bars = await sec.load_bars(start, -250, frame_type)
+        stop = tf.shift(start, -249, frame_type)
+        start, stop = stop, start
+        bars = await sec.load_bars(start, stop, frame_type)
         expected = [
-            [arrow.get('2020-04-30 14:51:00', tzinfo=cfg.tz), 13.99, 14., 13.98, 13.99,
+            [arrow.get('2020-04-30 14:51:00', tzinfo=cfg.tz).datetime, 13.99, 14.,
+             13.98, 13.99,
              281000.,
              3931001., 118.725646],
-            [arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz), 13.77, 13.77, 13.77,
+            [arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.77, 13.77,
+             13.77,
              13.77,
              1383400.0,
              19049211.45000005, 118.725646]
@@ -151,15 +149,18 @@ class MyTestCase(unittest.TestCase):
 
         logger.info("scenario: 30 min level")
         frame_type = FrameType.MIN15
-        start = arrow.get('2020-05-06 15:00:00')
+        start = arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz).datetime
         await security_cache.clear_bars_range(sec.code, frame_type)
-        bars = await sec.load_bars(start, -14, frame_type)
+        stop = arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime
+        bars = await sec.load_bars(start, stop, frame_type)
         expected = [
-            [arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz), 13.67, 13.74, 13.66,
+            [arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz).datetime, 13.67, 13.74,
+             13.66,
              13.72,
              8341905.,
              1.14258451e+08, 118.725646],
-            [arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz), 13.72, 13.77, 13.72,
+            [arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.72, 13.77,
+             13.72,
              13.77,
              7053085.,
              97026350.76999998, 118.725646]
@@ -167,14 +168,37 @@ class MyTestCase(unittest.TestCase):
         self.assert_bars_equal(expected, bars)
 
     @async_run
+    async def test_005_realtime_bars(self):
+        """测试获取实时行情"""
+
+        sec = Security('000001.XSHE')
+        frame_type = FrameType.MIN15
+
+        logger.info("scenario: get realtime bars")
+        start = arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz).datetime
+        stop = arrow.get('2020-05-06 10:25:00', tzinfo=cfg.tz).datetime
+        await security_cache.clear_bars_range(sec.code, frame_type)
+
+        bars = await sec.load_bars(start, stop, frame_type)
+        self.assertEqual(start, bars[0]['frame'])
+        self.assertEqual(stop, bars[-1]['frame'])
+
+        # now we've cached bars at 2020-05-06 10:15:00
+        bars = await sec.load_bars(start, stop, frame_type)
+        self.assertEqual(start, bars[0]['frame'])
+        self.assertEqual(stop, bars[-1]['frame'])
+
+    @async_run
     async def test_003_slice(self):
         sec = Security('000001.XSHE')
-        await sec.load_bars(arrow.get('2020-01-03'), 10, FrameType.DAY)
+        start = arrow.get('2020-01-03').date()
+        stop = arrow.get('2020-01-16').date()
+        await sec.load_bars(start, stop, FrameType.DAY)
         bars = sec[0:]
         expected = [
-            [arrow.get('2020-01-03').date(), 16.94, 17.31, 16.92, 17.18, 1.11619481e8,
+            [start, 16.94, 17.31, 16.92, 17.18, 1.11619481e8,
              1914495474.63, 118.73],
-            [arrow.get('2020-01-16').date(), 16.52, 16.57, 16.2, 16.33, 1.02810467e8,
+            [stop, 16.52, 16.57, 16.2, 16.33, 1.02810467e8,
              1678888507.83, 118.73]
         ]
 
@@ -189,11 +213,16 @@ class MyTestCase(unittest.TestCase):
 
     @async_run
     async def test_004_fq(self):
+        """测试复权"""
         sec = Security('002320.XSHE')
-        start = arrow.get('2020-05-06')
+        start = arrow.get('2020-05-06').date()
+        stop = tf.shift(start, -249, FrameType.DAY)
+        start, stop = stop, start
         # bars with no fq
-        bars1 = await sec.load_bars(start, -250, FrameType.DAY, fq=False)
-        bars2 = await sec.load_bars(start, -250, FrameType.DAY)
+        bars1 = await sec.load_bars(start, stop, FrameType.DAY, fq=False)
+        bars2 = await sec.load_bars(start, stop, FrameType.DAY)
+
+        self.assertEqual(250, len(bars1))
         expected1 = [
             [arrow.get("2019-04-24").date(), 16.26, 16.38, 15.76, 16.00, 5981087.0,
              9.598480e+07, 3.846000],
@@ -208,7 +237,6 @@ class MyTestCase(unittest.TestCase):
         ]
         self.assert_bars_equal(expected2, bars2)
         self.assert_bars_equal(expected1, bars1)
-
 
     if __name__ == '__main__':
         unittest.main()

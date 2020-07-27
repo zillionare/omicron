@@ -12,11 +12,10 @@ import re
 
 import arrow
 import numpy as np
-from arrow import Arrow
 
 from ..core.quotes_fetcher import get_bars
 from ..core.timeframe import tf
-from ..core.types import SecurityType, MarketType, FrameType
+from ..core.types import SecurityType, MarketType, FrameType, Frame
 from ..dal import security_cache
 from ..models.securities import Securities
 
@@ -28,7 +27,7 @@ class Security(object):
         self._code = code
 
         _, self._display_name, self._name, self._start_date, self._end_date, _type = \
-        Securities()[code]
+            Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
 
@@ -147,15 +146,23 @@ class Security(object):
 
         return self._bars
 
-    async def load_bars(self, start: Arrow, offset: int, frame_type: FrameType,
+    async def load_bars(self, start: Frame, stop: Frame, frame_type: FrameType,
                         fq=True) -> np.ndarray:
-        self._bars = None
-        start = tf.shift(start, 0, frame_type)
-        exclude_edge = -1 if offset > 0 else 1
-        end = tf.shift(start, offset + exclude_edge, frame_type)
-        start, end = (start, end) if start < end else (end, start)
+        """
+        取时间位于[start, stop]之间的行情数据，这里start可以等于stop。取数据的过程中先利用redis
+        缓存，如果遇到缓存中不存在的数据，则从quotes_fetcher服务器取
+        Args:
+            start:
+            stop:
+            frame_type:
+            fq:
 
-        offset = abs(offset)
+        Returns:
+
+        """
+        self._bars = None
+        start = tf.floor(start, frame_type)
+        _stop = tf.floor(stop, frame_type)
 
         head, tail = await security_cache.get_bars_range(self.code, frame_type)
 
@@ -163,7 +170,12 @@ class Security(object):
             # not cached at all, ensure cache pointers are clear
             await security_cache.clear_bars_range(self.code, frame_type)
 
-            self._bars = await get_bars(self.code, end, offset, frame_type)
+            n = tf.count_frames(start, _stop, frame_type)
+            if stop > _stop:
+                self._bars = await get_bars(self.code, stop, n + 1, frame_type)
+            else:
+                self._bars = await get_bars(self.code, _stop, n, frame_type)
+
             return self.qfq() if fq else self._bars
 
         if start < head:
@@ -172,11 +184,18 @@ class Security(object):
                 _end = tf.shift(head, -1, frame_type)
                 self._bars = await get_bars(self.code, _end, n, frame_type)
 
-        if end > tail:
-            n = tf.count_frames(tail, end, frame_type)
+        if _stop > tail:
+            n = tf.count_frames(tail, _stop, frame_type)
             if n > 0:
-                self._bars = await get_bars(self.code, end, n, frame_type)
+                self._bars = await get_bars(self.code, _stop, n, frame_type)
 
-        # now all bars in [start, end] should exist in cache
-        self._bars = await security_cache.get_bars(self.code, end, offset, frame_type)
+        # now all closed bars in [start, _stop] should exist in cache
+        n = tf.count_frames(start, _stop, frame_type)
+        self._bars = await security_cache.get_bars(self.code, _stop, n, frame_type)
+
+        if stop > _stop:
+            bars = await get_bars(self.code, stop, 2, frame_type)
+            if len(bars) == 2 and bars[0]['frame'] == self._bars[-1]['frame']:
+                self._bars = np.append(self._bars, bars[1])
+
         return self.qfq() if fq else self._bars

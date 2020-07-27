@@ -6,7 +6,7 @@ from typing import Tuple, List, Union
 
 from arrow import Arrow
 
-Frame = Union[datetime.date, datetime.datetime, Arrow]
+Frame = Union[datetime.date, datetime.datetime]
 
 class FrameType(Enum):
     DAY = '1d'

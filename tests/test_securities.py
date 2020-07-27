@@ -27,7 +27,7 @@ class TestSecurity(unittest.TestCase):
     @async_run
     async def setUp(self) -> None:
         """Set up test fixtures, if any."""
-        await omicron.init(cfg)
+        await omicron.init()
         await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn)
 
     def tearDown(self):
