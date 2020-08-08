@@ -199,3 +199,7 @@ class Security(object):
                 self._bars = np.append(self._bars, bars[1])
 
         return self.qfq() if fq else self._bars
+
+    async def price_change(self, start:Frame, end:Frame, frame_type:FrameType):
+        bars = await self.load_bars(start, end, frame_type)
+        return bars['close'][-1]/bars['close'][0] - 1

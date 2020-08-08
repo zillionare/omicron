@@ -238,5 +238,14 @@ class MyTestCase(unittest.TestCase):
         self.assert_bars_equal(expected2, bars2)
         self.assert_bars_equal(expected1, bars1)
 
+    @async_run
+    async def test_price_change(self):
+        sec = Security('000001.XSHG')
+        frame_type = FrameType.DAY
+        start = arrow.get('2020-07-29').date()
+        end = arrow.get('2020-8-7').date()
+
+        pc = await sec.price_change(start, end, frame_type)
+        self.assertAlmostEqual(pc, 3354.04/3294.55-1, places=3)
     if __name__ == '__main__':
         unittest.main()
