@@ -39,7 +39,7 @@ class Security(object):
         return self._start_date
 
     @property
-    def display_name(self) -> datetime.date:
+    def display_name(self) -> str:
         return self._display_name
 
     @property
@@ -200,6 +200,10 @@ class Security(object):
 
         return self.qfq() if fq else self._bars
 
-    async def price_change(self, start:Frame, end:Frame, frame_type:FrameType):
+    async def price_change(self, start:Frame, end:Frame, frame_type:FrameType,
+                           return_max:False):
         bars = await self.load_bars(start, end, frame_type)
-        return bars['close'][-1]/bars['close'][0] - 1
+        if return_max:
+            return np.max(bars['close'][1:])/bars['close'][0] - 1
+        else:
+            return bars['close'][-1]/bars['close'][0] - 1
