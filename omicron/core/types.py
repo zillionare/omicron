@@ -38,3 +38,15 @@ class SecurityType(Enum):
 class MarketType(Enum):
     XSHG = 'XSHG'
     XSHE = 'XSHE'
+
+bars_dtypes = [
+    ('frame', 'O'),
+    ('open', 'f4'),
+    ('high', 'f4'),
+    ('low', 'f4'),
+    ('close', 'f4'),
+    ('volume', 'f8'),
+    ('amount', 'f8'),
+    ('factor', 'f4')
+]
+

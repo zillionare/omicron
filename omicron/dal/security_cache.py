@@ -14,21 +14,10 @@ import numpy as np
 from arrow import Arrow
 
 from omicron.core.timeframe import tf
-from omicron.core.types import FrameType, Frame
+from omicron.core.types import FrameType, Frame, bars_dtypes
 from omicron.dal import cache
 
 logger = logging.getLogger(__name__)
-
-bars_dtypes = [
-    ('frame', 'O'),
-    ('open', 'f4'),
-    ('high', 'f4'),
-    ('low', 'f4'),
-    ('close', 'f4'),
-    ('volume', 'f8'),
-    ('amount', 'f8'),
-    ('factor', 'f4')
-]
 
 
 async def get_bars_range(code: str, frame_type: FrameType) -> Tuple[Frame, Frame]:
@@ -160,16 +149,16 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
     converter = tf.int2time if frame_type in [FrameType.MIN1, FrameType.MIN5,
                                               FrameType.MIN15, FrameType.MIN30,
                                               FrameType.MIN60] else tf.int2date
-    data = []
+    data = np.empty(len(frames), dtype=bars_dtypes)
     for i, frame in enumerate(frames):
         rec = recs[i]
         if rec is None:
             data[i] = (converter(frame), None, None, None, None, None, None, None)
         else:
             o, h, l, c, v, a, f = rec.split(" ")
-            data.append((
+            data[i] = (
                 converter(frame), float(o), float(h), float(l), float(c), float(v),
-                float(a), float(f)))
+                float(a), float(f))
 
     # todo: possible performance increase
     return np.array(data, dtype=bars_dtypes)
