@@ -160,18 +160,19 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
     converter = tf.int2time if frame_type in [FrameType.MIN1, FrameType.MIN5,
                                               FrameType.MIN15, FrameType.MIN30,
                                               FrameType.MIN60] else tf.int2date
-    data = np.empty(len(frames), dtype=bars_dtypes)
+    data = []
     for i, frame in enumerate(frames):
         rec = recs[i]
         if rec is None:
             data[i] = (converter(frame), None, None, None, None, None, None, None)
         else:
             o, h, l, c, v, a, f = rec.split(" ")
-            data[i] = (
+            data.append([
                 converter(frame), float(o), float(h), float(l), float(c), float(v),
-                float(a), float(f))
+                float(a), float(f)])
 
-    return data
+    # todo: possible performance increase
+    return np.array(data, dtype=bars_dtypes)
 
 
 async def get_bars_raw_data(code: str, end: Union[datetime.date, datetime.datetime,
