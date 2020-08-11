@@ -193,7 +193,7 @@ class Security(object):
         n = tf.count_frames(start, _stop, frame_type)
         self._bars = await security_cache.get_bars(self.code, _stop, n, frame_type)
 
-        if stop > _stop:
+        if arrow.get(stop) > arrow.get(_stop):
             bars = await get_bars(self.code, stop, 2, frame_type)
             if len(bars) == 2 and bars[0]['frame'] == self._bars[-1]['frame']:
                 self._bars = np.append(self._bars, bars[1])
