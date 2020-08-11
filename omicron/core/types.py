@@ -39,7 +39,7 @@ class MarketType(Enum):
     XSHG = 'XSHG'
     XSHE = 'XSHE'
 
-bars_dtypes = [
+bars_dtype = [
     ('frame', 'O'),
     ('open', 'f4'),
     ('high', 'f4'),

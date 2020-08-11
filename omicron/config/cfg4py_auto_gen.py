@@ -38,5 +38,5 @@ class Config(object):
     class omega:
         home: Optional[str] = None
 
-        class server:
-            url: Optional[str] = None
+        class urls:
+            quotes_server: Optional[str] = None

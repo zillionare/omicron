@@ -2,3 +2,6 @@
 
 redis:
   dsn: redis://localhost:6379
+omega:
+  urls:
+    quotes_server: http://192.168.3.78:7080

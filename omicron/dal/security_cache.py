@@ -14,7 +14,7 @@ import numpy as np
 from arrow import Arrow
 
 from omicron.core.timeframe import tf
-from omicron.core.types import FrameType, Frame, bars_dtypes
+from omicron.core.types import FrameType, Frame, bars_dtype
 from omicron.dal import cache
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ async def _save_bars(code: str, bars: np.ndarray, frame_type: FrameType,
 async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow],
                    n: int,
                    frame_type: FrameType) -> np.ndarray:
-    if n == 0: return np.ndarray([], dtype=bars_dtypes)
+    if n == 0: return np.ndarray([], dtype=bars_dtype)
 
     frames = tf.get_frames_by_count(end, n, frame_type)
     tr = cache.security.pipeline()
@@ -149,7 +149,7 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
     converter = tf.int2time if frame_type in [FrameType.MIN1, FrameType.MIN5,
                                               FrameType.MIN15, FrameType.MIN30,
                                               FrameType.MIN60] else tf.int2date
-    data = np.empty(len(frames), dtype=bars_dtypes)
+    data = np.empty(len(frames), dtype=bars_dtype)
     for i, frame in enumerate(frames):
         rec = recs[i]
         if rec is None:
@@ -160,8 +160,7 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
                 converter(frame), float(o), float(h), float(l), float(c), float(v),
                 float(a), float(f))
 
-    # todo: possible performance increase
-    return np.array(data, dtype=bars_dtypes)
+    return data
 
 
 async def get_bars_raw_data(code: str, end: Union[datetime.date, datetime.datetime,
