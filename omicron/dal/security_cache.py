@@ -167,9 +167,9 @@ async def get_bars(code: str, end: Union[datetime.date, datetime.datetime, Arrow
             data[i] = (converter(frame), None, None, None, None, None, None, None)
         else:
             o, h, l, c, v, a, f = rec.split(" ")
-            data.append([
+            data.append((
                 converter(frame), float(o), float(h), float(l), float(c), float(v),
-                float(a), float(f)])
+                float(a), float(f)))
 
     # todo: possible performance increase
     return np.array(data, dtype=bars_dtypes)
