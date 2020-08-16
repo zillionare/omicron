@@ -84,14 +84,13 @@ class Securities(object):
         self._secs['end'] = [datetime.date(*map(int, x.split('-'))) for x in
                              self._secs['end']]
 
-    def choose(self, _types: List[str], exclude_exit=True, block: str = '') -> list:
+    def choose(self, _types: List[str], exclude_exit=True, exclude_st=True,
+               exclude_300=False,exclude_688=True) -> list:
         """
         根据指定的类型（板块）来选择证券列表
         Args:
             _types:
-            block:
-            exclude_exit:
-
+            exlcude:
         Returns:
 
         """
@@ -105,4 +104,11 @@ class Securities(object):
         result = self._secs[cond]
         if exclude_exit:
             result = result[result['end'] > arrow.now().date()]
+        if exclude_300:
+            result = [rec for rec in result if not rec['code'].startswith('300')]
+        if exclude_688:
+            result = [rec for rec in result if not rec['code'].startswith('688')]
+        if exclude_st:
+            result = [rec for rec in result if rec["display_name"].find("ST") == -1]
+        result = np.array(result, dtype=self.dtypes)
         return result['code'].tolist()

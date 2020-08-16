@@ -164,6 +164,7 @@ class Security(object):
         start = tf.floor(start, frame_type)
         _stop = tf.floor(stop, frame_type)
 
+        assert(start < _stop)
         head, tail = await security_cache.get_bars_range(self.code, frame_type)
 
         if not all([head, tail]):

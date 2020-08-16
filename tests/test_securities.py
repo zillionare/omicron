@@ -53,3 +53,4 @@ class TestSecurity(unittest.TestCase):
     async def test_001_choose(self):
         s = Securities()
         result = s.choose(['stock', 'index'])
+        self.assertEqual('000001.XSHE', result[0])
