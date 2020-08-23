@@ -15,18 +15,27 @@ logging.basicConfig(level=logging.INFO)
 class MyTestCase(unittest.TestCase):
     @async_run
     async def test_something(self):
-        trigger = FrameTrigger(FrameType.MIN1,-1)
-        sched = AsyncIOScheduler()
-
+        sched_logger = logging.getLogger('apscheduler')
+        sched_logger.setLevel(logging.DEBUG)
         async def say_hi():
             print("hi")
 
-        #sched.add_job(say_hi, trigger=trigger)
+        sched = AsyncIOScheduler()
         sched.start()
+
+        trigger = FrameTrigger(FrameType.MIN1,-1)
+        sched.add_job(say_hi, trigger=trigger, name=f"min1")
+
+        trigger = FrameTrigger(FrameType.DAY,-30*60)
+        sched.add_job(say_hi, trigger=trigger, name="day")
+
+        trigger = FrameTrigger(FrameType.WEEK,-30*60)
+        sched.add_job(say_hi, trigger=trigger, name='week')
+
         trigger = TradeTimeIntervalTrigger(3)
         sched.add_job(say_hi, trigger=trigger)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':

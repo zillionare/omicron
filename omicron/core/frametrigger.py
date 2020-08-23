@@ -32,7 +32,7 @@ class FrameTrigger(BaseTrigger):
         """
         ft = FrameType(frame_type) if isinstance(frame_type, str) else frame_type
         self.frame_type = ft
-        self.jitter = jitter
+        self.jitter = datetime.timedelta(seconds=jitter)
         if (frame_type == FrameType.MIN1 and abs(jitter) >= 60 or
                 frame_type == FrameType.MIN5 and abs(jitter) >= 300 or
                 frame_type == FrameType.MIN15 and abs(jitter) >= 900 or
@@ -47,15 +47,30 @@ class FrameTrigger(BaseTrigger):
     def get_next_fire_time(self,
                            previous_fire_time: Union[datetime.date, datetime.datetime],
                            now: Union[datetime.date, datetime.datetime]):
-        frame_type = self.frame_type
-        if previous_fire_time is None:
-            frame = tf.shift(tf.floor(now, frame_type), 1, frame_type)
+        ft = self.frame_type
+        if ft in tf.day_level_frames:
+            if previous_fire_time is None:
+                frame = tf.floor(now, ft)
+            else:
+                frame = tf.shift(previous_fire_time, 1, ft)
+
+            frame = datetime.datetime(frame.year, frame.month, frame.day, 15,
+                                      tzinfo=now.tzinfo)
+            frame += self.jitter
+
+            if frame < now:  # 调整到下一个frame, 否则apscheduler会陷入死循环
+                nf = tf.shift(frame, 1, ft)
+                frame = frame.replace(year=nf.year, month=nf.month, day=nf.day)
+
+            return frame
         else:
-            frame = tf.shift(tf.floor(previous_fire_time, frame_type), 1, frame_type)
+            if previous_fire_time is None:
+                frame = tf.shift(tf.floor(now, ft), 1, ft)
+            else:
+                frame = tf.shift(tf.floor(previous_fire_time, ft), 1, ft)
 
-        if frame < now:
-            frame = tf.shift(frame, 1, frame_type)
+            frame += self.jitter
+            if frame < now:  # 调整到下一个frame, 否则apscheduler会陷入死循环
+                frame = tf.shift(frame, 1, ft)
 
-        frame += datetime.timedelta(seconds=self.jitter)
-
-        return frame
+            return frame
