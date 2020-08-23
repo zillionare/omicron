@@ -16,7 +16,7 @@ from omicron.core.timeframe import tf
 logger = logging.getLogger(__name__)
 
 
-class IntervalTrigger(BaseTrigger):
+class TradeTimeIntervalTrigger(BaseTrigger):
     def __init__(self, interval: int):
         self.interval = datetime.timedelta(interval)
 

@@ -5,7 +5,7 @@ import unittest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from omicron.core.frametrigger import FrameTrigger
-from omicron.core.intervaltrigger import IntervalTrigger
+from omicron.core.tradetimeintervaltrigger import TradeTimeIntervalTrigger
 from omicron.core.lang import async_run
 from omicron.core.types import FrameType
 
@@ -23,7 +23,7 @@ class MyTestCase(unittest.TestCase):
 
         #sched.add_job(say_hi, trigger=trigger)
         sched.start()
-        trigger = IntervalTrigger(3)
+        trigger = TradeTimeIntervalTrigger(3)
         sched.add_job(say_hi, trigger=trigger)
 
         await asyncio.sleep(5)
