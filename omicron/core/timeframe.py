@@ -13,7 +13,7 @@ from dateutil import tz
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
-from .types import FrameType
+from .types import FrameType, Frame
 
 logger = logging.getLogger(__file__)
 
@@ -336,8 +336,7 @@ class TimeFrame:
         pass
 
     @classmethod
-    def floor(cls, moment: Union[Arrow, datetime.datetime, datetime.date],
-              frame_type: FrameType) -> [datetime.datetime, datetime.date]:
+    def floor(cls, moment: Frame, frame_type: FrameType) -> Frame:
         """
         根据frame_type,将moment对齐到最接近的上一个frame。用以将类似于10:37这样的时间处理到
         10：30（如果对应的frame_type是FrameType.MIN30)
@@ -360,8 +359,11 @@ class TimeFrame:
             return datetime.datetime(new_day.year, new_day.month, new_day.day, h, m,
                                      tzinfo=moment.tzinfo)
 
-        if hasattr(moment, 'hour') and moment.hour * 60 + moment.minute < 900 and \
-                tf.is_trade_day(moment):
+        # docme: 如果传入日期，则默认为当天收盘
+        if type(moment) == datetime.date:
+            moment = datetime.datetime(moment.year, moment.month, moment.day, 15)
+
+        if moment.hour * 60 + moment.minute < 900:
             moment = cls.day_shift(moment, -1)
 
         day = tf.date2int(moment)

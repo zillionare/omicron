@@ -27,6 +27,7 @@ class MyTestCase(unittest.TestCase):
         await cache.init()
         await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn,
                          exchange='zillionare-omega')
+
         self.securities = Securities()
         await self.securities.load()
 
@@ -245,7 +246,7 @@ class MyTestCase(unittest.TestCase):
         start = arrow.get('2020-07-29').date()
         end = arrow.get('2020-8-7').date()
 
-        pc = await sec.price_change(start, end, frame_type)
+        pc = await sec.price_change(start, end, frame_type, False)
         self.assertAlmostEqual(pc, 3354.04/3294.55-1, places=3)
     if __name__ == '__main__':
         unittest.main()

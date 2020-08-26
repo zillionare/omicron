@@ -215,13 +215,13 @@ class MyTestCase(unittest.TestCase):
             ('2005-01-07', FrameType.DAY, '2005-01-07'),
             ('2005-01-07 16:00:00', FrameType.DAY, '2005-01-07'),
             ('2005-01-07 14:59:00', FrameType.DAY, '2005-01-06'),
-            ('2005-1-10', FrameType.WEEK, '2005-1-7'),
-            ('2005-1-13', FrameType.WEEK, '2005-1-7'),
-            ('2005-1-14', FrameType.WEEK, '2005-1-14'),
-            ('2005-2-1', FrameType.MONTH, '2005-1-31'),
-            ('2005-2-27', FrameType.MONTH, '2005-1-31'),
-            ('2005-2-28', FrameType.MONTH, '2005-2-28'),
-            ('2005-3-1', FrameType.MONTH, '2005-2-28'),
+            ('2005-1-10 15:00:00', FrameType.WEEK, '2005-1-7'),
+            ('2005-1-13 15:00:00', FrameType.WEEK, '2005-1-7'),
+            ('2005-1-14 15:00:00', FrameType.WEEK, '2005-1-14'),
+            ('2005-2-1 15:00:00', FrameType.MONTH, '2005-1-31'),
+            ('2005-2-27 15:00:00', FrameType.MONTH, '2005-1-31'),
+            ('2005-2-28 15:00:00', FrameType.MONTH, '2005-2-28'),
+            ('2005-3-1 15:00:00', FrameType.MONTH, '2005-2-28'),
             ('2005-1-5 09:30', FrameType.MIN1, '2005-1-4 15:00'),
             ('2005-1-5 09:31', FrameType.MIN1, '2005-1-5 09:31'),
             ('2005-1-5 09:34', FrameType.MIN5, '2005-1-4 15:00'),
@@ -234,7 +234,7 @@ class MyTestCase(unittest.TestCase):
         for i, (moment, frame_type, expected) in enumerate(X):
             logger.info("testing %s", X[i])
 
-            frame = arrow.get(moment)
+            frame = arrow.get(moment).datetime
             if frame_type in tf.day_level_frames and frame.hour == 0:
                 frame = frame.date()
 
