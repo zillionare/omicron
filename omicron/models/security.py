@@ -6,14 +6,17 @@ Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
 
 """
+import asyncio
 import datetime
 import logging
 import re
+from collections import ChainMap
+from typing import List
 
 import arrow
 import numpy as np
 
-from ..core.quotes_fetcher import get_bars
+from ..core.quotes_fetcher import get_bars, get_bars_batch
 from ..core.timeframe import tf
 from ..core.types import SecurityType, MarketType, FrameType, Frame
 from ..dal import security_cache
@@ -208,3 +211,21 @@ class Security(object):
             return np.max(bars['close'][1:])/bars['close'][0] - 1
         else:
             return bars['close'][-1]/bars['close'][0] - 1
+
+    @classmethod
+    async def load_bars_batch(cls, codes: List[str], end:Frame, n:int,
+                              frame_type:FrameType):
+        batch = 3000 // n
+        tasks = []
+        for i in range(0, batch + 1):
+            if i * batch > len(codes):
+                break
+
+            task = asyncio.create_task(get_bars_batch(codes[i*batch:(i+1)*batch],
+                                                      end, n,
+                                                frame_type))
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks)
+        return dict(ChainMap(*results))
+

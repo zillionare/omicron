@@ -248,5 +248,13 @@ class MyTestCase(unittest.TestCase):
 
         pc = await sec.price_change(start, end, frame_type, False)
         self.assertAlmostEqual(pc, 3354.04/3294.55-1, places=3)
+
+    @async_run
+    async def test_load_bars_batch(self):
+        codes = ['000001.XSHE', '000001.XSHG']
+        results = await Security.load_bars_batch(codes, arrow.now().datetime, 1,
+                                         FrameType.MIN30)
+        self.assertTrue(results.get("000001.XSHE"))
+
     if __name__ == '__main__':
         unittest.main()

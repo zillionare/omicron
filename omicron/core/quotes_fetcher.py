@@ -8,13 +8,13 @@ Contributors:
 """
 import logging
 import pickle
+from typing import List
 
 import aiohttp
 import cfg4py
-from arrow import Arrow
 
-from omicron.core.types import FrameType, Frame
 from omicron import get_local_fetcher
+from omicron.core.types import FrameType, Frame
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
@@ -44,17 +44,36 @@ async def get_security_list():
 
 
 async def get_bars(code: str, end: Frame, n_bars: int, frame_type: FrameType,
-                   include_unclosed:bool=True):
+                   include_unclosed: bool = True):
     fetcher = get_local_fetcher()
     if fetcher:
-        return await fetcher.get_bars(code, end, n_bars, frame_type)
+        return await fetcher.get_bars(code, end, n_bars, frame_type, include_unclosed)
     else:
         params = {
-            "sec":       code,
-            "end":        str(end),
-            "n_bars":     n_bars,
-            "frame_type": frame_type.value,
+            "sec":              code,
+            "end":              str(end),
+            "n_bars":           n_bars,
+            "frame_type":       frame_type.value,
             "include_unclosed": include_unclosed
         }
 
         return await _quotes_server_get("bars", params)
+
+
+async def get_bars_batch(secs: List[str], end: Frame, n_bars: int,
+                         frame_type: FrameType,
+                         include_unclosed: bool = True):
+    fetcher = get_local_fetcher()
+    if fetcher:
+        return await fetcher.get_bars_batch(secs, end, n_bars, frame_type,
+                                            include_unclosed)
+    else:
+        params = {
+            "secs":             secs,
+            "end":              str(end),
+            "n_bars":           n_bars,
+            "frame_type":       frame_type.value,
+            "include_unclosed": include_unclosed
+        }
+
+        return await _quotes_server_get("bars_batch", params)
