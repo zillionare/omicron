@@ -213,7 +213,7 @@ class Security(object):
             return bars['close'][-1]/bars['close'][0] - 1
 
     @classmethod
-    async def load_bars_batch(cls, codes: List[str], end:Frame, n:int,
+    async def _load_bars_batch(cls, codes: List[str], end:Frame, n:int,
                               frame_type:FrameType):
         batch = 3000 // n
         tasks = []
@@ -229,3 +229,38 @@ class Security(object):
         results = await asyncio.gather(*tasks)
         return dict(ChainMap(*results))
 
+    @classmethod
+    async def _get_bars(cls, code, start, stop, frame_type):
+        sec = Security(code)
+        bars = await sec.load_bars(start, stop, frame_type)
+        return {code: bars}
+
+    @classmethod
+    async def load_bars_batch(cls, codes: List[str], end:Frame, n:int,
+                              frame_type:FrameType):
+        stop = tf.floor(end, frame_type)
+        start = tf.shift(stop, -n + 1, frame_type)
+
+        load_alone_tasks = []
+
+        for code in codes:
+            task = asyncio.create_task(cls._get_bars(code, start, stop, frame_type))
+            load_alone_tasks.append(task)
+
+        recs1 = await asyncio.gather(*load_alone_tasks)
+        recs1 = dict(ChainMap(*recs1))
+        recs2 = await cls._load_bars_batch(codes, end, 2, frame_type)
+
+        results = {}
+        for code, bars in recs2.items():
+            _bars = recs1.get(code)
+            if _bars is None or len(_bars) == 0 or len(bars) != 2:
+                logger.warning("wrong/emtpy records for %s:%s",code, len(bars))
+                continue
+
+            if _bars[-1]['frame'] == bars[0]['frame']:
+                results[code] = np.concatenate([_bars, bars[1:]])
+            elif _bars[-1]['frame'] == bars[-1]['frame']:
+                results[code] = _bars
+
+        return results

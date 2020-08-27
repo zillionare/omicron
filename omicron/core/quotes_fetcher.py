@@ -59,7 +59,6 @@ async def get_bars(code: str, end: Frame, n_bars: int, frame_type: FrameType,
 
         return await _quotes_server_get("bars", params)
 
-
 async def get_bars_batch(secs: List[str], end: Frame, n_bars: int,
                          frame_type: FrameType,
                          include_unclosed: bool = True):

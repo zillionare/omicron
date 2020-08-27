@@ -252,9 +252,9 @@ class MyTestCase(unittest.TestCase):
     @async_run
     async def test_load_bars_batch(self):
         codes = ['000001.XSHE', '000001.XSHG']
-        results = await Security.load_bars_batch(codes, arrow.now().datetime, 1,
+        results = await Security.load_bars_batch(codes, arrow.now().datetime, 10,
                                          FrameType.MIN30)
-        self.assertTrue(results.get("000001.XSHE"))
+        self.assertEqual(10, len(results.get("000001.XSHE")))
 
     if __name__ == '__main__':
         unittest.main()
