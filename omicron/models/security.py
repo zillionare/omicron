@@ -11,7 +11,7 @@ import datetime
 import logging
 import re
 from collections import ChainMap
-from typing import List
+from typing import List, AsyncIterator
 
 import arrow
 import numpy as np
@@ -167,7 +167,7 @@ class Security(object):
         start = tf.floor(start, frame_type)
         _stop = tf.floor(stop, frame_type)
 
-        assert(start <= _stop)
+        assert (start <= _stop)
         head, tail = await security_cache.get_bars_range(self.code, frame_type)
 
         if not all([head, tail]):
@@ -204,26 +204,26 @@ class Security(object):
 
         return self.qfq() if fq else self._bars
 
-    async def price_change(self, start:Frame, end:Frame, frame_type:FrameType,
-                           return_max:False):
+    async def price_change(self, start: Frame, end: Frame, frame_type: FrameType,
+                           return_max: False):
         bars = await self.load_bars(start, end, frame_type)
         if return_max:
-            return np.max(bars['close'][1:])/bars['close'][0] - 1
+            return np.max(bars['close'][1:]) / bars['close'][0] - 1
         else:
-            return bars['close'][-1]/bars['close'][0] - 1
+            return bars['close'][-1] / bars['close'][0] - 1
 
     @classmethod
-    async def _load_bars_batch(cls, codes: List[str], end:Frame, n:int,
-                              frame_type:FrameType):
+    async def _load_bars_batch(cls, codes: List[str], end: Frame, n: int,
+                               frame_type: FrameType):
         batch = 1000 // n
         tasks = []
         for i in range(0, batch + 1):
             if i * batch > len(codes):
                 break
 
-            task = asyncio.create_task(get_bars_batch(codes[i*batch:(i+1)*batch],
+            task = asyncio.create_task(get_bars_batch(codes[i * batch:(i + 1) * batch],
                                                       end, n,
-                                                frame_type))
+                                                      frame_type))
             tasks.append(task)
 
         results = await asyncio.gather(*tasks)
@@ -233,34 +233,31 @@ class Security(object):
     async def _get_bars(cls, code, start, stop, frame_type):
         sec = Security(code)
         bars = await sec.load_bars(start, stop, frame_type)
-        return {code: bars}
+        return code, bars
 
     @classmethod
-    async def load_bars_batch(cls, codes: List[str], end:Frame, n:int,
-                              frame_type:FrameType):
+    async def load_bars_batch(cls, codes: List[str], end: Frame, n: int,
+                              frame_type: FrameType)->AsyncIterator:
         closed_frame = tf.floor(end, frame_type)
         start = tf.shift(closed_frame, -n + 1, frame_type)
 
-        load_alone_tasks = []
+        load_alone_tasks = [
+            asyncio.create_task(cls._get_bars(code, start, closed_frame, frame_type))
+            for code in codes
+        ]
 
-        for code in codes:
-            task = asyncio.create_task(cls._get_bars(code, start, closed_frame, frame_type))
-            load_alone_tasks.append(task)
+        if end == closed_frame:
+            for fut in asyncio.as_completed(load_alone_tasks):
+                rec = await fut
+                yield rec
+        else:
+            recs1 = await asyncio.gather(*load_alone_tasks)
+            recs2 = await cls._load_bars_batch(codes, end, 1, frame_type)
 
-        recs1 = await asyncio.gather(*load_alone_tasks)
-        recs1 = dict(ChainMap(*recs1))
-        recs2 = await cls._load_bars_batch(codes, end, 1, frame_type)
+            for code, bars in recs1.items():
+                _bars = recs2.get(code)
+                if _bars is None or len(_bars) != 1:
+                    logger.warning("wrong/emtpy records for %s", code)
+                    continue
 
-        results = {}
-        for code, bars in recs2.items():
-            _bars = recs1.get(code)
-            if _bars is None or len(bars) != 1:
-                logger.warning("wrong/emtpy records for %s:%s",code, len(bars))
-                continue
-
-            if _bars[-1]['frame'] < bars[0]['frame']:
-                results[code] = np.concatenate([_bars, bars[1:]])
-            else:# 没有新的frame
-                results[code] = _bars
-
-        return results
+                yield code, np.append(bars, _bars)
