@@ -252,9 +252,21 @@ class MyTestCase(unittest.TestCase):
     @async_run
     async def test_load_bars_batch(self):
         codes = ['000001.XSHE', '000001.XSHG']
-        results = await Security.load_bars_batch(codes, arrow.now().datetime, 10,
-                                         FrameType.MIN30)
-        self.assertEqual(10, len(results.get("000001.XSHE")))
+        # end = arrow.now(tz=cfg.tz).datetime
+        # async for code, bars in Security.load_bars_batch(codes, end, 10,
+        #                                                  FrameType.MIN30):
+        #     print(bars[-2:])
+        #     self.assertEqual(10, len(bars))
+        #
+        # codes = ['000001.XSHE', '000001.XSHG']
+        end = arrow.get('2020-08-27').datetime
+        async for code, bars in Security.load_bars_batch(codes, end, 5,
+                                                         FrameType.DAY):
+            print(code, bars[-2:])
+            self.assertEqual(5, len(bars))
+            self.assertEqual(bars[-1]['frame'], end.date())
+            if code == '000001.XSHG':
+                self.assertAlmostEqual(3350.11, bars[-1]['close'], places=2)
 
     if __name__ == '__main__':
         unittest.main()

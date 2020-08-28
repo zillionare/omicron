@@ -238,23 +238,32 @@ class Security(object):
     @classmethod
     async def load_bars_batch(cls, codes: List[str], end: Frame, n: int,
                               frame_type: FrameType)->AsyncIterator:
+        assert type(end) in (datetime.date, datetime.datetime)
         closed_frame = tf.floor(end, frame_type)
-        start = tf.shift(closed_frame, -n + 1, frame_type)
-
-        load_alone_tasks = [
-            asyncio.create_task(cls._get_bars(code, start, closed_frame, frame_type))
-            for code in codes
-        ]
 
         if end == closed_frame:
-            for fut in asyncio.as_completed(load_alone_tasks):
+            start = tf.shift(closed_frame, -n + 1, frame_type)
+
+            cached = [
+                asyncio.create_task(
+                    cls._get_bars(code, start, closed_frame, frame_type))
+                for code in codes
+            ]
+            for fut in asyncio.as_completed(cached):
                 rec = await fut
                 yield rec
         else:
-            recs1 = await asyncio.gather(*load_alone_tasks)
+            start = tf.shift(closed_frame, -n + 2, frame_type)
+
+            cached = [
+                asyncio.create_task(
+                    cls._get_bars(code, start, closed_frame, frame_type))
+                for code in codes
+            ]
+            recs1 = await asyncio.gather(*cached)
             recs2 = await cls._load_bars_batch(codes, end, 1, frame_type)
 
-            for code, bars in recs1.items():
+            for code, bars in recs1:
                 _bars = recs2.get(code)
                 if _bars is None or len(_bars) != 1:
                     logger.warning("wrong/emtpy records for %s", code)
