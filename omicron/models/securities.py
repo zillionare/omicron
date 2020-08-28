@@ -112,3 +112,6 @@ class Securities(object):
             result = [rec for rec in result if rec["display_name"].find("ST") == -1]
         result = np.array(result, dtype=self.dtypes)
         return result['code'].tolist()
+    
+    def choose_cyb(self):
+        return [rec['code'] for rec in self._secs if rec['code'].startswith('300')]

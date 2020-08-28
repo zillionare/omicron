@@ -215,7 +215,7 @@ class Security(object):
     @classmethod
     async def _load_bars_batch(cls, codes: List[str], end:Frame, n:int,
                               frame_type:FrameType):
-        batch = 3000 // n
+        batch = 1000 // n
         tasks = []
         for i in range(0, batch + 1):
             if i * batch > len(codes):
@@ -238,29 +238,29 @@ class Security(object):
     @classmethod
     async def load_bars_batch(cls, codes: List[str], end:Frame, n:int,
                               frame_type:FrameType):
-        stop = tf.floor(end, frame_type)
-        start = tf.shift(stop, -n + 1, frame_type)
+        closed_frame = tf.floor(end, frame_type)
+        start = tf.shift(closed_frame, -n + 1, frame_type)
 
         load_alone_tasks = []
 
         for code in codes:
-            task = asyncio.create_task(cls._get_bars(code, start, stop, frame_type))
+            task = asyncio.create_task(cls._get_bars(code, start, closed_frame, frame_type))
             load_alone_tasks.append(task)
 
         recs1 = await asyncio.gather(*load_alone_tasks)
         recs1 = dict(ChainMap(*recs1))
-        recs2 = await cls._load_bars_batch(codes, end, 2, frame_type)
+        recs2 = await cls._load_bars_batch(codes, end, 1, frame_type)
 
         results = {}
         for code, bars in recs2.items():
             _bars = recs1.get(code)
-            if _bars is None or len(_bars) == 0 or len(bars) != 2:
+            if _bars is None or len(bars) != 1:
                 logger.warning("wrong/emtpy records for %s:%s",code, len(bars))
                 continue
 
-            if _bars[-1]['frame'] == bars[0]['frame']:
+            if _bars[-1]['frame'] < bars[0]['frame']:
                 results[code] = np.concatenate([_bars, bars[1:]])
-            elif _bars[-1]['frame'] == bars[-1]['frame']:
+            else:# 没有新的frame
                 results[code] = _bars
 
         return results
