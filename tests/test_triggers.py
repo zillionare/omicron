@@ -4,9 +4,8 @@ import unittest
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from omicron.core.frametrigger import FrameTrigger
-from omicron.core.tradetimeintervaltrigger import TradeTimeIntervalTrigger
 from omicron.core.lang import async_run
+from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
 from omicron.core.types import FrameType
 
 logging.basicConfig(level=logging.INFO)

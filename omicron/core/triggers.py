@@ -11,8 +11,8 @@ import logging
 from typing import Union
 
 from apscheduler.triggers.base import BaseTrigger
-
 from omicron.core.timeframe import tf
+
 from omicron.core.types import FrameType
 
 logger = logging.getLogger(__name__)
@@ -20,18 +20,16 @@ logger = logging.getLogger(__name__)
 
 class FrameTrigger(BaseTrigger):
     """
-    A trigger only fires at tradetime
+    A cron like trigger fires on each valid Frame
     """
 
     def __init__(self, frame_type: Union[str, FrameType], jitter: int = 0):
         """
-
         Args:
             frame_type:
             jitter: in seconds unit, offset must within one frame
         """
-        ft = FrameType(frame_type) if isinstance(frame_type, str) else frame_type
-        self.frame_type = ft
+        self.frame_type = FrameType(frame_type)
         self.jitter = datetime.timedelta(seconds=jitter)
         if (frame_type == FrameType.MIN1 and abs(jitter) >= 60 or
                 frame_type == FrameType.MIN5 and abs(jitter) >= 300 or
@@ -74,3 +72,31 @@ class FrameTrigger(BaseTrigger):
                 frame = tf.shift(frame, 1, ft)
 
             return frame
+
+
+class TradeTimeIntervalTrigger(BaseTrigger):
+    def __init__(self, interval: int):
+        self.interval = datetime.timedelta(seconds=interval)
+
+    def get_next_fire_time(self, previous_fire_time, now):
+        if previous_fire_time is not None:
+            fire_time = previous_fire_time + self.interval
+        else:
+            fire_time = now
+
+        if tf.date2int(fire_time.date()) not in tf.day_frames:
+            ft = tf.day_shift(now, 1)
+            fire_time = datetime.datetime(ft.year, ft.month, ft.day, 9, 30)
+            return fire_time
+
+        minutes = fire_time.hour * 60 + fire_time.minute
+
+        if minutes < 570:
+            fire_time = fire_time.replace(hour=9, minute=30, second=0, microsecond=0)
+        elif 690 < minutes < 780:
+            fire_time = fire_time.replace(hour=13, minute=0, second=0, microsecond=0)
+        elif minutes > 900:
+            ft = tf.day_shift(fire_time, 1)
+            fire_time = datetime.datetime(ft.year, ft.month, ft.day, 9, 30)
+
+        return fire_time
