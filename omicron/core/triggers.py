@@ -42,6 +42,9 @@ class FrameTrigger(BaseTrigger):
         ):
             raise ValueError("offset must be less than frame length")
 
+    def __str__(self):
+        return f"{self.__class__.__name__}:{self.frame_type.value}:{self.jitter}"
+
     def get_next_fire_time(self,
                            previous_fire_time: Union[datetime.date, datetime.datetime],
                            now: Union[datetime.date, datetime.datetime]):
@@ -77,6 +80,9 @@ class FrameTrigger(BaseTrigger):
 class TradeTimeIntervalTrigger(BaseTrigger):
     def __init__(self, interval: int):
         self.interval = datetime.timedelta(seconds=interval)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}:{self.interval.seconds}"
 
     def get_next_fire_time(self, previous_fire_time, now):
         if previous_fire_time is not None:
