@@ -54,3 +54,9 @@ class TestSecurity(unittest.TestCase):
         s = Securities()
         result = s.choose(['stock', 'index'])
         self.assertEqual('000001.XSHE', result[0])
+
+    @async_run
+    async def test_query_code_complete(self):
+        for query in ['600001', 'PFYH', '浦发']:
+            result = Securities().query_code_complete(query)
+            self.assertTrue(len(result) != 0, f"{query}")

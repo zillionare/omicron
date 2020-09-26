@@ -8,11 +8,12 @@ Contributors:
 """
 import datetime
 import logging
+import re
 from typing import Union
 
 from apscheduler.triggers.base import BaseTrigger
-from omicron.core.timeframe import tf
 
+from omicron.core.timeframe import tf
 from omicron.core.types import FrameType
 
 logger = logging.getLogger(__name__)
@@ -23,20 +24,43 @@ class FrameTrigger(BaseTrigger):
     A cron like trigger fires on each valid Frame
     """
 
-    def __init__(self, frame_type: Union[str, FrameType], jitter: int = 0):
+    def __init__(self, frame_type: Union[str, FrameType], jitter: str = None):
         """
         Args:
             frame_type:
             jitter: in seconds unit, offset must within one frame
         """
         self.frame_type = FrameType(frame_type)
-        self.jitter = datetime.timedelta(seconds=jitter)
-        if (frame_type == FrameType.MIN1 and abs(jitter) >= 60 or
-                frame_type == FrameType.MIN5 and abs(jitter) >= 300 or
-                frame_type == FrameType.MIN15 and abs(jitter) >= 900 or
-                frame_type == FrameType.MIN30 and abs(jitter) >= 1800 or
-                frame_type == FrameType.MIN60 and abs(jitter) >= 3600 or
-                frame_type == FrameType.DAY and abs(jitter) >= 24 * 3600
+        if jitter is None:
+            _jitter = 0
+        else:
+            matched = re.match(r"([-]?)(\d+)([mshd])", jitter)
+            if matched is None:
+                raise ValueError("malformed. jitter should be [-](number)(unit), "
+                                 "for example, -30m, or 30s")
+            sign, num, unit = matched.groups()
+            num = int(num)
+            if unit.lower() == 'm':
+                _jitter = 60 * num
+            elif unit.lower() == 's':
+                _jitter = num
+            elif unit.lower() == 'h':
+                _jitter = 3600 * num
+            elif unit.lower() == 'd':
+                _jitter = 3600 * 24 * num
+            else:
+                raise ValueError("bad time unit. only s,h,m,d is acceptable")
+
+            if sign == "-":
+                _jitter = -_jitter
+
+        self.jitter = datetime.timedelta(seconds=_jitter)
+        if (frame_type == FrameType.MIN1 and abs(_jitter) >= 60 or
+                frame_type == FrameType.MIN5 and abs(_jitter) >= 300 or
+                frame_type == FrameType.MIN15 and abs(_jitter) >= 900 or
+                frame_type == FrameType.MIN30 and abs(_jitter) >= 1800 or
+                frame_type == FrameType.MIN60 and abs(_jitter) >= 3600 or
+                frame_type == FrameType.DAY and abs(_jitter) >= 24 * 3600
                 # it's still not allowed if offset > week, month, etc. Would anybody
                 # really specify an offset longer than that?
         ):
@@ -78,8 +102,24 @@ class FrameTrigger(BaseTrigger):
 
 
 class TradeTimeIntervalTrigger(BaseTrigger):
-    def __init__(self, interval: int):
-        self.interval = datetime.timedelta(seconds=interval)
+    def __init__(self, interval: str):
+        matched = re.match(r"(\d+)([mshd])", interval)
+        if matched is None:
+            raise ValueError(f"malform interval {interval}")
+
+        interval, unit = matched.groups()
+        interval = int(interval)
+        unit = unit.lower()
+        if unit == 's':
+            self.interval = datetime.timedelta(seconds=interval)
+        elif unit == 'm':
+            self.interval = datetime.timedelta(minutes=interval)
+        elif unit == 'h':
+            self.interval = datetime.timedelta(hours=interval)
+        elif unit == 'd':
+            self.interval = datetime.timedelta(days=interval)
+        else:
+            self.interval = datetime.timedelta(seconds=interval)
 
     def __str__(self):
         return f"{self.__class__.__name__}:{self.interval.seconds}"

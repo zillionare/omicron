@@ -149,8 +149,8 @@ class Security(object):
 
         return self._bars
 
-    async def load_bars(self, start: Frame, stop: datetime.datetime, frame_type:
-    FrameType,
+    async def load_bars(self, start: Frame, stop: datetime.datetime,
+                        frame_type: FrameType,
                         fq=True) -> np.ndarray:
         """
         取时间位于[start, stop]之间的行情数据，这里start可以等于stop。取数据的过程中先利用redis
@@ -165,7 +165,6 @@ class Security(object):
 
         """
         self._bars = None
-        assert type(stop) == datetime.datetime
         start = tf.floor(start, frame_type)
         _stop = tf.floor(stop, frame_type)
 
@@ -239,7 +238,7 @@ class Security(object):
 
     @classmethod
     async def load_bars_batch(cls, codes: List[str], end: Frame, n: int,
-                              frame_type: FrameType)->AsyncIterator:
+                              frame_type: FrameType) -> AsyncIterator:
         assert type(end) in (datetime.date, datetime.datetime)
         closed_frame = tf.floor(end, frame_type)
 
@@ -248,7 +247,7 @@ class Security(object):
 
             cached = [
                 asyncio.create_task(
-                    cls._get_bars(code, start, closed_frame, frame_type))
+                        cls._get_bars(code, start, closed_frame, frame_type))
                 for code in codes
             ]
             for fut in asyncio.as_completed(cached):
@@ -259,7 +258,7 @@ class Security(object):
 
             cached = [
                 asyncio.create_task(
-                    cls._get_bars(code, start, closed_frame, frame_type))
+                        cls._get_bars(code, start, closed_frame, frame_type))
                 for code in codes
             ]
             recs1 = await asyncio.gather(*cached)

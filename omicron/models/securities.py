@@ -8,11 +8,12 @@ Contributors:
 """
 import datetime
 import logging
+import re
+from typing import List
 
 import arrow
 import cfg4py
 import numpy as np
-from typing import List
 
 from ..core.lang import singleton
 from ..core.quotes_fetcher import get_security_list
@@ -85,7 +86,7 @@ class Securities(object):
                              self._secs['end']]
 
     def choose(self, _types: List[str], exclude_exit=True, exclude_st=True,
-               exclude_300=False,exclude_688=True) -> list:
+               exclude_300=False, exclude_688=True) -> list:
         """
         根据指定的类型（板块）来选择证券列表
         Args:
@@ -112,6 +113,19 @@ class Securities(object):
             result = [rec for rec in result if rec["display_name"].find("ST") == -1]
         result = np.array(result, dtype=self.dtypes)
         return result['code'].tolist()
-    
+
     def choose_cyb(self):
         return [rec['code'] for rec in self._secs if rec['code'].startswith('300')]
+
+    def fuzzy_match(self, query: str):
+        query = query.upper()
+        if re.match(r'\d+', query):
+            return {sec['code']: sec.tolist()
+                    for sec in self._secs if sec['code'].startswith(query)}
+        elif re.match(r'[A-Z]+', query):
+            return {sec['code']: sec.tolist()
+                    for sec in self._secs if sec['name'].startswith(query)}
+        else:
+            return {sec['code']: sec.tolist()
+                    for sec in self._secs if sec['display_name'].find(
+                        query) != -1}

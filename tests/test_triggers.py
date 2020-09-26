@@ -22,16 +22,16 @@ class MyTestCase(unittest.TestCase):
         sched = AsyncIOScheduler()
         sched.start()
 
-        trigger = FrameTrigger(FrameType.MIN1,-1)
+        trigger = FrameTrigger(FrameType.MIN1,"-30s")
         sched.add_job(say_hi, trigger=trigger, name=f"min1")
 
-        trigger = FrameTrigger(FrameType.DAY,-30*60)
+        trigger = FrameTrigger(FrameType.DAY,"1h")
         sched.add_job(say_hi, trigger=trigger, name="day")
 
-        trigger = FrameTrigger(FrameType.WEEK,-30*60)
+        trigger = FrameTrigger(FrameType.WEEK,"-1d")
         sched.add_job(say_hi, trigger=trigger, name='week')
 
-        trigger = TradeTimeIntervalTrigger(3)
+        trigger = TradeTimeIntervalTrigger("3s")
         sched.add_job(say_hi, trigger=trigger)
 
         await asyncio.sleep(1)
