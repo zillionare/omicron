@@ -14,14 +14,13 @@ logging:
       backupCount: 7
       class: logging.handlers.RotatingFileHandler
       encoding: utf-8
-      filename: /tmp/cfg4py.log
+      filename: /tmp/omicron.log
       formatter: simple
       level: INFO
       maxBytes: 10485760
   root:
     handlers:
     - file
-    - console
     level: INFO
   version: 1
 tz: Asia/Chongqing

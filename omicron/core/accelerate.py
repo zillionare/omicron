@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
@@ -10,7 +9,7 @@ import logging
 import warnings
 
 import numpy as np
-from numba import njit, NumbaPendingDeprecationWarning
+from numba import NumbaPendingDeprecationWarning, njit
 
 warnings.filterwarnings("ignore", category=NumbaPendingDeprecationWarning)
 
@@ -35,27 +34,30 @@ def index_sorted(arr, item):
     else:
         return -1
 
+
 @njit
 def count_between(arr, start, end):
     """
     arr is sorted.
     """
-    pos_start = np.searchsorted(arr, start, side='right')
-    pos_end = np.searchsorted(arr, end, side='right')
+    pos_start = np.searchsorted(arr, start, side="right")
+    pos_end = np.searchsorted(arr, end, side="right")
 
     return pos_end - pos_start + 1
+
 
 @njit
 def shift(arr, start, offset):
     """
     在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素
     """
-    pos = np.searchsorted(arr, start, side='right')
+    pos = np.searchsorted(arr, start, side="right")
 
     if pos + offset - 1 >= len(arr):
         return start
     else:
         return arr[pos + offset - 1]
+
 
 @njit
 def minute_frames_floor(ticks, moment):
@@ -80,8 +82,9 @@ def minute_frames_floor(ticks, moment):
     if moment < ticks[0]:
         return ticks[-1], -1
     # ’right' 相当于 ticks <= m
-    index = np.searchsorted(ticks, moment, side='right')
+    index = np.searchsorted(ticks, moment, side="right")
     return ticks[index - 1], 0
+
 
 @njit
 def floor(arr, item):
@@ -112,6 +115,86 @@ def floor(arr, item):
     """
     if item < arr[0]:
         return arr[0]
-    index = np.searchsorted(arr, item, side='right')
+    index = np.searchsorted(arr, item, side="right")
     return arr[index - 1]
 
+
+def join_by_left(key, r1, r2, mask=False):
+    # figure out the dtype of the result array
+    descr1 = r1.dtype.descr
+    descr2 = [d for d in r2.dtype.descr if d[0] not in r1.dtype.names]
+    descrm = descr1 + descr2
+
+    # figure out the fields we'll need from each array
+    f1 = [d[0] for d in descr1]
+    f2 = [d[0] for d in descr2]
+
+    # cache the number of columns in f1
+    ncol1 = len(f1)
+
+    # get a dict of the rows of r2 grouped by key
+    rows2 = {}
+    for row2 in r2:
+        rows2.setdefault(row2[key], []).append(row2)
+
+    # figure out how many rows will be in the result
+    nrowm = 0
+    for k1 in r1[key]:
+        if k1 in rows2:
+            nrowm += len(rows2[k1])
+        else:
+            nrowm += 1
+
+    # allocate the return array
+    _ret = np.recarray(nrowm, dtype=descrm)
+    if mask:
+        ret = np.ma.array(_ret, mask=True)
+    else:
+        ret = _ret
+
+    # merge the data into the return array
+    i = 0
+    for row1 in r1:
+        if row1[key] in rows2:
+            for row2 in rows2[row1[key]]:
+                ret[i] = tuple(row1[f1]) + tuple(row2[f2])
+                i += 1
+        else:
+            for j in range(ncol1):
+                ret[i][j] = row1[j]
+            i += 1
+
+    return ret
+
+
+# todo: check if numpy 1.19 has fixed the bug
+def numpy_append_fields(base, names, data, dtypes):
+    """numpy.lib.recfunctions.rec_append_fields 不能处理new_arr的类型为Object的情况
+
+    Args:
+        base ([type]): [description]
+        name ([type]): [description]
+        new_arr ([type]): [description]
+        dtypes ([type]): [description]
+    """
+    # check the names
+    if isinstance(names, (tuple, list)):
+        if len(names) != len(data):
+            msg = "The number of arrays does not match the number of names"
+            raise ValueError(msg)
+    elif isinstance(names, str):
+        names = [
+            names,
+        ]
+        data = [
+            data,
+        ]
+
+    result = np.empty(base.shape, dtype=base.dtype.descr + dtypes)
+    for col in base.dtype.names:
+        result[col] = base[col]
+
+    for i in range(len(names)):
+        result[names[i]] = data[i]
+
+    return result

@@ -4,7 +4,7 @@
 import datetime
 import itertools
 import logging
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import arrow
 import numpy as np
@@ -13,7 +13,8 @@ from dateutil import tz
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
-from .types import FrameType, Frame
+
+from .types import Frame, FrameType
 
 logger = logging.getLogger(__file__)
 
@@ -22,28 +23,27 @@ class TimeFrame:
     _tz = tz.gettz('Asia/Chongqing')
     back_test_mode = False
     _now: Optional[Arrow] = None
-    minute_level_frames = [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
-                           FrameType.MIN30, FrameType.MIN60]
+    minute_level_frames = [
+        FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
+        FrameType.MIN60
+    ]
     day_level_frames = [FrameType.DAY, FrameType.WEEK, FrameType.MONTH, FrameType.YEAR]
 
     ticks = {
-        FrameType.MIN1:  [i for i in itertools.chain(range(571, 691), range(781, 901))],
-        FrameType.MIN5:  [i for i in itertools.chain(range(575, 695, 5),
-                                                     range(785, 905, 5))],
-        FrameType.MIN15: [i for i in itertools.chain(range(585, 705, 15),
-                                                     range(795, 915, 15))],
-        FrameType.MIN30: [int(s[:2]) * 60 + int(s[2:]) for s in ["1000",
-                                                                 "1030",
-                                                                 "1100",
-                                                                 "1130",
-                                                                 "1330",
-                                                                 "1400",
-                                                                 "1430",
-                                                                 "1500"]],
-        FrameType.MIN60: [int(s[:2]) * 60 + int(s[2:]) for s in ["1030",
-                                                                 "1130",
-                                                                 "1400",
-                                                                 "1500"]]
+        FrameType.MIN1: [i for i in itertools.chain(range(571, 691), range(781, 901))],
+        FrameType.MIN5: [
+            i for i in itertools.chain(range(575, 695, 5), range(785, 905, 5))
+        ],
+        FrameType.MIN15: [
+            i for i in itertools.chain(range(585, 705, 15), range(795, 915, 15))
+        ],
+        FrameType.MIN30: [
+            int(s[:2]) * 60 + int(s[2:])
+            for s in ["1000", "1030", "1100", "1130", "1330", "1400", "1430", "1500"]
+        ],
+        FrameType.MIN60: [
+            int(s[:2]) * 60 + int(s[2:]) for s in ["1030", "1130", "1400", "1500"]
+        ]
     }
 
     day_frames = np.array(calendar.day_frames)
@@ -74,9 +74,12 @@ class TimeFrame:
         """
         s = str(num)
         # its 8 times faster than arrow.get()
-        return datetime.datetime(int(s[:4]), int(s[4:6]), int(s[6:8]),
+        return datetime.datetime(int(s[:4]),
+                                 int(s[4:6]),
+                                 int(s[6:8]),
                                  int(s[8:10]),
-                                 int(s[10:12]), tzinfo=cls._tz)
+                                 int(s[10:12]),
+                                 tzinfo=cls._tz)
 
     @classmethod
     def time2int(cls, tm: Arrow) -> int:
@@ -190,8 +193,10 @@ class TimeFrame:
             return cls.week_shift(moment, n)
         elif frame_type == FrameType.MONTH:
             return cls.month_shift(moment, n)
-        elif frame_type in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
-                            FrameType.MIN30, FrameType.MIN60]:
+        elif frame_type in [
+                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
+                FrameType.MIN60
+        ]:
             tm = moment.hour * 60 + moment.minute
 
             new_tick_pos = cls.ticks[frame_type].index(tm) + n
@@ -201,8 +206,11 @@ class TimeFrame:
             date_part = cls.day_shift(moment.date(), days)
             minutes = cls.ticks[frame_type][min_part]
             h, m = minutes // 60, minutes % 60
-            return datetime.datetime(date_part.year, date_part.month,
-                                     date_part.day, h, m,
+            return datetime.datetime(date_part.year,
+                                     date_part.month,
+                                     date_part.day,
+                                     h,
+                                     m,
                                      tzinfo=cls._tz)
         else:
             raise ValueError(f"{frame_type} is not supported.")
@@ -256,16 +264,18 @@ class TimeFrame:
 
     @classmethod
     def count_frames(cls, start: Union[datetime.date, datetime.datetime, Arrow],
-                     end: Union[datetime.date, datetime.datetime, Arrow],
-                     frame_type) -> int:
+                     end: Union[datetime.date, datetime.datetime,
+                                Arrow], frame_type) -> int:
         if frame_type == FrameType.DAY:
             return cls.count_day_frames(start, end)
         elif frame_type == FrameType.WEEK:
             return cls.count_week_frames(start, end)
         elif frame_type == FrameType.MONTH:
             return cls.count_month_frames(start, end)
-        elif frame_type in [FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
-                            FrameType.MIN30, FrameType.MIN60]:
+        elif frame_type in [
+                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
+                FrameType.MIN60
+        ]:
             tm_start = start.hour * 60 + start.minute
             tm_end = end.hour * 60 + end.minute
             days = cls.count_day_frames(start.date(), end.date()) - 1
@@ -356,7 +366,11 @@ class TimeFrame:
                                                       moment.hour * 60 + moment.minute)
             h, m = tm // 60, tm % 60
             new_day = tf.day_shift(moment, day_offset)
-            return datetime.datetime(new_day.year, new_day.month, new_day.day, h, m,
+            return datetime.datetime(new_day.year,
+                                     new_day.month,
+                                     new_day.day,
+                                     h,
+                                     m,
                                      tzinfo=moment.tzinfo)
 
         # docme: 如果传入日期，则默认为当天收盘
@@ -411,7 +425,11 @@ class TimeFrame:
         elif frame_type in cls.minute_level_frames:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
-            return datetime.datetime(day.year, day.month, day.day, hour=15, minute=0,
+            return datetime.datetime(day.year,
+                                     day.month,
+                                     day.day,
+                                     hour=15,
+                                     minute=0,
                                      tzinfo=cls._tz)
         else:
             raise ValueError(f"{frame_type} not supported")
@@ -513,8 +531,8 @@ class TimeFrame:
         return cls.get_frames_by_count(end, n, frame_type)
 
     @classmethod
-    def get_frames_by_count(cls, end: Arrow, n: int, frame_type: FrameType) -> List[
-        int]:
+    def get_frames_by_count(cls, end: Arrow, n: int,
+                            frame_type: FrameType) -> List[int]:
         """
         取以end为结束点,周期为frame_type的n个frame。
         Args:
@@ -538,21 +556,25 @@ class TimeFrame:
             end = tf.date2int(end)
             pos = np.searchsorted(tf.month_frames, end, side='right')
             return tf.month_frames[max(0, pos - n):pos]
-        elif frame_type in {FrameType.MIN1, FrameType.MIN5, FrameType.MIN15,
-                            FrameType.MIN30, FrameType.MIN60}:
+        elif frame_type in {
+                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
+                FrameType.MIN60
+        }:
             n_days = n // len(tf.ticks[frame_type]) + 2
             ticks = tf.ticks[frame_type] * n_days
 
             days = cls.get_frames_by_count(end, n_days, FrameType.DAY)
             days = np.repeat(days, len(tf.ticks[frame_type]))
 
-            ticks = [day * 10000 + int(tm / 60) * 100 + tm % 60 for
-                     day, tm in zip(days, ticks)]
+            ticks = [
+                day * 10000 + int(tm / 60) * 100 + tm % 60
+                for day, tm in zip(days, ticks)
+            ]
 
             # list index is much faster than accl.index_sorted
             pos = ticks.index(tf.time2int(end)) + 1
 
-            return ticks[max(0, pos - n): pos]
+            return ticks[max(0, pos - n):pos]
         else:
             raise ValueError(f"{frame_type} not support yet")
 

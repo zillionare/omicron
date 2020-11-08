@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
@@ -11,15 +9,19 @@ import datetime
 import logging
 import re
 from collections import ChainMap
-from typing import List, AsyncIterator
+from typing import AsyncIterator, List
 
 import arrow
 import numpy as np
+import numpy.lib.recfunctions as rfn
 
-from ..core.quotes_fetcher import get_bars, get_bars_batch
-from ..core.timeframe import tf
-from ..core.types import SecurityType, MarketType, FrameType, Frame
-from ..dal import security_cache
+import omicron.core.accelerate as accl
+from omicron.models.valuation import Valuation
+
+from .. import cache
+from ..client.quotes_fetcher import get_bars, get_bars_batch
+from ..core.timeframe import TimeFrame, tf
+from ..core.types import Frame, FrameType, MarketType, SecurityType
 from ..models.securities import Securities
 
 logger = logging.getLogger(__name__)
@@ -29,8 +31,14 @@ class Security(object):
     def __init__(self, code: str):
         self._code = code
 
-        _, self._display_name, self._name, self._start_date, self._end_date, _type = \
-            Securities()[code]
+        (
+            _,
+            self._display_name,
+            self._name,
+            self._start_date,
+            self._end_date,
+            _type,
+        ) = Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
 
@@ -96,7 +104,7 @@ class Security(object):
         Returns:
 
         """
-        epoch_start = arrow.get('2005-01-04').date()
+        epoch_start = arrow.get("2005-01-04").date()
         ipo_day = self.ipo_date if self.ipo_date > epoch_start else epoch_start
         return tf.count_day_frames(ipo_day, arrow.now().date())
 
@@ -114,27 +122,27 @@ class Security(object):
         _type = SecurityType.UNKNOWN
         s1, s2, s3 = code[0], code[0:2], code[0:3]
         if market == MarketType.XSHG:
-            if s1 == '6':
+            if s1 == "6":
                 _type = SecurityType.STOCK
-            elif s3 in {'000', '880', '999'}:
+            elif s3 in {"000", "880", "999"}:
                 _type = SecurityType.INDEX
-            elif s2 == '51':
+            elif s2 == "51":
                 _type = SecurityType.ETF
-            elif s3 in {'129', '100', '110', '120'}:
+            elif s3 in {"129", "100", "110", "120"}:
                 _type = SecurityType.BOND
             else:
                 _type = SecurityType.UNKNOWN
 
         else:
-            if s2 in {'00', '30'}:
+            if s2 in {"00", "30"}:
                 _type = SecurityType.STOCK
-            elif s2 == '39':
+            elif s2 == "39":
                 _type = SecurityType.INDEX
-            elif s2 == '15':
+            elif s2 == "15":
                 _type = SecurityType.ETF
-            elif s2 in {'10', '11', '12', '13'}:
+            elif s2 in {"10", "11", "12", "13"}:
                 _type = SecurityType.BOND
-            elif s2 == '20':
+            elif s2 == "20":
                 _type = SecurityType.STOCK_B
 
         return _type
@@ -143,23 +151,34 @@ class Security(object):
         return self._bars[key]
 
     def qfq(self) -> np.ndarray:
-        last = self._bars[-1]['factor']
-        for field in ['open', 'high', 'low', 'close']:
-            self._bars[field] = (self._bars[field] / last) * self._bars['factor']
+        last = self._bars[-1]["factor"]
+        for field in ["open", "high", "low", "close"]:
+            self._bars[field] = (self._bars[field] / last) * self._bars["factor"]
 
         return self._bars
 
-    async def load_bars(self, start: Frame, stop: datetime.datetime,
-                        frame_type: FrameType,
-                        fq=True) -> np.ndarray:
+    async def load_bars(
+        self,
+        start: Frame,
+        stop: datetime.datetime,
+        frame_type: FrameType,
+        fq=True,
+        turnover=False,
+    ) -> np.ndarray:
         """
-        取时间位于[start, stop]之间的行情数据，这里start可以等于stop。取数据的过程中先利用redis
-        缓存，如果遇到缓存中不存在的数据，则从quotes_fetcher服务器取
+        加载[`start`, `stop`]间的行情数据到`Security`对象中，并返回行情数据。
+
+        这里`start`可以等于`stop`。
+
+        为加快速度，对分钟级别的turnover数据，均使用当前周期的成交量除以最新报告期的流通股本数,
+        注意这样得到的是一个近似值。如果近期有解禁股，则同样的成交量，解禁后的换手率应该小于解
+        禁前。
         Args:
             start:
             stop:
             frame_type:
-            fq:
+            fq: 是否进行复权处理
+            turnover: 是否包含turnover数据。
 
         Returns:
 
@@ -168,12 +187,12 @@ class Security(object):
         start = tf.floor(start, frame_type)
         _stop = tf.floor(stop, frame_type)
 
-        assert (start <= _stop)
-        head, tail = await security_cache.get_bars_range(self.code, frame_type)
+        assert start <= _stop
+        head, tail = await cache.get_bars_range(self.code, frame_type)
 
         if not all([head, tail]):
             # not cached at all, ensure cache pointers are clear
-            await security_cache.clear_bars_range(self.code, frame_type)
+            await cache.clear_bars_range(self.code, frame_type)
 
             n = tf.count_frames(start, _stop, frame_type)
             if stop > _stop:
@@ -196,35 +215,76 @@ class Security(object):
 
         # now all closed bars in [start, _stop] should exist in cache
         n = tf.count_frames(start, _stop, frame_type)
-        self._bars = await security_cache.get_bars(self.code, _stop, n, frame_type)
+        self._bars = await cache.get_bars(self.code, _stop, n, frame_type)
 
         if arrow.get(stop) > arrow.get(_stop):
             bars = await get_bars(self.code, stop, 2, frame_type)
-            if len(bars) == 2 and bars[0]['frame'] == self._bars[-1]['frame']:
+            if len(bars) == 2 and bars[0]["frame"] == self._bars[-1]["frame"]:
                 self._bars = np.append(self._bars, bars[1])
 
-        return self.qfq() if fq else self._bars
+        if fq:
+            self.qfq()
 
-    async def price_change(self, start: Frame, end: Frame, frame_type: FrameType,
-                           return_max: False):
+        if turnover:
+            await self._add_turnover(frame_type)
+
+        return self._bars
+
+    async def _add_turnover(self, frame_type: FrameType):
+        # 从bars对应的frame中提取天数
+        if frame_type in TimeFrame.minute_level_frames:
+            dates = sorted(set(map(lambda x: x.date(), self._bars["frame"])))
+        else:
+            dates = sorted(set(self._bars["frame"]))
+        date = dates[-1]
+        n = len(dates)
+
+        cc_recs = await Valuation.get_circulating_cap(self.code, date, n)
+
+        # align circulating_cap with self.bars
+        if frame_type != FrameType.DAY:
+            tmp_bars = accl.numpy_append_fields(
+                self._bars,
+                "date",
+                [x.date() for x in self.bars["frame"]],
+                dtypes=[("date", "O")],
+            )
+            tmp_bars = accl.join_by_left("date", tmp_bars, cc_recs)
+        else:
+            # rename 'date' to frame, so we can align self._bars with circulating_cap
+            cc_recs.dtype.names = "frame", "circulating_cap"
+            tmp_bars = accl.join_by_left("frame", self._bars, cc_recs)
+        # todo: 对非股票类证券，circulating_cap的单位不一定是手（即100股），此处需要调查
+        self._bars = rfn.rec_append_fields(
+            self._bars,
+            "turnover",
+            tmp_bars["volume"] / tmp_bars["circulating_cap"] / 100,
+            [("<f4")],
+        )
+        return self._bars
+
+    async def price_change(
+        self, start: Frame, end: Frame, frame_type: FrameType, return_max: False
+    ):
         bars = await self.load_bars(start, end, frame_type)
         if return_max:
-            return np.max(bars['close'][1:]) / bars['close'][0] - 1
+            return np.max(bars["close"][1:]) / bars["close"][0] - 1
         else:
-            return bars['close'][-1] / bars['close'][0] - 1
+            return bars["close"][-1] / bars["close"][0] - 1
 
     @classmethod
-    async def _load_bars_batch(cls, codes: List[str], end: Frame, n: int,
-                               frame_type: FrameType):
+    async def _load_bars_batch(
+        cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
+    ):
         batch = 1000 // n
         tasks = []
         for i in range(0, batch + 1):
             if i * batch > len(codes):
                 break
 
-            task = asyncio.create_task(get_bars_batch(codes[i * batch:(i + 1) * batch],
-                                                      end, n,
-                                                      frame_type))
+            task = asyncio.create_task(
+                get_bars_batch(codes[i * batch : (i + 1) * batch], end, n, frame_type)
+            )
             tasks.append(task)
 
         results = await asyncio.gather(*tasks)
@@ -237,8 +297,9 @@ class Security(object):
         return code, bars
 
     @classmethod
-    async def load_bars_batch(cls, codes: List[str], end: Frame, n: int,
-                              frame_type: FrameType) -> AsyncIterator:
+    async def load_bars_batch(
+        cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
+    ) -> AsyncIterator:
         assert type(end) in (datetime.date, datetime.datetime)
         closed_frame = tf.floor(end, frame_type)
 
@@ -247,7 +308,8 @@ class Security(object):
 
             cached = [
                 asyncio.create_task(
-                        cls._get_bars(code, start, closed_frame, frame_type))
+                    cls._get_bars(code, start, closed_frame, frame_type)
+                )
                 for code in codes
             ]
             for fut in asyncio.as_completed(cached):
@@ -258,7 +320,8 @@ class Security(object):
 
             cached = [
                 asyncio.create_task(
-                        cls._get_bars(code, start, closed_frame, frame_type))
+                    cls._get_bars(code, start, closed_frame, frame_type)
+                )
                 for code in codes
             ]
             recs1 = await asyncio.gather(*cached)

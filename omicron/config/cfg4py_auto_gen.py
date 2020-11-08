@@ -1,3 +1,4 @@
+# noqa
 from typing import Optional
 
 
@@ -9,7 +10,8 @@ class Config(object):
 
     def __getattribute__(self, name):
         """
-        keep tracking if the config is accessed. If there's no access, then even the refresh interval is reached, we
+        keep tracking if the config is accessed. If there's no access, then even the
+         refresh interval is reached, we
         will not call the remote fetcher.
 
         Args:
@@ -36,7 +38,10 @@ class Config(object):
         dsn: Optional[str] = None
 
     class omega:
-        home: Optional[str] = None
 
         class urls:
             quotes_server: Optional[str] = None
+    quotes_fetchers: Optional[list] = None
+
+    class postgres:
+        dsn: Optional[str] = None

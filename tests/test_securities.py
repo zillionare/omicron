@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Author: Aaron-Yang [code@jieyu.ai]
 Contributors:
@@ -9,11 +8,8 @@ Contributors:
 import logging
 import unittest
 
-from pyemit import emit
-
 import omicron
-from omicron.core.lang import async_run
-from omicron.dal import cache
+from omicron import cache
 from omicron.models.securities import Securities
 from tests import init_test_env
 
@@ -21,42 +17,40 @@ logger = logging.getLogger(__name__)
 
 cfg = init_test_env()
 
-class TestSecurity(unittest.TestCase):
-    """Tests for `omicron` package."""
 
-    @async_run
-    async def setUp(self) -> None:
+class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
         """Set up test fixtures, if any."""
+
+        # check if omega is running
+
         await omicron.init()
-        await emit.start(emit.Engine.REDIS, dsn=cfg.redis.dsn)
 
-    def tearDown(self):
+    async def asyncTearDown(self):
         """Tear down test fixtures, if any."""
+        await omicron.shutdown()
 
-    @async_run
     async def test_000_load(self):
         s = Securities()
 
         # invalidate cache, then load from remote
-        await cache.security.delete('securities')
+        await cache.security.delete("securities")
         await s.load()
         logger.info(s)
-        self.assertEqual(s[0]['code'], '000001.XSHE')
+        self.assertEqual(s[0]["code"], "000001.XSHE")
 
         # read from cache
         s.reset()
         await s.load()
-        self.assertEqual(s[0]['code'], '000001.XSHE')
-        self.assertEqual(s['000001.XSHE']['display_name'], '平安银行')
+        self.assertEqual(s[0]["code"], "000001.XSHE")
+        self.assertEqual(s["000001.XSHE"]["display_name"], "平安银行")
 
-    @async_run
     async def test_001_choose(self):
         s = Securities()
-        result = s.choose(['stock', 'index'])
-        self.assertEqual('000001.XSHE', result[0])
+        result = s.choose(["stock", "index"])
+        self.assertEqual("000001.XSHE", result[0])
 
-    @async_run
-    async def test_query_code_complete(self):
-        for query in ['600001', 'PFYH', '浦发']:
-            result = Securities().query_code_complete(query)
+    async def test_fuzzy_match(self):
+        for query in ["600001", "PFYH", "浦发"]:
+            result = Securities().fuzzy_match(query)
             self.assertTrue(len(result) != 0, f"{query}")
