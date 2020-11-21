@@ -37,11 +37,12 @@ class Config(object):
     class redis:
         dsn: Optional[str] = None
 
+    class postgres:
+        dsn: Optional[str] = None
+        enabled: Optional[bool] = None
+
     class omega:
+        home: Optional[str] = None
 
         class urls:
             quotes_server: Optional[str] = None
-    quotes_fetchers: Optional[list] = None
-
-    class postgres:
-        dsn: Optional[str] = None

@@ -11,7 +11,7 @@ import unittest
 import omicron
 from omicron import cache
 from omicron.models.securities import Securities
-from tests import init_test_env
+from tests import init_test_env, start_omega
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +21,15 @@ cfg = init_test_env()
 class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Set up test fixtures, if any."""
-
-        # check if omega is running
-
+        init_test_env()
+        self.omega = await start_omega()
         await omicron.init()
 
     async def asyncTearDown(self):
         """Tear down test fixtures, if any."""
         await omicron.shutdown()
+        if self.omega:
+            self.omega.kill()
 
     async def test_000_load(self):
         s = Securities()

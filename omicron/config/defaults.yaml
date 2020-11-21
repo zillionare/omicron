@@ -26,3 +26,10 @@ logging:
 tz: Asia/Chongqing
 redis:
   dsn: redis://localhost:6379
+postgres:
+  dsn: postgres://${pg_account}:${pg_password}@localhost/zillionare
+  enabled: false
+omega:
+  home: ~/.zillionare/omega
+  urls:
+    quotes_server: http://localhost:3181

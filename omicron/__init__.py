@@ -2,11 +2,11 @@
 
 __author__ = """Aaron Yang"""
 __email__ = "code@jieyu.ai"
-__version__ = "__version__ = '0.2.0'"
 
 import logging
 
 import cfg4py
+import gino
 
 from .dal.cache import cache
 from .dal.postgres import db
@@ -18,12 +18,10 @@ logger = logging.getLogger(__name__)
 # 远程接口来获取数据
 _local_fetcher = None
 
-# 是否配置了数据库（Redis必须配置）
-_has_db = False
-
 
 async def init(fetcher=None):
-    """
+    """初始化omicron
+
     Args:
         fetcher: instance of AbstractQuotesFetcher。如果不为None,则Omicron会使用这个fetcher
         来获取行情数据，否则使用远程接口。
@@ -34,25 +32,23 @@ async def init(fetcher=None):
     # to avoid circular import
     from .models.securities import Securities
 
-    global _local_fetcher, cache, _has_db
+    global _local_fetcher, cache
     _local_fetcher = fetcher
 
     await cache.init()
-    sec = Securities()
-    await sec.load()
+    secs = Securities()
+    await secs.load()
 
     cfg = cfg4py.get_instance()
-    try:
-        dsn = cfg.postgres.dsn
-    except AttributeError:
-        pass
-    else:  # user configured valid dsn, then init database connection
-        _has_db = True
-        await init_db(dsn)
+    if cfg.postgres.enabled:
+        await init_db(cfg.postgres.dsn)
 
 
 async def shutdown():
-    await db.pop_bind().close()
+    try:
+        await db.pop_bind().close()
+    except gino.exceptions.UninitializedError:
+        pass
 
 
 def get_local_fetcher():
@@ -62,7 +58,7 @@ def get_local_fetcher():
 
 
 def has_db():
-    return _has_db
+    return cfg4py.get_instance().postgres.enabled
 
 
 __all__ = ["cache", "db"]

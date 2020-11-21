@@ -70,7 +70,7 @@ class Securities(object):
         else:
             logger.info("no securities in cache, fetching from server...")
             secs = await get_security_list()
-            if len(secs) == 0:
+            if secs is None or len(secs) == 0:
                 raise ValueError("Failed to load security list")
             logger.info("%s records fetched from server.", len(secs))
 

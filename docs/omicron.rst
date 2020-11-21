@@ -5,27 +5,16 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
-    omicron.core
-    omicron.dal
-    omicron.models
-
-Submodules
-----------
-
-omicron.cli module
-------------------
-
-.. automodule:: omicron.cli
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   omicron.config
+   omicron.core
+   omicron.models
 
 Module contents
 ---------------
 
 .. automodule:: omicron
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

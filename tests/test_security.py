@@ -2,9 +2,7 @@ import logging
 import unittest
 
 import arrow
-import cfg4py
 import numpy as np
-from pyemit import emit
 
 import omicron
 from omicron import cache
@@ -12,26 +10,26 @@ from omicron.core.timeframe import tf
 from omicron.core.types import FrameType, SecurityType
 from omicron.models.securities import Securities
 from omicron.models.security import Security
-from tests import init_test_env
+from tests import init_test_env, start_omega
 
 logger = logging.getLogger(__name__)
-cfg4py.enable_logging()
-
-cfg = init_test_env()
 
 
 class SecurityTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
+        self.cfg = init_test_env()
+        # check if omega is running
+        self.omega = await start_omega()
+
         await omicron.init()
-        await emit.start(
-            emit.Engine.REDIS, dsn=cfg.redis.dsn, exchange="zillionare-omega"
-        )
 
         self.securities = Securities()
         await self.securities.load()
 
     async def asyncTearDown(self) -> None:
         await omicron.shutdown()
+        if self.omega is not None:
+            self.omega.kill()
 
     def assert_bars_equal(self, expected, actual):
         self.assertEqual(expected[0][0], actual[0][0])
@@ -143,7 +141,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         logger.info("scenario: 1min level backward")
         frame_type = FrameType.MIN1
-        start = arrow.get("2020-05-06 15:00:00", tzinfo=cfg.tz).datetime
+        start = arrow.get("2020-05-06 15:00:00", tzinfo=self.cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
         stop = tf.shift(start, -249, frame_type)
         start, stop = stop, start
@@ -151,11 +149,11 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         # fmt:off
         expected = [
             [
-                arrow.get('2020-04-30 14:51:00', tzinfo=cfg.tz).datetime, 13.99, 14.,
+                arrow.get('2020-04-30 14:51:00', tzinfo=self.cfg.tz).datetime, 13.99, 14.,
                 13.98, 13.99, 281000., 3931001., 118.725646
             ],
             [
-                arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.77,
+                arrow.get('2020-05-06 15:00:00', tzinfo=self.cfg.tz).datetime, 13.77,
                 13.77, 13.77, 13.77, 1383400.0, 19049211.45000005, 118.725646
             ]
         ]
@@ -164,18 +162,18 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         logger.info("scenario: 30 min level")
         frame_type = FrameType.MIN15
-        start = arrow.get("2020-05-06 10:15:00", tzinfo=cfg.tz).datetime
+        start = arrow.get("2020-05-06 10:15:00", tzinfo=self.cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
-        stop = arrow.get("2020-05-06 15:00:00", tzinfo=cfg.tz).datetime
+        stop = arrow.get("2020-05-06 15:00:00", tzinfo=self.cfg.tz).datetime
         bars = await sec.load_bars(start, stop, frame_type)
         # fmt: off
         expected = [
             [
-                arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz).datetime, 13.67,
+                arrow.get('2020-05-06 10:15:00', tzinfo=self.cfg.tz).datetime, 13.67,
                 13.74, 13.66, 13.72, 8341905., 1.14258451e+08, 118.725646
             ],
             [
-                arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.72,
+                arrow.get('2020-05-06 15:00:00', tzinfo=self.cfg.tz).datetime, 13.72,
                 13.77, 13.72, 13.77, 7053085., 97026350.76999998, 118.725646
             ]
         ]
@@ -189,8 +187,8 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         frame_type = FrameType.MIN15
 
         logger.info("scenario: get realtime bars")
-        start = arrow.get("2020-05-06 10:15:00", tzinfo=cfg.tz).datetime
-        stop = arrow.get("2020-05-06 10:25:00", tzinfo=cfg.tz).datetime
+        start = arrow.get("2020-05-06 10:15:00", tzinfo=self.cfg.tz).datetime
+        stop = arrow.get("2020-05-06 10:25:00", tzinfo=self.cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
 
         bars = await sec.load_bars(start, stop, frame_type)

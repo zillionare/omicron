@@ -9,4 +9,4 @@ async def init(dsn: str):
     await db.set_bind(dsn)
 
 
-__all__ = ['db', 'init']
+__all__ = ["db", "init"]

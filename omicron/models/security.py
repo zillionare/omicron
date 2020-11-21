@@ -245,11 +245,13 @@ class Security(object):
         if frame_type != FrameType.DAY:
             tmp_bars = accl.numpy_append_fields(
                 self._bars,
-                "date",
-                [x.date() for x in self.bars["frame"]],
-                dtypes=[("date", "O")],
+                "join_key",
+                [x.date() for x in self._bars["frame"]],
+                dtypes=[("join_key", "O")],
             )
-            tmp_bars = accl.join_by_left("date", tmp_bars, cc_recs)
+            cc_recs.dtype.names = ["join_key", "circulating_cap"]
+            tmp_bars = accl.join_by_left("join_key", tmp_bars, cc_recs)
+
         else:
             # rename 'date' to frame, so we can align self._bars with circulating_cap
             cc_recs.dtype.names = "frame", "circulating_cap"

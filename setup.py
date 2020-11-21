@@ -3,44 +3,51 @@
 
 from setuptools import find_packages, setup
 
-with open('README.rst') as readme_file:
+with open("README.rst") as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
 requirements = [
-    'pyemit>=0.4.0', 'cfg4py>=0.4.0', 'arrow==0.15.5', 'numpy>=1.18.1',
-    'aioredis==1.3.1', 'numba==0.49.1', 'sqlalchemy', 'gino', 'asyncpg'
+    "pyemit>=0.4.0",
+    "cfg4py>=0.4.0",
+    "arrow==0.15.5",
+    "numpy>=1.18.1",
+    "aioredis==1.3.1",
+    "numba==0.49.1",
+    "sqlalchemy",
+    "gino",
+    "asyncpg",
 ]
 
 setup_requirements = []
 
-test_requirements = ['omega']
+test_requirements = ["omega"]
 
 setup(
     author="Aaron Yang",
-    author_email='code@jieyu.ai',
-    python_requires='>=3.8',
+    author_email="code@jieyu.ai",
+    python_requires=">=3.8",
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3.8',
+        "Development Status :: 2 - Pre-Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3.8",
     ],
     description="Core module for Zillionare",
     install_requires=requirements,
     license="MIT license",
-    long_description=readme + '\n\n' + history,
+    long_description=readme + "\n\n" + history,
     include_package_data=True,
-    keywords='omicron',
-    name='zillionare-omicron',
-    packages=find_packages(include=['omicron', 'omicron.*']),
+    keywords="omicron",
+    name="zillionare-omicron",
+    packages=find_packages(include=["omicron", "omicron.*"]),
     setup_requires=setup_requirements,
-    test_suite='tests',
+    test_suite="tests",
     tests_require=test_requirements,
-    url='https://github.com/zillionare/omicron',
-    version='0.2.0',
+    url="https://github.com/zillionare/omicron",
+    version="0.2.0",
     zip_safe=False,
 )

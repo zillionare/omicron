@@ -24,7 +24,7 @@ class Valuation(db.Model):
     circulating_cap = db.Column(Numeric)
     circulating_market_cap = db.Column(Numeric)
     pe_lyr = db.Column(Float)
-    date = db.Column(Date, nullable=False)
+    frame = db.Column(Date, nullable=False)
 
     types = {
         "code": "O",
@@ -38,14 +38,14 @@ class Valuation(db.Model):
         "circulating_cap": "f4",
         "circulating_market_cap": "f4",
         "pe_lyr": "f4",
-        "date": "O",
+        "frame": "O",
     }
 
     @classmethod
     async def get(
         cls,
         codes: Union[List[str], str],
-        date: datetime.date,
+        frame: datetime.date,
         fields: List[str] = None,
         n: int = 1,
     ) -> np.array:
@@ -63,7 +63,7 @@ class Valuation(db.Model):
         记录按date字段升序排列。有多只证券的，证券之间顺序由上游服务器决定。
         Args:
             codes (Union[List[str], str]): [description]
-            date (datetime.date): [description]
+            frame (datetime.date): [description]
             fields (List[str]): if None, then returns all columns/fields from
             database/remote
             n (int):
@@ -86,7 +86,7 @@ class Valuation(db.Model):
                 "circulating_cap",
                 "circulating_market_cap",
                 "pe_lyr",
-                "date",
+                "frame",
             ]
 
             if isinstance(codes, str):
@@ -94,16 +94,16 @@ class Valuation(db.Model):
 
             # 通过指定要查询的字段（即使是全部字段），避免了生成Valuation对象
             query = (
-                cls.select(*fields).where(cls.code.in_(codes)).where(cls.date <= date)
+                cls.select(*fields).where(cls.code.in_(codes)).where(cls.frame <= frame)
             )
-            query = query.order_by(cls.date.desc()).limit(len(codes) * n)
+            query = query.order_by(cls.frame.desc()).limit(len(codes) * n)
 
             records = await query.gino.all()
-            if records and len(records) == n * len(codes) and records[0].date == date:
+            if records and len(records) == n * len(codes) and records[0].frame == frame:
                 return cls.to_numpy(records, fields)[::-1]
 
         # if no db connection, or no result from database, then try remote fetch
-        return await get_valuation(codes, date, fields, n)
+        return await get_valuation(codes, frame, fields, n)
 
     @classmethod
     def to_numpy(cls, records: List, fields: List[str]) -> np.array:
@@ -127,7 +127,7 @@ class Valuation(db.Model):
         qs = insert(cls.__table__).values(data)
         return await (
             qs.on_conflict_do_update(
-                index_elements=[cls.code, cls.date],
+                index_elements=[cls.code, cls.frame],
                 set_={col: qs.excluded[col] for col in recs.dtype.names},
             )
             .returning(cls.id)
@@ -135,10 +135,10 @@ class Valuation(db.Model):
         )
 
     @classmethod
-    async def get_circulating_cap(cls, code: str, date: datetime.date, n: int):
-        fields = ["date", "circulating_cap"]
+    async def get_circulating_cap(cls, code: str, frame: datetime.date, n: int):
+        fields = ["frame", "circulating_cap"]
 
-        return await cls.get(code, date, fields, n)
+        return await cls.get(code, frame, fields, n)
 
     @classmethod
     async def truncate(cls):

@@ -20,12 +20,15 @@ logger = logging.getLogger(__file__)
 
 
 class TimeFrame:
-    _tz = tz.gettz('Asia/Chongqing')
+    _tz = tz.gettz("Asia/Chongqing")
     back_test_mode = False
     _now: Optional[Arrow] = None
     minute_level_frames = [
-        FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
-        FrameType.MIN60
+        FrameType.MIN1,
+        FrameType.MIN5,
+        FrameType.MIN15,
+        FrameType.MIN30,
+        FrameType.MIN60,
     ]
     day_level_frames = [FrameType.DAY, FrameType.WEEK, FrameType.MONTH, FrameType.YEAR]
 
@@ -43,7 +46,7 @@ class TimeFrame:
         ],
         FrameType.MIN60: [
             int(s[:2]) * 60 + int(s[2:]) for s in ["1030", "1130", "1400", "1500"]
-        ]
+        ],
     }
 
     day_frames = np.array(calendar.day_frames)
@@ -52,12 +55,10 @@ class TimeFrame:
 
     @classmethod
     async def update_calendar(cls):
-        """
-
-        """
+        """"""
         from ..dal import security_cache
 
-        for name in ['day_frames', 'week_frames', 'month_frames']:
+        for name in ["day_frames", "week_frames", "month_frames"]:
             frames = await security_cache.load_calendar(name)
             if len(frames):
                 setattr(cls, name, np.array(frames))
@@ -74,12 +75,14 @@ class TimeFrame:
         """
         s = str(num)
         # its 8 times faster than arrow.get()
-        return datetime.datetime(int(s[:4]),
-                                 int(s[4:6]),
-                                 int(s[6:8]),
-                                 int(s[8:10]),
-                                 int(s[10:12]),
-                                 tzinfo=cls._tz)
+        return datetime.datetime(
+            int(s[:4]),
+            int(s[4:6]),
+            int(s[6:8]),
+            int(s[8:10]),
+            int(s[10:12]),
+            tzinfo=cls._tz,
+        )
 
     @classmethod
     def time2int(cls, tm: Arrow) -> int:
@@ -171,8 +174,12 @@ class TimeFrame:
             raise ValueError(f"{frame_type} not supported!")
 
     @classmethod
-    def shift(cls, moment: Union[Arrow, datetime.date, datetime.datetime], n: int,
-              frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+    def shift(
+        cls,
+        moment: Union[Arrow, datetime.date, datetime.datetime],
+        n: int,
+        frame_type: FrameType,
+    ) -> Union[datetime.date, datetime.datetime]:
         """
         将指定的moment移动N个位置。当N为负数时，意味着向前移动；当N为正数时，意味着向后移动。
         如果n为零，意味着移动到最接近的一个已结束的frame。
@@ -194,8 +201,11 @@ class TimeFrame:
         elif frame_type == FrameType.MONTH:
             return cls.month_shift(moment, n)
         elif frame_type in [
-                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
-                FrameType.MIN60
+            FrameType.MIN1,
+            FrameType.MIN5,
+            FrameType.MIN15,
+            FrameType.MIN30,
+            FrameType.MIN60,
         ]:
             tm = moment.hour * 60 + moment.minute
 
@@ -206,18 +216,16 @@ class TimeFrame:
             date_part = cls.day_shift(moment.date(), days)
             minutes = cls.ticks[frame_type][min_part]
             h, m = minutes // 60, minutes % 60
-            return datetime.datetime(date_part.year,
-                                     date_part.month,
-                                     date_part.day,
-                                     h,
-                                     m,
-                                     tzinfo=cls._tz)
+            return datetime.datetime(
+                date_part.year, date_part.month, date_part.day, h, m, tzinfo=cls._tz
+            )
         else:
             raise ValueError(f"{frame_type} is not supported.")
 
     @classmethod
-    def count_day_frames(cls, start: Union[datetime.date, Arrow],
-                         end: Union[datetime.date, Arrow]) -> int:
+    def count_day_frames(
+        cls, start: Union[datetime.date, Arrow], end: Union[datetime.date, Arrow]
+    ) -> int:
         """
         calc trade days between start and end in close-to-close way. if start == end,
         this will returns 1. Both start/end will be aligned to open trade day before
@@ -263,9 +271,12 @@ class TimeFrame:
         return int(accl.count_between(cls.month_frames, start, end))
 
     @classmethod
-    def count_frames(cls, start: Union[datetime.date, datetime.datetime, Arrow],
-                     end: Union[datetime.date, datetime.datetime,
-                                Arrow], frame_type) -> int:
+    def count_frames(
+        cls,
+        start: Union[datetime.date, datetime.datetime, Arrow],
+        end: Union[datetime.date, datetime.datetime, Arrow],
+        frame_type,
+    ) -> int:
         if frame_type == FrameType.DAY:
             return cls.count_day_frames(start, end)
         elif frame_type == FrameType.WEEK:
@@ -273,8 +284,11 @@ class TimeFrame:
         elif frame_type == FrameType.MONTH:
             return cls.count_month_frames(start, end)
         elif frame_type in [
-                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
-                FrameType.MIN60
+            FrameType.MIN1,
+            FrameType.MIN5,
+            FrameType.MIN15,
+            FrameType.MIN30,
+            FrameType.MIN60,
         ]:
             tm_start = start.hour * 60 + start.minute
             tm_end = end.hour * 60 + end.minute
@@ -362,16 +376,14 @@ class TimeFrame:
 
         """
         if frame_type in tf.minute_level_frames:
-            tm, day_offset = accl.minute_frames_floor(cls.ticks[frame_type],
-                                                      moment.hour * 60 + moment.minute)
+            tm, day_offset = accl.minute_frames_floor(
+                cls.ticks[frame_type], moment.hour * 60 + moment.minute
+            )
             h, m = tm // 60, tm % 60
             new_day = tf.day_shift(moment, day_offset)
-            return datetime.datetime(new_day.year,
-                                     new_day.month,
-                                     new_day.day,
-                                     h,
-                                     m,
-                                     tzinfo=moment.tzinfo)
+            return datetime.datetime(
+                new_day.year, new_day.month, new_day.day, h, m, tzinfo=moment.tzinfo
+            )
 
         # docme: 如果传入日期，则默认为当天收盘
         if type(moment) == datetime.date:
@@ -394,8 +406,9 @@ class TimeFrame:
         return tf.int2date(floored)
 
     @classmethod
-    def last_frame(cls, day: Union[str, Arrow, datetime.date],
-                   frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+    def last_frame(
+        cls, day: Union[str, Arrow, datetime.date], frame_type: FrameType
+    ) -> Union[datetime.date, datetime.datetime]:
         """
         获取指定日期的结束frame。注意这个frame可能位于将来。
         Args:
@@ -425,12 +438,9 @@ class TimeFrame:
         elif frame_type in cls.minute_level_frames:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
-            return datetime.datetime(day.year,
-                                     day.month,
-                                     day.day,
-                                     hour=15,
-                                     minute=0,
-                                     tzinfo=cls._tz)
+            return datetime.datetime(
+                day.year, day.month, day.day, hour=15, minute=0, tzinfo=cls._tz
+            )
         else:
             raise ValueError(f"{frame_type} not supported")
 
@@ -459,8 +469,9 @@ class TimeFrame:
             return 240
 
     @classmethod
-    def first_frame(cls, day: Union[str, Arrow, datetime.date],
-                    frame_type: FrameType) -> Union[datetime.date, datetime.datetime]:
+    def first_frame(
+        cls, day: Union[str, Arrow, datetime.date], frame_type: FrameType
+    ) -> Union[datetime.date, datetime.datetime]:
         """
         获取指定日期的起始的frame。
         Args:
@@ -531,8 +542,9 @@ class TimeFrame:
         return cls.get_frames_by_count(end, n, frame_type)
 
     @classmethod
-    def get_frames_by_count(cls, end: Arrow, n: int,
-                            frame_type: FrameType) -> List[int]:
+    def get_frames_by_count(
+        cls, end: Arrow, n: int, frame_type: FrameType
+    ) -> List[int]:
         """
         取以end为结束点,周期为frame_type的n个frame。
         Args:
@@ -546,19 +558,22 @@ class TimeFrame:
 
         if frame_type == FrameType.DAY:
             end = tf.date2int(end)
-            pos = np.searchsorted(tf.day_frames, end, side='right')
-            return tf.day_frames[max(0, pos - n):pos]
+            pos = np.searchsorted(tf.day_frames, end, side="right")
+            return tf.day_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.WEEK:
             end = tf.date2int(end)
-            pos = np.searchsorted(tf.week_frames, end, side='right')
-            return tf.week_frames[max(0, pos - n):pos]
+            pos = np.searchsorted(tf.week_frames, end, side="right")
+            return tf.week_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.MONTH:
             end = tf.date2int(end)
-            pos = np.searchsorted(tf.month_frames, end, side='right')
-            return tf.month_frames[max(0, pos - n):pos]
+            pos = np.searchsorted(tf.month_frames, end, side="right")
+            return tf.month_frames[max(0, pos - n) : pos]
         elif frame_type in {
-                FrameType.MIN1, FrameType.MIN5, FrameType.MIN15, FrameType.MIN30,
-                FrameType.MIN60
+            FrameType.MIN1,
+            FrameType.MIN5,
+            FrameType.MIN15,
+            FrameType.MIN30,
+            FrameType.MIN60,
         }:
             n_days = n // len(tf.ticks[frame_type]) + 2
             ticks = tf.ticks[frame_type] * n_days
@@ -574,10 +589,10 @@ class TimeFrame:
             # list index is much faster than accl.index_sorted
             pos = ticks.index(tf.time2int(end)) + 1
 
-            return ticks[max(0, pos - n):pos]
+            return ticks[max(0, pos - n) : pos]
         else:
             raise ValueError(f"{frame_type} not support yet")
 
 
 tf = TimeFrame()
-__all__ = ['tf']
+__all__ = ["tf"]

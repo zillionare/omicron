@@ -116,3 +116,11 @@ async def get_valuation(
         params = {"secs": sec, "fields": fields, "date": str(date), "n": n}
 
         return await _quotes_server_get("valuation", params)
+
+
+async def get_server_version():
+    url = f"{cfg.omega.urls.quotes_server}/sys/version"
+    async with aiohttp.ClientSession() as client:
+        async with client.get(url) as resp:
+            if resp.status == 200:
+                return await resp.text()

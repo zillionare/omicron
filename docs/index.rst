@@ -1,9 +1,8 @@
-Welcome to omicron's documentation!
+Omicron - Zillionare核心公共库 
 ======================================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    readme
    installation
