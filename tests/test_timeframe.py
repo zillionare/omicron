@@ -232,6 +232,8 @@ class TimeFrameTest(unittest.TestCase):
             ("2005-1-5 09:46", FrameType.MIN15, "2005-1-5 09:45"),
             ("2005-1-5 10:01", FrameType.MIN30, "2005-1-5 10:00"),
             ("2005-1-5 10:31", FrameType.MIN60, "2005-1-5 10:30"),
+            # 如果moment为非交易日，则floor到上一交易日收盘
+            ("2020-11-21 09:32", FrameType.MIN1, "2020-11-20 15:00"),
         ]
 
         for i, (moment, frame_type, expected) in enumerate(X):

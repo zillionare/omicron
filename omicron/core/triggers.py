@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Author: Aaron-Yang [code@jieyu.ai]
-Contributors:  
+Contributors:
 
 """
 import datetime
@@ -83,33 +83,19 @@ class FrameTrigger(BaseTrigger):
         now: Union[datetime.date, datetime.datetime],
     ):
         ft = self.frame_type
-        if ft in tf.day_level_frames:
-            if previous_fire_time is None:
-                frame = tf.floor(now, ft)
+
+        next_tick = now
+        next_frame = tf.ceiling(now, ft)
+        while next_tick <= now:
+            if ft in tf.day_level_frames:
+                next_tick = tf.combine_time(next_frame, 15) + self.jitter
             else:
-                frame = tf.shift(previous_fire_time, 1, ft)
+                next_tick = next_frame + self.jitter
 
-            frame = datetime.datetime(
-                frame.year, frame.month, frame.day, 15, tzinfo=now.tzinfo
-            )
-            frame += self.jitter
-
-            if frame < now:  # 调整到下一个frame, 否则apscheduler会陷入死循环
-                nf = tf.shift(frame, 1, ft)
-                frame = frame.replace(year=nf.year, month=nf.month, day=nf.day)
-
-            return frame
-        else:
-            if previous_fire_time is None:
-                frame = tf.shift(tf.floor(now, ft), 1, ft)
+            if next_tick > now:
+                return next_tick
             else:
-                frame = tf.shift(tf.floor(previous_fire_time, ft), 1, ft)
-
-            frame += self.jitter
-            if frame < now:  # 调整到下一个frame, 否则apscheduler会陷入死循环
-                frame = tf.shift(frame, 1, ft)
-
-            return frame
+                next_frame = tf.shift(next_frame, 1, ft)
 
 
 class TradeTimeIntervalTrigger(BaseTrigger):
