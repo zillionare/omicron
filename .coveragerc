@@ -1,0 +1,2 @@
+[run]
+omit = omicron/conf/cfg4py_auto_gen.py
