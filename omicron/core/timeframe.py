@@ -20,7 +20,7 @@ logger = logging.getLogger(__file__)
 
 
 class TimeFrame:
-    _tz = tz.gettz("Asia/Chongqing")
+    _tz = tz.gettz("Asia/Shanghai")
     back_test_mode = False
     _now: Optional[Arrow] = None
     minute_level_frames = [
@@ -359,8 +359,7 @@ class TimeFrame:
     def minutes_elapsed(cls, tm: Arrow) -> int:
         pass
 
-    @classmethod
-    def floor(cls, moment: Frame, frame_type: FrameType) -> Frame:
+    def floor(self, moment: Frame, frame_type: FrameType) -> Frame:
         """
         根据frame_type,将moment对齐到最接近的上一个frame。用以将类似于10:37这样的时间处理到
         10：30（如果对应的frame_type是FrameType.MIN30)
@@ -377,10 +376,15 @@ class TimeFrame:
         """
         if frame_type in tf.minute_level_frames:
             tm, day_offset = accl.minute_frames_floor(
-                cls.ticks[frame_type], moment.hour * 60 + moment.minute
+                self.ticks[frame_type], moment.hour * 60 + moment.minute
             )
             h, m = tm // 60, tm % 60
-            new_day = tf.day_shift(moment, day_offset)
+            if tf.day_shift(moment, 0) < moment.date() or day_offset == -1:
+                h = 15
+                m = 0
+                new_day = tf.day_shift(moment, day_offset)
+            else:
+                new_day = moment.date()
             return datetime.datetime(
                 new_day.year, new_day.month, new_day.day, h, m, tzinfo=moment.tzinfo
             )
@@ -390,7 +394,7 @@ class TimeFrame:
             moment = datetime.datetime(moment.year, moment.month, moment.day, 15)
 
         if moment.hour * 60 + moment.minute < 900:
-            moment = cls.day_shift(moment, -1)
+            moment = self.day_shift(moment, -1)
 
         day = tf.date2int(moment)
         if frame_type == FrameType.DAY:
@@ -592,6 +596,60 @@ class TimeFrame:
             return ticks[max(0, pos - n) : pos]
         else:
             raise ValueError(f"{frame_type} not support yet")
+
+    def ceiling(self, moment: datetime.datetime, frame_type: FrameType):
+        """`moment`所在周期(类型由`frame_type`指定）的终止时间
+
+        Args:
+            moment (datetime.datetime): [description]
+            frame_type (FrameType): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        return self.shift(self.floor(moment, frame_type), 1, frame_type)
+
+    def combine_time(
+        self,
+        date: datetime.date,
+        hour: int,
+        minute: int = 0,
+        second: int = 0,
+        microsecond: int = 0,
+    ) -> datetime.datetime:
+        """将日期与时间结合
+
+        如果args只有一位，则必须为datetime.datetime类型
+        Args:
+            date (datetime.date): [description]
+        """
+        return datetime.datetime(
+            date.year,
+            date.month,
+            date.day,
+            hour,
+            minute,
+            second,
+            microsecond,
+            tzinfo=self._tz,
+        )
+
+    def replace_date(
+        sel, dtm: datetime.datetime, dt: datetime.date
+    ) -> datetime.datetime:
+        """将`dtm`变量的日期更换为`dt`指定的日期
+
+        Args:
+            sel ([type]): [description]
+            dtm (datetime.datetime): [description]
+            dt (datetime.date): [description]
+
+        Returns:
+            datetime.datetime: [description]
+        """
+        return datetime.datetime(
+            dt.year, dt.month, dt.day, dtm.hour, dtm.minute, dtm.second, dtm.microsecond
+        )
 
 
 tf = TimeFrame()
