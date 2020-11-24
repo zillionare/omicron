@@ -15,7 +15,7 @@ omicron.config.calendar module
 omicron.config.cfg4py\_auto\_gen module
 ---------------------------------------
 
-.. automodule:: omicron.config.cfg4py_auto_gen
+.. automodule:: omicron.config.schema
    :members:
    :undoc-members:
    :show-inheritance:

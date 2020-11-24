@@ -38,8 +38,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
-    # "recommonmark",
-    "myst_parser",
+    "recommonmark",
 ]
 # autosectionlabel_prefix_document = True
 # needs_extensions = {"recommonmark": "0.6"}

@@ -12,8 +12,8 @@ with open("HISTORY.rst") as history_file:
 requirements = [
     "pyemit >= 0.4.0",
     "cfg4py == 0.8.0",
-    "arrow == 0.15",
-    "numpy == 1.19.4",
+    "arrow ~= 0.15.5",
+    "numpy ~= 1.19.4",
     "aioredis == 1.3.1",
     "numba == 0.49.1",
     "SQLAlchemy == 1.3.20",

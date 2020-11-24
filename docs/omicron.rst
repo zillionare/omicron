@@ -7,8 +7,10 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   omicron.client
    omicron.config
    omicron.core
+   omicron.dal
    omicron.models
 
 Module contents

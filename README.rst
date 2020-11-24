@@ -1,5 +1,5 @@
-Omicron
-==========
+Omicron - Zillionare公共内核库
+==============================
 
 .. image:: _static/zillion-universe.jpg
 
