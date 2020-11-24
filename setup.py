@@ -25,11 +25,6 @@ requirements = [
 
 setup_requirements = []
 
-test_requirements = [
-    "zillionare-omega == 0.6.0",
-    "zillionare-omega-adaptors-jq == 0.2.3",
-]
-
 setup(
     author="Aaron Yang",
     author_email="code@jieyu.ai",
@@ -50,8 +45,6 @@ setup(
     name="zillionare-omicron",
     packages=find_packages(include=["omicron", "omicron.*"]),
     setup_requires=setup_requirements,
-    test_suite="tests",
-    tests_require=test_requirements,
     url="https://github.com/zillionare/omicron",
     version="0.3.0",
     zip_safe=False,

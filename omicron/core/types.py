@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 from enum import Enum
-from typing import List, Tuple, Union
-
-from arrow import Arrow
+from typing import Union
 
 Frame = Union[datetime.date, datetime.datetime]
 
