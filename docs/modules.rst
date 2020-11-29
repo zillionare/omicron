@@ -1,4 +1,4 @@
-omicron
+API文档
 =======
 
 .. toctree::

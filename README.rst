@@ -1,7 +1,7 @@
-Omicron - Zillionare公共内核库
-==============================
+Welcome to Omicron
+===================
 
-.. image:: _static/zillion-universe.jpg
+.. image:: http://images.jieyu.ai/images/hot/zillionworld.jpg
 
 *Core Library for Zillionare*
 
@@ -24,13 +24,21 @@ Omicron - Zillionare公共内核库
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
+.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
+    :target: https://opensource.org/licenses/MIT
+
 **鸣谢**
 
 Zillionare-Omicron采用以下技术构建:
+
+  * Pycharm开源项目支持计划_
+
+    .. image:: _static/jetbrains-variant-3.svg
+        :target: https://www.jetbrains.com/?from=zillionare-omega
+
  * Cookiecutter_
  * Cookiecutter-pypackage_
- * Poetry_
 
+.. _Pycharm开源项目支持计划: https://www.jetbrains.com/?from=zillionare-omega
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _Cookiecutter-pypackage: https://github.com/audreyr/cookiecutter-pypackage
-.. _Poetry: https://github.com/python-poetry
