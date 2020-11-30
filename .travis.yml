@@ -8,7 +8,8 @@ install: pip install -U tox-travis
 before_script:
 - psql -c 'create database zillionare;' -U postgres
 - psql -c "create user zillionare with password '123456';" -U postgres
-- psql -c "grant all privileges on database 'zillionare' to zillionare;" -U postgres
+- psql -c "grant all privileges on database zillionare to zillionare;" -U postgres
+- psql --dbname=zillionare --file=omicron/config/sql/v0.6.sql
 script: tox
 deploy:
   provider: pypi
