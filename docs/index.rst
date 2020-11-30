@@ -4,7 +4,6 @@ Omicron - Zillionare核心公共库
 .. toctree::
    :maxdepth: 2
 
-   readme
    installation
    usage
    modules
