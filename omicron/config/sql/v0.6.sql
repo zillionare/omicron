@@ -1,4 +1,5 @@
-create table valuation
+-- this script is for omega <= 0.6
+create table if not exists valuation
 (
     id                     serial not null
         constraint valuation_pk
@@ -20,9 +21,8 @@ create table valuation
 alter table valuation
     owner to zillionare;
 
-create unique index valuation_id_uindex
+create unique index if not exists valuation_id_uindex
     on valuation (id);
 
-create unique index valuation_code_frame_uindex
+create unique index if not exists valuation_code_frame_uindex
     on valuation (code, frame);
-
