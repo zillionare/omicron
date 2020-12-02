@@ -1,3 +1,5 @@
+.. image:: http://images.jieyu.ai/images/hot/zillionbanner.jpg
+
 Omicron - Zillionare核心公共库 
 ======================================
 
@@ -6,8 +8,8 @@ Omicron - Zillionare核心公共库
 
    installation
    usage
-   modules
    contributing
+   modules
    authors
    history
 
