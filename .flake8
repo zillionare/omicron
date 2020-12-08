@@ -18,7 +18,6 @@ exclude =
     .pytest_cache,
     .vscode,
     .github,
-    docs/conf.py,
     tests
 
 docstring-convention = google

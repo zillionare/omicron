@@ -1,0 +1,19 @@
+site_name: Omicron
+
+nav:
+  - 简介: index.md
+  - 安装: installation.md
+  - 教程: usage.md
+  - 社区: https://zillionare.readthedocs.io/zh_CN/latest/contributing.html
+  - 版本历史: history.md
+  - API文档: api.md
+
+theme:
+  name: material
+
+markdown_extensions:
+  - admonition
+plugins:
+  - include-markdown
+  - mkdocstrings
+  - search
