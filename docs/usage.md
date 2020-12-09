@@ -1,6 +1,6 @@
-# 快速上手
+# 1. 快速上手
 
-## 配置文件
+## 1.1. 配置文件
 
 Omicron使用 [cfg4py](https://pypi.org/project/cfg4py/) 来管理配置。
 
@@ -10,17 +10,9 @@ cfg4py使用yaml文件来保存配置项。在使用cfg4py之前，您需要在�
 import cfg4py
 cfg4py.init('path_to_your_config_folder')
 ```
+注意初始化cfg4py时，需要提供包含配置文件的文件夹的路径，而不是配置文件的路径。配置文件名必须为defaults.yml。
 
----
-**注意**
-
-cfg4py要求您通过环境变量来声明当前机器的角色是开发、测试还是生产环境。为不同的场景应用不同的配置，被认为是确保安全性的最佳实践之一。
-
-关于如何设置，请参见 [Omega部署指南](https://zillionare-omega.readthedocs.io/zh_CN/latest/deployment.html#id14)
-
----
-
-Omicron需要从配置文件中读取到以下信息：
+您至少应该为Omicron配置时区、Redis连接串、Postgres连接串和Omega服务器连接地址：
 
 ```yaml
 # path_to_config/defaults.yaml
@@ -28,6 +20,7 @@ tz: Asia/Shanghai
 redis:
   dsn: redis://localhost:6379
 postgres:
+  # 请修改服务器名称，并在环境变量中增加pg_account, pg_password
   dsn: postgres://${pg_account}:${pg_password}@localhost/zillionare
   enabled: false
 omega:
@@ -35,8 +28,12 @@ omega:
     quotes_server: http://localhost:3181
 ```
 
-您的工程可能使用了其它的方式来管理配置，比如configparser。推荐您将配置统一使用cfg4py来管理。
-## 获取行情数据
+请根据您实际环境配置来更改上述文件。缺省地，Omicron是不使用Postgres数据库的。如果您打算使用Postgres数据库的话，除了要配置正确的连接串之外，还要将这里的 `enabled` 改为 `true`。
+
+关于Postgres数据库的作用，请参见[Omega文档](https://zillionare-omega.readthedocs.io)
+
+Omicron的最基础的作用，就是访问行情数据。我们通过下面的例子来看如何实现这个功能：
+## 1.2. 获取行情数据
 ```python
 import arrow
 import cfg4py
@@ -75,6 +72,3 @@ asynd def main():
     bars = await sec.load_bars(start, stop, frame_type)
     print(bars)
 ```
-
-
-
