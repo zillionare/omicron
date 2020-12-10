@@ -18,6 +18,10 @@ def init_test_env():
     src_dir = os.path.dirname(__file__)
     config_path = os.path.join(src_dir, "../omicron/config")
 
+    # todo: omega-0.6 dev assumes /var/log/zillionare exists by default
+    # this will cause UT hang if no /var/log/zillionare
+    os.makedirs("/var/log/zillionare", exist_ok=True)
+
     return cfg4py.init(config_path, False)
 
 
