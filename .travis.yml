@@ -6,6 +6,7 @@ services:
 - postgresql
 install: pip install -U tox-travis
 before_script:
+- export TZ=Asia/Shanghai
 - sudo mkdir -p /var/log/zillionare
 - sudo chmod 777 /var/log/zillionare
 - psql -c 'create database zillionare;' -U postgres
