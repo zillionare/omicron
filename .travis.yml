@@ -3,7 +3,7 @@ python:
 - 3.8
 services:
 - redis
-- posgresql
+- postgresql
 install: pip install -U tox-travis
 before_script:
 - psql -c 'create database zillionare;' -U postgres
@@ -12,12 +12,8 @@ before_script:
 - psql --dbname=zillionare --file=omicron/config/sql/v0.6.sql
 script: tox
 deploy:
-  provider: pypi
-  distributions: sdist bdist_wheel
-  user: __token__
-  password:
-    # token: travis
-    secure: MsP+IcTBFPcASX0dm94TDzPOLaTXMmE87EKapa8Mz9fGhmQDMZsOsRWF7perj+AK1ZOsYzJ8u2Ja1f8M6oyNOGXmctMrbU5DwyB5ZAXIC9BiAppUisWsjuZ0KI7IoJZD6TN9aW054pTirkSsdT9KHLKqYkQzLmbr0C4WDgkRQbwaO3cegmqE0BL8QIA9+hg5T0qTgrwXNUR934q0141UKA+ssMrvtDQ7lnOyRA5JbDzpP9J8+scHBOF4/r0/wAC/xoZxbibpUtrOfg908VktrnneeZfwWZcCM+oMJ6TjAR+isZvp8P/LJtCXJMHeO+5/MimI3F8LqkAWtU030agbaCEF2ozc634Ua8MVqiJmxSioPCsdoTTMqfDeyLcCV/EZKw/OVM8CUASVaJ9+geBuPHxNJQfdrV7t9jzU8HTJQqzXTIZXNyd4bIkpQPCIkzQA0Lay1sEcrDk51iPQUGYC2mrhcrbvAVn+8jiTmHDId7x5xPuDUL+fsPuEVDg/LShYFkJL92hOJ7Dd+j9nzEIac6aNuk4Cku7ga+1stgRG1leRWbLDrK/vT0qxmiRgTADcgsAZE+VUspbx/Cf+th8LfR4cb7EoUxqrHiXhXP4+05htuNbM0Bk0UgfVEIzgGETnalgWi/mOxFPsYSQGxS7CYHBxUqD/+2coL8UrsqI668s=
-  on:
-    tags: true
-    python: 3.8
+  - provider: script
+    script: poetry publish --username __token__ --build --password MsP+IcTBFPcASX0dm94TDzPOLaTXMmE87EKapa8Mz9fGhmQDMZsOsRWF7perj+AK1ZOsYzJ8u2Ja1f8M6oyNOGXmctMrbU5DwyB5ZAXIC9BiAppUisWsjuZ0KI7IoJZD6TN9aW054pTirkSsdT9KHLKqYkQzLmbr0C4WDgkRQbwaO3cegmqE0BL8QIA9+hg5T0qTgrwXNUR934q0141UKA+ssMrvtDQ7lnOyRA5JbDzpP9J8+scHBOF4/r0/wAC/xoZxbibpUtrOfg908VktrnneeZfwWZcCM+oMJ6TjAR+isZvp8P/LJtCXJMHeO+5/MimI3F8LqkAWtU030agbaCEF2ozc634Ua8MVqiJmxSioPCsdoTTMqfDeyLcCV/EZKw/OVM8CUASVaJ9+geBuPHxNJQfdrV7t9jzU8HTJQqzXTIZXNyd4bIkpQPCIkzQA0Lay1sEcrDk51iPQUGYC2mrhcrbvAVn+8jiTmHDId7x5xPuDUL+fsPuEVDg/LShYFkJL92hOJ7Dd+j9nzEIac6aNuk4Cku7ga+1stgRG1leRWbLDrK/vT0qxmiRgTADcgsAZE+VUspbx/Cf+th8LfR4cb7EoUxqrHiXhXP4+05htuNbM0Bk0UgfVEIzgGETnalgWi/mOxFPsYSQGxS7CYHBxUqD/+2coL8UrsqI668s=
+    on:
+      tags: true
+      python: 3.8
