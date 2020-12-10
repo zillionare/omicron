@@ -61,10 +61,16 @@ async def start_omega(port: int = 3181):
             f"--port={port}",
         ],
         env=os.environ,
+        stdout=subprocess.PIPE,
     )
+
     for i in range(20, 0, -1):
+        if process.poll() is not None:
+            # already exit
+            msg = f"Omega server exited abnormally with status {process.returncode}"
+            raise subprocess.SubprocessError(msg)
         if await is_local_omega_alive():
             return process
 
         time.sleep(10)
-    raise EnvironmentError("Omega server is not started.")
+    raise subprocess.SubprocessError("Omega server malfunction.")
