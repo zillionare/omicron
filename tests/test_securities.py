@@ -23,8 +23,6 @@ class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures, if any."""
         init_test_env()
         self.omega = await start_omega()
-        if not self.omega:
-            self.assertTrue(False, "omega not started")
         await omicron.init()
 
     async def asyncTearDown(self):
