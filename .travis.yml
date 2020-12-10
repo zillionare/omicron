@@ -6,6 +6,8 @@ services:
 - postgresql
 install: pip install -U tox-travis
 before_script:
+- sudo mkdir -p /var/log/zillionare
+- sudo chmod 777 /var/log/zillionare
 - psql -c 'create database zillionare;' -U postgres
 - psql -c "create user zillionare with password '123456';" -U postgres
 - psql -c "grant all privileges on database zillionare to zillionare;" -U postgres
