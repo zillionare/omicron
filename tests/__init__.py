@@ -59,6 +59,7 @@ async def start_omega(port: int = 3181):
         env=os.environ,
     )
     for i in range(20, 0, -1):
+        print("wait for omega to start")
         if await is_local_omega_alive():
             return process
 
