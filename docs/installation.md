@@ -1,6 +1,7 @@
-# 安装
 
-要使用Omicron来获取行情数据，请先安装 `Omega <https://pypi.org/project/zillionare-omega/>`_，并按说明文档要求完成初始化配置。
+# 1. 安装
+
+要使用Omicron来获取行情数据，请先安装[Omega](https://pypi.org/project/zillionare-omega/)，并按说明文档要求完成初始化配置。
 
 然后在开发机上，运行下面的命令安装Omicron:
 

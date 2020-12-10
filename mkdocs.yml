@@ -13,6 +13,8 @@ theme:
 
 markdown_extensions:
   - admonition
+  - toc:
+      baselevel: 2
 plugins:
   - include-markdown
   - mkdocstrings
