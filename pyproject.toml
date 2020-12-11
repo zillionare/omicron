@@ -4,7 +4,7 @@ url = "https://mirrors.aliyun.com/pypi/simple/"
 
 [tool.poetry]
 name = "omicron"
-version = "0.4.1"
+version = "0.3.1"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
@@ -14,7 +14,7 @@ repository = "https://github.com/zillionare/omicron"
 documentation = "https://zillionare-omega.readthedocs.io"
 keywords = ["AI", "quant", "trade", "stock"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",

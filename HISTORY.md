@@ -14,3 +14,7 @@
 * Security list
 * Bars with turnover
 * Valuation
+
+## 0.3.1 (2020-12-11)
+
+this version introduced no features, just a internal amendment release, we're migrating to poetry build system.
