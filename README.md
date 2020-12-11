@@ -36,7 +36,6 @@ Contents
 * [installation](installation.md)
 ## 简介
 
-see [Omega部署](omega://../omega/app.py)
 Omicron是Zillionare的核心公共模块，实现了数据访问层，向其它模块提供行情、市值、交易日历、证券列表、时间操作及Trigger等功能。
 
 [使用文档](https://omicron.readthedocs.io/zh_CN/latest/)
@@ -47,7 +46,7 @@ Zillionare-Omicron采用以下技术构建:
 
 * Pycharm开源项目支持计划
 
-    ![](docs/_static/jetbrains-variant-3.svg)
+    ![](_static/jetbrains-variant-3.svg)
 
 * [Cookiecutter](https://github.com/audreyr/cookiecutter)
 * [Cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage)
