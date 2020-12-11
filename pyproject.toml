@@ -3,7 +3,7 @@ name = "ali"
 url = "https://mirrors.aliyun.com/pypi/simple/"
 
 [tool.poetry]
-name = "omicron"
+name = "zillionare-omicron"
 version = "0.3.1"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
