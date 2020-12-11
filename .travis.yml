@@ -16,6 +16,7 @@ before_script:
 #script: tox
 script: echo "skip tox"
 before_deploy:
+- pip install poetry
 - poetry config repositories.testpypi https://test.pypi.org/legacy/
 
 # todo: switch to official after test pass
