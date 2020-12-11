@@ -5,11 +5,11 @@
 
 
 <p align="center">
-<a href="https://pypi.python.org/pypi/omicron">
-    <img src="https://img.shields.io/pypi/v/omicron.svg" >
+<a href="https://pypi.python.org/pypi/zillionare-omicron">
+    <img src="http://img.shields.io/pypi/v/zillionare-omicron?color=brightgreen" >
 </a>
 <a href="https://travis-ci.com/zillionare/omicron">
-<img src="https://img.shields.io/travis/zillionare/omicron.svg" >
+<img src="https://api.travis-ci.com/zillionare/omicron.svg?branch=release">
 </a>
 <a href="https://omicron.readthedocs.io/en/latest/?badge=latest">
 <img src="https://readthedocs.org/projects/omicron/badge/?version=latest" >
