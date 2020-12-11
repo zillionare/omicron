@@ -7,7 +7,7 @@ name = "zillionare-omicron"
 packages = [
     {include = "omicron"}
 ]
-version = "0.3.1"
+version = "0.3.2-alpha.0"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
