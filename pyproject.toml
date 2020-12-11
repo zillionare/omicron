@@ -4,7 +4,7 @@ url = "https://mirrors.aliyun.com/pypi/simple/"
 
 [tool.poetry]
 name = "omicron"
-version = "0.4.0"
+version = "0.4.1"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
