@@ -13,8 +13,7 @@ before_script:
 - psql -c "create user zillionare with password '123456';" -U postgres
 - psql -c "grant all privileges on database zillionare to zillionare;" -U postgres
 - psql --dbname=zillionare --file=omicron/config/sql/v0.6.sql
-#script: tox
-script: echo "skip tox"
+script: tox
 before_deploy:
 - pip install poetry
 - poetry config repositories.testpypi https://test.pypi.org/legacy/
@@ -24,8 +23,8 @@ before_deploy:
 - poetry config pypi-token.pypi $PYPI_TOKEN
 deploy:
   - provider: script
-    script: poetry publish -r testpypi --build
+    script: poetry publish --build
     on:
-      #tags: true
+      tags: true
       python: 3.8
-      branch: poetry
+      branch: master
