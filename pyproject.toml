@@ -12,9 +12,9 @@ description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://zillionare-omega.readthedocs.io"
+homepage = "https://zillionare-omicron.readthedocs.io"
 repository = "https://github.com/zillionare/omicron"
-documentation = "https://zillionare-omega.readthedocs.io"
+documentation = "https://zillionare-omicron.readthedocs.io"
 keywords = ["AI", "quant", "trade", "stock"]
 classifiers = [
     "Development Status :: 3 - Alpha",
