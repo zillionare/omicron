@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import functools
+import warnings
 
 
 def singleton(cls):
@@ -39,6 +40,14 @@ def async_concurrent(executors):
 
 
 def async_run(func):
+    """wrapper to run an async function immediately
+
+    Considering retire this function. Originally this is introduced for testing async
+    function. Since python 3.8, :py:unittest:IsolatedAsyncioTestCase is introduced, so
+    this is no need.
+    """
+    warnings.warn(DeprecationWarning)
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
