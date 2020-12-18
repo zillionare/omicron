@@ -21,7 +21,6 @@ cfg = init_test_env()
 class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Set up test fixtures, if any."""
-        init_test_env()
         self.omega = await start_omega()
         await omicron.init()
 
