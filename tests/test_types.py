@@ -19,3 +19,22 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 frame_type.to_int(), FrameType.from_int(frame_type.to_int()).to_int()
             )
+
+    def test_comparison(self):
+        day = FrameType("1d")
+        week = FrameType("1w")
+        month = FrameType("1M")
+        quater = FrameType("1Q")
+        year = FrameType("1Y")
+        min_1 = FrameType("1m")
+        min_5 = FrameType("5m")
+
+        self.assertTrue(week > day)
+        self.assertTrue(day < week)
+        self.assertTrue(week < month)
+        self.assertTrue(month < quater)
+        self.assertTrue(quater < year)
+        self.assertTrue(min_1, min_5)
+
+        self.assertTrue(day >= day)
+        self.assertTrue(day <= day)

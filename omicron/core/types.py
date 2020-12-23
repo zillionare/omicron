@@ -51,6 +51,29 @@ class FrameType(Enum):
 
         return mapping[frame_type]
 
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.to_int() < other.to_int()
+        return NotImplemented
+
+    def __le__(self, other) -> bool:
+        if self.__class__ is other.__class__:
+            return self.to_int() <= other.to_int()
+
+        return NotImplemented
+
+    def __ge__(self, other) -> bool:
+        if self.__class__ is other.__class__:
+            return self.to_int() >= other.to_int()
+
+        return NotImplemented
+
+    def __gt__(self, other) -> bool:
+        if self.__class__ is other.__class__:
+            return self.to_int() > other.to_int()
+
+        return NotImplemented
+
 
 class SecurityType(Enum):
     STOCK = "stock"
