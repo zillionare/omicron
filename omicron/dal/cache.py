@@ -39,6 +39,11 @@ class RedisCache:
     async def sanity_check(self, db):
         pass
 
+    async def close(self):
+        for redis in [self.sys, self.security, self.temp]:
+            redis.close()
+            await redis.wait_closed()
+
     async def init(self):
         cfg = cfg4py.get_instance()
         for i, name in enumerate(self.databases):
