@@ -2,7 +2,7 @@ tz: Asia/Shanghai
 redis:
   dsn: redis://localhost:6379
 postgres:
-  dsn: postgres://${pg_account}:${pg_password}@localhost/zillionare
+  dsn: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost/zillionare
   enabled: false
 omega:
   home: ~/.zillionare/omega
