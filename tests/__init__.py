@@ -18,9 +18,12 @@ def init_test_env():
     src_dir = os.path.dirname(__file__)
     config_path = os.path.join(src_dir, "../omicron/config")
 
-    # todo: omega-0.6 dev assumes /var/log/zillionare exists by default
-    # this will cause UT hang if no /var/log/zillionare
-    os.makedirs("/var/log/zillionare", exist_ok=True)
+    handler = logging.StreamHandler()
+    fmt = "%(asctime)s %(levelname)-1.1s %(name)s:%(funcName)s:%(lineno)s | %(message)s"
+    formatter = logging.Formatter(fmt=fmt)
+    handler.setFormatter(formatter)
+    logger = logging.getLogger()
+    logger.addHandler(handler)
 
     return cfg4py.init(config_path, False)
 
@@ -42,8 +45,8 @@ async def start_omega(port: int = 3181):
         return None
 
     cfg.omega.urls.quotes_server = f"http://localhost:{port}"
-    account = os.environ["jq_account"]
-    password = os.environ["jq_password"]
+    account = os.environ["JQ_ACCOUNT"]
+    password = os.environ["JQ_PASSWORD"]
 
     # hack: by default postgres is disabled, but we need it enabled for ut
     cfg_ = json.dumps({"postgres": {"dsn": cfg.postgres.dsn, "enabled": "true"}})
