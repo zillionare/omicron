@@ -9,14 +9,10 @@ import logging
 import warnings
 
 import numpy as np
-from numba import NumbaPendingDeprecationWarning, njit
-
-warnings.filterwarnings("ignore", category=NumbaPendingDeprecationWarning)
 
 logger = logging.getLogger(__name__)
 
 
-@njit
 def index(arr, item):
     for idx, val in np.ndenumerate(arr):
         if val == item:
@@ -26,7 +22,6 @@ def index(arr, item):
     return -1
 
 
-@njit
 def index_sorted(arr, item):
     pos = np.searchsorted(arr, item)
     if arr[pos] == item:
@@ -35,7 +30,6 @@ def index_sorted(arr, item):
         return -1
 
 
-@njit
 def count_between(arr, start, end):
     """
     arr is sorted.
@@ -46,7 +40,6 @@ def count_between(arr, start, end):
     return pos_end - pos_start + 1
 
 
-@njit
 def shift(arr, start, offset):
     """
     在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素
@@ -59,7 +52,6 @@ def shift(arr, start, offset):
         return arr[pos + offset - 1]
 
 
-@njit
 def minute_frames_floor(ticks, moment):
     """
     对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
@@ -86,7 +78,6 @@ def minute_frames_floor(ticks, moment):
     return ticks[index - 1], 0
 
 
-@njit
 def floor(arr, item):
     """
     在数据arr中，找到小于等于item的那一个值。如果item小于所有arr元素的值，返回arr[0];如果item
