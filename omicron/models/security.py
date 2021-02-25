@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Author: Aaron-Yang [code@jieyu.ai]
-Contributors:
 
-"""
 import asyncio
 import datetime
 import logging

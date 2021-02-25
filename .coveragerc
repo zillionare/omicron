@@ -1,2 +1,4 @@
 [run]
-omit = omicron/conf/schema.py
+omit =
+    omicron/conf/schema.py
+    omicron/core/events.py

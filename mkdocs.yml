@@ -12,6 +12,9 @@ theme:
   name: material
 
 markdown_extensions:
+  - pymdownx.highlight:
+      linenums: true
+  - pymdownx.superfences
   - admonition
   - toc:
       baselevel: 2
