@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 class TimeFrameTest(unittest.TestCase):
     def setUp(self) -> None:
-        pass
+        root = logging.getLogger()
+        root.handlers.clear()
+        logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
 
     def test_shift_min1(self):
         X = [
@@ -28,7 +30,7 @@ class TimeFrameTest(unittest.TestCase):
             ("2020-03-26 15:00", 241, "2020-03-30 09:31"),
         ]
         for i, (start, offset, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.shift(arrow.get(start, tzinfo=cfg.tz), offset, FrameType.MIN1)
             self.assertEqual(arrow.get(expected, tzinfo=cfg.tz).datetime, actual)
 
@@ -44,7 +46,7 @@ class TimeFrameTest(unittest.TestCase):
             ("2020-03-26 15:00", 242, "2020-03-30 09:31"),
         ]
         for i, (start, expected, end) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.count_frames(
                 arrow.get(start, tzinfo=cfg.tz),
                 arrow.get(end, tzinfo=cfg.tz),
@@ -65,7 +67,7 @@ class TimeFrameTest(unittest.TestCase):
             ("2020-03-26 15:00", 49, "2020-03-30 09:35"),
         ]
         for i, (start, offset, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.shift(arrow.get(start, tzinfo=cfg.tz), offset, FrameType.MIN5)
             self.assertEqual(arrow.get(expected, tzinfo=cfg.tz), actual)
 
@@ -83,7 +85,7 @@ class TimeFrameTest(unittest.TestCase):
         fmt = "YYYY-MM-DD HH:mm"
 
         for i, (start, offset, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.shift(
                 arrow.get(start, fmt, tzinfo=cfg.tz), offset, FrameType.MIN15
             )
@@ -97,7 +99,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (start, end, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             start = arrow.get(start)
             end = arrow.get(end)
             actual = tf.count_frames(start, end, FrameType.MIN15)
@@ -129,7 +131,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (s, expected, e) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             # cause 130 ± 3.34 µs, 130e-6 seconds
             actual = tf.count_day_frames(
                 arrow.get(s, "YYYY-MM-DD").date(), arrow.get(e, "YYYY-MM-DD").date()
@@ -146,7 +148,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (start, offset, expected) in enumerate(X):
-            logger.info("testing of %s", X[i])
+            logger.debug("testing of %s", X[i])
             actual = tf.day_shift(arrow.get(start).date(), offset)
             self.assertEqual(arrow.get(expected).date(), actual)
 
@@ -160,7 +162,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (x, n, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.week_shift(arrow.get(x).date(), n)
             self.assertEqual(actual, arrow.get(expected).date())
 
@@ -173,7 +175,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (start, expected, end) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.WEEK
             )
@@ -190,7 +192,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (start, expected, end) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
             actual = tf.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.MONTH
             )
@@ -207,7 +209,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (start, n, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
 
             actual = tf.month_shift(arrow.get(start).date(), n)
             self.assertEqual(arrow.get(expected).date(), actual)
@@ -234,10 +236,12 @@ class TimeFrameTest(unittest.TestCase):
             ("2005-1-5 10:31", FrameType.MIN60, "2005-1-5 10:30"),
             # 如果moment为非交易日，则floor到上一交易日收盘
             ("2020-11-21 09:32", FrameType.MIN1, "2020-11-20 15:00"),
+            # 如果moment刚好是frame结束时间，则floor(frame) == frame
+            ("2005-1-5 10:00", FrameType.MIN30, "2005-1-5 10:00"),
         ]
 
         for i, (moment, frame_type, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+            logger.debug("testing %s", X[i])
 
             frame = arrow.get(moment).datetime
             if frame_type in tf.day_level_frames and frame.hour == 0:
@@ -252,24 +256,36 @@ class TimeFrameTest(unittest.TestCase):
 
             self.assertEqual(expected, actual)
 
-    def test_ceil(self):
+    def test_ceiling(self):
         X = [
+            ("2005-1-7", FrameType.DAY, "2005-1-7"),
+            ("2005-1-9", FrameType.DAY, "2005-1-10"),
+            ("2005-1-10", FrameType.DAY, "2005-1-10"),
             ("2005-1-4", FrameType.WEEK, "2005-1-7"),
+            ("2005-1-7", FrameType.WEEK, "2005-1-7"),
+            ("2005-1-9", FrameType.WEEK, "2005-1-14"),
             ("2005-1-1", FrameType.MONTH, "2005-1-31"),
-            ("2005-1-5", FrameType.MIN1, "2005-1-5 15:00"),
-            ("2005-1-5", FrameType.MIN5, "2005-1-5 15:00"),
-            ("2005-1-5", FrameType.MIN15, "2005-1-5 15:00"),
-            ("2005-1-5", FrameType.MIN30, "2005-1-5 15:00"),
-            ("2005-1-5", FrameType.MIN60, "2005-1-5 15:00"),
+            ("2005-1-5 14:59:00", FrameType.MIN1, "2005-1-5 14:59"),
+            ("2005-1-5 14:59:00", FrameType.MIN5, "2005-1-5 15:00"),
+            ("2005-1-5 14:59:00", FrameType.MIN15, "2005-1-5 15:00"),
+            ("2005-1-5 14:59:00", FrameType.MIN30, "2005-1-5 15:00"),
+            ("2005-1-5 14:59:00", FrameType.MIN60, "2005-1-5 15:00"),
+            ("2005-1-5 14:55:00", FrameType.MIN5, "2005-1-5 14:55:00"),
+            ("2005-1-5 14:30:00", FrameType.MIN5, "2005-1-5 14:30:00"),
+            ("2005-1-9 14:59:00", FrameType.MIN5, "2005-1-10 09:35:00"),
         ]
 
-        for i, (day, frame_type, expected) in enumerate(X):
-            logger.info("testing %s", X[i])
+        for i in range(0, len(X)):
+            logger.debug("testing %s: %s", i, X[i])
 
-            actual = tf.last_frame(day, frame_type)
+            moment, frame_type, expected = X[i]
             if frame_type in tf.day_level_frames:
+                actual = tf.ceiling(arrow.get(moment).date(), frame_type)
                 expected = arrow.get(expected).date()
             else:
+                actual = tf.ceiling(
+                    arrow.get(moment, tzinfo=cfg.tz).datetime, frame_type
+                )
                 expected = arrow.get(expected, tzinfo=cfg.tz).datetime
 
             self.assertEqual(expected, actual)
@@ -294,7 +310,7 @@ class TimeFrameTest(unittest.TestCase):
             end, n = tf.int2date(days[i]), i + 1
             expected = days[:n]
             actual = tf.get_frames_by_count(end, n, FrameType.DAY)
-            logger.info(
+            logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
             self.assertListEqual(expected, list(actual))
@@ -400,7 +416,7 @@ class TimeFrameTest(unittest.TestCase):
         for i, (end, n, expected) in enumerate(X):
             end = tf.int2time(end)
             actual = tf.get_frames_by_count(end, n, FrameType.MIN30)
-            logger.info(
+            logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
             self.assertListEqual(expected, actual)
@@ -426,7 +442,9 @@ class TimeFrameTest(unittest.TestCase):
             end = tf.int2date(days[i])
 
             actual = tf.get_frames(start, end, FrameType.DAY)
-            logger.info("get_frames(%s, %s, %s)->%s", start, end, FrameType.DAY, actual)
+            logger.debug(
+                "get_frames(%s, %s, %s)->%s", start, end, FrameType.DAY, actual
+            )
             self.assertListEqual(days[0 : i + 1], list(actual))
 
         X = [
@@ -532,7 +550,7 @@ class TimeFrameTest(unittest.TestCase):
             start = tf.int2time(expected[0])
             end = tf.int2time(end)
             actual = tf.get_frames(start, end, FrameType.MIN30)
-            logger.info(
+            logger.debug(
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.MIN30, actual
             )
             self.assertListEqual(expected, actual)

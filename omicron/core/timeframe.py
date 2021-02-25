@@ -13,8 +13,7 @@ from dateutil import tz
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
-
-from .types import Frame, FrameType
+from omicron.core.types import Frame, FrameType
 
 logger = logging.getLogger(__file__)
 
@@ -231,10 +230,9 @@ class TimeFrame:
         this will returns 1. Both start/end will be aligned to open trade day before
         calculation.
 
-
-        :param start:
-        :param end:
-        :return:
+        args:
+            start:
+            end:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -246,7 +244,10 @@ class TimeFrame:
         calc trade weeks between start and end in close-to-close way. Both start and
         end will be aligned to open trade day before calculation. After that, if start
          == end, this will returns 1
-        :param
+
+        args:
+            start:
+            end:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -258,6 +259,7 @@ class TimeFrame:
         calc trade months between start and end date in close-to-close way. Both
         start and end will be aligned to open trade day before calculation. After that,
         if start == end, this will returns 1.
+
         Args:
             start:
             end:
@@ -389,7 +391,6 @@ class TimeFrame:
                 new_day.year, new_day.month, new_day.day, h, m, tzinfo=moment.tzinfo
             )
 
-        # docme: 如果传入日期，则默认为当天收盘
         if type(moment) == datetime.date:
             moment = datetime.datetime(moment.year, moment.month, moment.day, 15)
 
@@ -450,8 +451,9 @@ class TimeFrame:
 
     @classmethod
     def frame_len(cls, frame_type: FrameType):
-        """
-        返回以分钟为单位的frame长度。对日线以上级别没有意义，但会返回240
+        """返回以分钟为单位的frame长度。
+
+        对日线以上级别没有意义，但会返回240
         Args:
             frame_type:
 
@@ -597,8 +599,24 @@ class TimeFrame:
         else:
             raise ValueError(f"{frame_type} not support yet")
 
-    def ceiling(self, moment: datetime.datetime, frame_type: FrameType):
+    def ceiling(self, moment: Frame, frame_type: FrameType):
         """`moment`所在周期(类型由`frame_type`指定）的终止时间
+
+        Example:
+            >>> tf.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
+            datetime.date(2005, 1, 7)
+
+            >>> tf.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
+            datetime.date(2005, 1, 7)
+
+            >>> tf.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
+            datetime.date(2005, 1, 7)
+
+            >>> tf.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
+            datetime.date(2005, 1, 31)
+
+            >>> tf.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            datetime.datetime(2005, 1, 5, 14, 59)
 
         Args:
             moment (datetime.datetime): [description]
@@ -607,7 +625,16 @@ class TimeFrame:
         Returns:
             [type]: [description]
         """
-        return self.shift(self.floor(moment, frame_type), 1, frame_type)
+        if frame_type in tf.day_level_frames and type(moment) == datetime.datetime:
+            moment = moment.date()
+
+        floor = self.floor(moment, frame_type)
+        if floor == moment:
+            return moment
+        elif floor > moment:
+            return floor
+        else:
+            return self.shift(floor, 1, frame_type)
 
     def combine_time(
         self,
@@ -635,7 +662,7 @@ class TimeFrame:
         )
 
     def replace_date(
-        sel, dtm: datetime.datetime, dt: datetime.date
+        self, dtm: datetime.datetime, dt: datetime.date
     ) -> datetime.datetime:
         """将`dtm`变量的日期更换为`dt`指定的日期
 

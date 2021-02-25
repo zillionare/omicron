@@ -32,7 +32,6 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             (FrameType.WEEK, "-30m", None, "2020-11-20 14:31"),
             (FrameType.DAY, "5m", None, "2020-11-21 14:40"),
             (FrameType.DAY, "5m", None, "2020-11-20 14:59"),
-            # 下一个交易日处理。如果刚好scheduler在这一刻进行调度，会产生漏一拍的错误
             (FrameType.DAY, "5m", None, "2020-11-20 15:00"),
         ]
 
@@ -50,10 +49,10 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             "2020-11-27 14:30:00",
             "2020-11-23 15:05:00",
             "2020-11-20 15:05:00",
-            "2020-11-23 15:05:00",
+            "2020-11-20 15:05:00",
         ]
 
-        for i in range(11, len(X)):
+        for i in range(0, len(X)):
             logger.info("%s: %s", i, X[i])
             trigger = FrameTrigger(X[i][0], X[i][1])
             next_tick = trigger.get_next_fire_time(None, _datetime(X[i][3]))
