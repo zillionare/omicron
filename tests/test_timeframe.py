@@ -1,3 +1,4 @@
+import datetime
 import logging
 import unittest
 
@@ -554,6 +555,21 @@ class TimeFrameTest(unittest.TestCase):
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.MIN30, actual
             )
             self.assertListEqual(expected, actual)
+
+    def test_first_frame(self):
+        moments = [
+            "2020-1-1",
+            "2019-12-31",
+            "2020-1-1 10:35",
+            "2019-12-31 10:35",
+            datetime.date(2019, 12, 31),
+            arrow.get("2019-12-31 10:35", tzinfo=cfg.tz).datetime,
+            arrow.get("2019-12-31 10:35", tzinfo=cfg.tz),
+        ]
+
+        for moment in moments:
+            actual = tf.first_frame(moment, FrameType.MIN5)
+            self.assertEqual(arrow.get("2019-12-31 09:35", tzinfo=cfg.tz), actual)
 
 
 if __name__ == "__main__":
