@@ -106,4 +106,4 @@ ENV/
 .github/
 /.idea
 
-omicron/config/schema.py
+/omicron/config/schema.py
