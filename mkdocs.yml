@@ -20,5 +20,8 @@ markdown_extensions:
       baselevel: 2
 plugins:
   - include-markdown
-  - mkdocstrings
+  - mkdocstrings:
+      watch:
+        - omicron
   - search
+  - autorefs

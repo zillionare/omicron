@@ -1,4 +1,17 @@
 [run]
 omit =
-    omicron/conf/schema.py
-    omicron/core/events.py
+    */config/schema.py
+    */core/events.py
+    */core/lang.py
+    */core/errors.py
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    def main
