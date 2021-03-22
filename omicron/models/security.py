@@ -298,6 +298,33 @@ class Security(object):
     async def load_bars_batch(
         cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
     ) -> AsyncIterator:
+        """为一批证券品种加载行情数据
+
+        examples:
+        ```
+        codes = ["000001.XSHE", "000001.XSHG"]
+
+        end = arrow.get("2020-08-27").datetime
+        async for code, bars in Security.load_bars_batch(codes, end, 5, FrameType.DAY):
+            print(code, bars[-2:])
+            self.assertEqual(5, len(bars))
+            self.assertEqual(bars[-1]["frame"], end.date())
+            if code == "000001.XSHG":
+                self.assertAlmostEqual(3350.11, bars[-1]["close"], places=2)
+        ```
+
+        Args:
+            codes : 证券列表
+            end : 结束帧
+            n : 周期数
+            frame_type : 帧类型
+
+        Returns:
+            [description]
+
+        Yields:
+            [description]
+        """
         assert type(end) in (datetime.date, datetime.datetime)
         closed_frame = tf.floor(end, frame_type)
 

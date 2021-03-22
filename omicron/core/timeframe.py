@@ -54,18 +54,22 @@ class TimeFrame:
 
     @classmethod
     async def update_calendar(cls):
-        """"""
-        from ..dal import security_cache
+        """系统内部调用"""
+        from omicron import cache
 
         for name in ["day_frames", "week_frames", "month_frames"]:
-            frames = await security_cache.load_calendar(name)
-            if len(frames):
+            frames = await cache.load_calendar(name)
+            if frames and len(frames):
                 setattr(cls, name, np.array(frames))
 
     @classmethod
     def int2time(cls, num: int) -> datetime.datetime:
-        """
-        convert special formatted integer like 202005011500 into datetime(2020,5,1,15)
+        """将整数表示的时间转换为`datetime`类型表示
+
+        examples:
+        >>> int2time(202005011500)
+            datetime(2020,5,1,15)
+
         Args:
             num:
 
@@ -84,10 +88,15 @@ class TimeFrame:
         )
 
     @classmethod
-    def time2int(cls, tm: Arrow) -> int:
-        """
-        convert datetime into special int format, for example, from datetime(2020, 5,
-        1, 15) to 202005011500
+    def time2int(cls, tm: Union[datetime.datetime, Arrow]) -> int:
+        """将时间类型转换为整数类型
+
+        tm可以是Arrow类型，也可以是datetime.datetime或者任何其它类型，只要它有year,month...等
+        属性
+        Examples:
+        >>> time2int(datetime.datetime(2020, 5, 1, 15))
+        202005011500
+
         Args:
             tm:
 
@@ -98,9 +107,12 @@ class TimeFrame:
 
     @classmethod
     def date2int(cls, d: Union[datetime.datetime, datetime.date, Arrow]) -> int:
-        """
-        convert date into a special formatted int, for example, from date(2020,5,
-        1) to 20200501
+        """将日期转换为整数表示
+
+        Examples:
+        >>> date2int(datetime.date(2020,5,1))
+        20200501
+
         Args:
             d:
 
@@ -111,9 +123,12 @@ class TimeFrame:
 
     @classmethod
     def int2date(cls, d: Union[int, str]) -> datetime.date:
-        """
-        convert a special formatted int to date, for example, from 20200501 to date(
-        2020,5,1)
+        """将整数表示的日期转换成为日期格式
+
+        Examples:
+        >>> int2date(20200501)
+        datetime.date(2020,5,1)
+
         Args:
             d:
 
@@ -126,10 +141,25 @@ class TimeFrame:
 
     @classmethod
     def day_shift(cls, start: datetime.date, offset: int) -> datetime.date:
-        """
+        """对指定日期进行前后移位操作
+
         如果 n == 0，则返回d对应的交易日（如果是非交易日，则返回刚结束的一个交易日）
         如果 n > 0，则返回d对应的交易日后第 n 个交易日
         如果 n < 0，则返回d对应的交易日前第 n 个交易日
+
+        Examples:
+        >>> day_shift(datetime.date(2019,12,13), 0)
+        datetime.date(2019,12,13)
+
+        >>> day_shift(datetime.date(2019, 12, 15), 0)
+        datetime.date(2019,12,13)
+
+        >>> day_shift(datetime.date(2019, 12, 15), 1)
+        datetime.date(2019, 12, 16)
+
+        >>> day_shift(datetime.date(2019, 12, 13), 1)
+        datetime.date(2019, 12, 16)
+
         Args:
             start: the origin day
             offset: days to shift, can be negative
@@ -144,8 +174,11 @@ class TimeFrame:
 
     @classmethod
     def week_shift(cls, start: datetime.date, offset: int) -> datetime.date:
-        """
-        返回start对应的那一周结束的日期，这个日期就是那个frame的id
+        """对指定日期按周线帧进行前后移位操作
+
+        参考 [omicron.core.timeframe.TimeFrame.day_shift][]
+        Examples:
+
         """
         start = cls.date2int(start)
         return cls.int2date(accl.shift(cls.week_frames, start, offset))
@@ -279,6 +312,19 @@ class TimeFrame:
         end: Union[datetime.date, datetime.datetime, Arrow],
         frame_type,
     ) -> int:
+        """计算start与end之间有多少个周期为frame_type的frames
+
+        Args:
+            start : [description]
+            end : [description]
+            frame_type : [description]
+
+        Raises:
+            ValueError: 如果frame_type不支持(季线、年线），则会抛出此异常。
+
+        Returns:
+            从start到end的帧数
+        """
         if frame_type == FrameType.DAY:
             return cls.count_day_frames(start, end)
         elif frame_type == FrameType.WEEK:
@@ -305,11 +351,13 @@ class TimeFrame:
         else:
             raise ValueError(f"{frame_type} is not supported yet")
 
+    @FutureWarning
     @classmethod
     def set_backtest_mode(cls, now: Arrow):
         cls.back_test_mode = True
         cls._now = now
 
+    @FutureWarning
     @classmethod
     def now(cls) -> Arrow:
         if cls.back_test_mode:
@@ -319,10 +367,28 @@ class TimeFrame:
 
     @classmethod
     def is_trade_day(cls, dt: Union[datetime.date, datetime.datetime, Arrow]) -> bool:
+        """判断是否为交易日
+
+        Args:
+            dt :
+
+        Returns:
+            [description]
+        """
         return cls.date2int(dt) in cls.day_frames
 
     @classmethod
     def is_open_time(cls, tm: Optional[Arrow] = None) -> bool:
+        """判断`tm`指定的时间是否处在交易时间段。
+
+        交易时间段是指集合竞价时间段之外的开盘时间
+
+        Args:
+            tm : [description]. Defaults to None.
+
+        Returns:
+            [description]
+        """
         if tm is None:
             tm = cls.now()
 
@@ -334,6 +400,14 @@ class TimeFrame:
 
     @classmethod
     def is_opening_call_auction_time(cls, tm: Optional[Arrow] = None) -> bool:
+        """判断`tm`指定的时间是否为开盘集合竞价时间
+
+        Args:
+            tm : [description]. Defaults to None.
+
+        Returns:
+            [description]
+        """
         if tm is None:
             tm = cls.now()
 
@@ -345,18 +419,31 @@ class TimeFrame:
 
     @classmethod
     def is_closing_call_auction_time(cls, tm: Optional[Arrow] = None) -> bool:
+        """判断`tm`指定的时间是否为收盘集合竞价时间
+
+        Fixme:
+            此处实现有误，收盘集合竞价时间应该还包含上午收盘时间
+
+        Args:
+            tm : [description]. Defaults to None.
+
+        Returns:
+            [description]
+        """
         tm = tm or cls.now()
 
         if not cls.is_trade_day(tm):
             return False
 
         minutes = tm.hour * 60 + tm.minute
-        return 15 * 60 - 3 < minutes < 16 * 60
+        return 15 * 60 - 3 < minutes < 15 * 60
 
+    @FutureWarning
     @classmethod
     def minutes_left(cls, tm: Arrow) -> int:
         pass
 
+    @FutureWarning
     @classmethod
     def minutes_elapsed(cls, tm: Arrow) -> int:
         pass
@@ -392,7 +479,9 @@ class TimeFrame:
             )
 
         if type(moment) == datetime.date:
-            moment = datetime.datetime(moment.year, moment.month, moment.day, 15)
+            moment = datetime.datetime(
+                moment.year, moment.month, moment.day, 15, tzinfo=self._tz
+            )
 
         if moment.hour * 60 + moment.minute < 900:
             moment = self.day_shift(moment, -1)

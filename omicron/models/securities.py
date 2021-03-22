@@ -92,13 +92,20 @@ class Securities(object):
         exclude_300=False,
         exclude_688=True,
     ) -> list:
-        """
-        根据指定的类型（板块）来选择证券列表
-        Args:
-            _types:
-            exlcude:
-        Returns:
+        """选择证券标的
 
+        本函数用于选择部分证券标的。先根据指定的类型(`stock`, `index`等）来加载证券标的，再根
+        据其它参数进行排除。
+
+        Args:
+            _types : 支持的类型为`index`, `stock`, `fund`等。
+            exclude_exit : 是否排除掉已退市的品种. Defaults to True.
+            exclude_st : 是否排除掉作ST处理的品种. Defaults to True.
+            exclude_300 : 是否排除掉创业板品种. Defaults to False.
+            exclude_688 : 是否排除掉科创板品种. Defaults to True.
+
+        Returns:
+            筛选出的证券代码列表
         """
         cond = np.array([False] * len(self._secs))
         if not _types:

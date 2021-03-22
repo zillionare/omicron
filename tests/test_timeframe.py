@@ -109,6 +109,13 @@ class TimeFrameTest(unittest.TestCase):
     def test_shift_frame_min30(self):
         pass
 
+    def test_shift(self):
+        mom = arrow.get("2020-1-20")
+
+        self.assertEqual(tf.shift(mom, 1, FrameType.DAY), tf.day_shift(mom, 1))
+        self.assertEqual(tf.shift(mom, 1, FrameType.WEEK), tf.week_shift(mom, 1))
+        self.assertEqual(tf.shift(mom, 1, FrameType.MONTH), tf.month_shift(mom, 1))
+
     def test_count_frames_min30(self):
         pass
 
@@ -144,7 +151,7 @@ class TimeFrameTest(unittest.TestCase):
             ["2019-12-13", 0, "2019-12-13"],  # should be 2019-12-13
             ["2019-12-15", 0, "2019-12-13"],  # should be 2019-12-13
             ["2019-12-15", 1, "2019-12-16"],  # 2019-12-16
-            ["2019-12-13", 1, "2019-12-16"],  # should be 2019-12-13
+            ["2019-12-13", 1, "2019-12-16"],  # should be 2019-12-16
             ["2019-12-15", -1, "2019-12-12"],  # 2019-12-12
         ]
 
@@ -570,6 +577,86 @@ class TimeFrameTest(unittest.TestCase):
         for moment in moments:
             actual = tf.first_frame(moment, FrameType.MIN5)
             self.assertEqual(arrow.get("2019-12-31 09:35", tzinfo=cfg.tz), actual)
+
+    def test_last_frame(self):
+        """
+        week_frames: 20191227, 20200103, 20200110, 20200117, 20200123, 20200207,
+        month_frames: 20191231, 20200123, 20200228,
+        """
+        try:
+            tf.last_frame(datetime.datetime.now(), FrameType.DAY)
+            self.assertTrue(False)
+        except ValueError as e:
+            self.assertEqual(
+                "calling last_frame on FrameType.DAY is meaningless.", str(e)
+            )
+
+        try:
+            tf.last_frame(10, FrameType.DAY)
+            self.assertTrue(False)
+        except TypeError:
+            self.assertTrue(True)
+
+        actual = tf.last_frame("2020-1-1", FrameType.WEEK)
+        self.assertEqual(datetime.date(2020, 1, 3), actual)
+
+        actual = tf.last_frame(datetime.date(2020, 1, 15), FrameType.MONTH)
+        self.assertEqual(datetime.date(2020, 1, 23), actual)
+
+        actual = tf.last_frame(arrow.get("2020-1-24"), FrameType.MIN15)
+        self.assertEqual(arrow.get("2020-1-23 15:00", tzinfo=cfg.tz), actual)
+
+    def test_update_calendar(self):
+        """if there's no sync_calendar called, we should still get calendar"""
+        import asyncio
+
+        async def do_test():
+            import omicron
+
+            try:
+                await omicron.init()
+                await tf.update_calendar()
+                self.assertEqual(20050104, tf.day_frames[0])
+                self.assertEqual(20050107, tf.week_frames[0])
+                self.assertEqual(20050131, tf.month_frames[0])
+            finally:
+                await omicron.shutdown()
+
+        asyncio.run(do_test())
+
+    def test_frame_len(self):
+        self.assertEqual(1, tf.frame_len(FrameType.MIN1))
+        self.assertEqual(5, tf.frame_len(FrameType.MIN5))
+        self.assertEqual(15, tf.frame_len(FrameType.MIN15))
+        self.assertEqual(30, tf.frame_len(FrameType.MIN30))
+        self.assertEqual(60, tf.frame_len(FrameType.MIN60))
+        self.assertEqual(240, tf.frame_len(FrameType.DAY))
+
+    def test_get_ticks(self):
+        expected = [
+            tf.ticks[FrameType.MIN1],
+            tf.ticks[FrameType.MIN5],
+            tf.ticks[FrameType.MIN15],
+            tf.ticks[FrameType.MIN30],
+            tf.ticks[FrameType.MIN60],
+            tf.day_frames,
+            tf.week_frames,
+            tf.month_frames,
+        ]
+
+        for i, ft in enumerate(
+            [
+                FrameType.MIN1,
+                FrameType.MIN5,
+                FrameType.MIN15,
+                FrameType.MIN30,
+                FrameType.MIN60,
+                FrameType.DAY,
+                FrameType.WEEK,
+                FrameType.MONTH,
+            ]
+        ):
+            self.assertListEqual(expected[i], tf.get_ticks(ft))
 
 
 if __name__ == "__main__":
