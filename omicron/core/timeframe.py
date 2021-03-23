@@ -415,7 +415,7 @@ class TimeFrame:
             return False
 
         minutes = tm.hour * 60 + tm.minute
-        return 9 * 60 + 15 < minutes < 9 * 60 + 25
+        return 9 * 60 + 15 < minutes <= 9 * 60 + 25
 
     @classmethod
     def is_closing_call_auction_time(cls, tm: Optional[Arrow] = None) -> bool:
@@ -436,17 +436,7 @@ class TimeFrame:
             return False
 
         minutes = tm.hour * 60 + tm.minute
-        return 15 * 60 - 3 < minutes < 15 * 60
-
-    @FutureWarning
-    @classmethod
-    def minutes_left(cls, tm: Arrow) -> int:
-        pass
-
-    @FutureWarning
-    @classmethod
-    def minutes_elapsed(cls, tm: Arrow) -> int:
-        pass
+        return 15 * 60 - 3 <= minutes < 15 * 60
 
     def floor(self, moment: Frame, frame_type: FrameType) -> Frame:
         """
@@ -493,7 +483,7 @@ class TimeFrame:
             arr = tf.week_frames
         elif frame_type == FrameType.MONTH:
             arr = tf.month_frames
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"frame type {frame_type} not supported.")
 
         floored = accl.floor(arr, day)
@@ -535,7 +525,7 @@ class TimeFrame:
             return datetime.datetime(
                 day.year, day.month, day.day, hour=15, minute=0, tzinfo=cls._tz
             )
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
 
     @classmethod
@@ -618,7 +608,7 @@ class TimeFrame:
             return datetime.datetime(
                 day.year, day.month, day.day, hour=10, minute=30, tzinfo=cls._tz
             )
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
 
     @classmethod
@@ -685,7 +675,7 @@ class TimeFrame:
             pos = ticks.index(tf.time2int(end)) + 1
 
             return ticks[max(0, pos - n) : pos]
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"{frame_type} not support yet")
 
     def ceiling(self, moment: Frame, frame_type: FrameType):

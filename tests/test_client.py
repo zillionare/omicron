@@ -1,8 +1,16 @@
 import datetime
 import logging
 import unittest
+from unittest import mock
 
-from omicron.client.quotes_fetcher import get_bars, get_bars_batch, get_security_list
+import aiohttp
+
+from omicron.client.quotes_fetcher import (
+    get_bars,
+    get_bars_batch,
+    get_security_list,
+    get_server_version,
+)
 from omicron.core.types import FrameType
 from tests import init_test_env, start_omega
 
@@ -27,6 +35,12 @@ class OmegaClientTest(unittest.IsolatedAsyncioTestCase):
         expected = ["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]
 
         self.assertListEqual(expected, secs[0].tolist())
+
+        # test if server is down
+        with mock.patch(
+            "aiohttp.ClientSession.get", side_effect=aiohttp.ClientConnectionError()
+        ):
+            self.assertIsNone(await get_security_list())
 
     async def test_get_bars(self):
         bars = await get_bars(
@@ -60,3 +74,7 @@ class OmegaClientTest(unittest.IsolatedAsyncioTestCase):
         bars = await get_bars_batch(secs, end, n, ft, iu)
         sh = bars.get("000001.XSHG")
         self.assertEqual(datetime.date(2021, 2, 8), sh["frame"][-1])
+
+    async def test_get_server_version(self):
+        ver = await get_server_version()
+        self.assertTrue(len(ver) > 0)

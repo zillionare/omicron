@@ -429,6 +429,12 @@ class TimeFrameTest(unittest.TestCase):
             )
             self.assertListEqual(expected, actual)
 
+        actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.MONTH)
+        self.assertListEqual([20191129, 20191231, 20200123], actual.tolist())
+
+        actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.WEEK)
+        self.assertListEqual([20200117, 20200123, 20200207], actual.tolist())
+
     def test_get_frames(self):
         days = [
             20200117,
@@ -578,6 +584,22 @@ class TimeFrameTest(unittest.TestCase):
             actual = tf.first_frame(moment, FrameType.MIN5)
             self.assertEqual(arrow.get("2019-12-31 09:35", tzinfo=cfg.tz), actual)
 
+        moment = arrow.get("2019-12-31").date()
+
+        expected = [
+            arrow.get("2019-12-31 09:31", tzinfo=cfg.tz),
+            arrow.get("2019-12-31 09:45", tzinfo=cfg.tz),
+            arrow.get("2019-12-31 10:00", tzinfo=cfg.tz),
+            arrow.get("2019-12-31 10:30", tzinfo=cfg.tz),
+        ]
+        for i, ft in enumerate(
+            [FrameType.MIN1, FrameType.MIN15, FrameType.MIN30, FrameType.MIN60]
+        ):
+            actual = tf.first_frame(moment, ft)
+            self.assertEqual(expected[i], actual)
+
+        self.assertEqual(moment, tf.first_frame(moment, FrameType.DAY))
+
     def test_last_frame(self):
         """
         week_frames: 20191227, 20200103, 20200110, 20200117, 20200123, 20200207,
@@ -656,7 +678,31 @@ class TimeFrameTest(unittest.TestCase):
                 FrameType.MONTH,
             ]
         ):
-            self.assertListEqual(expected[i], tf.get_ticks(ft))
+            self.assertListEqual(list(expected[i]), list(tf.get_ticks(ft)))
+
+    def test_replace_date(self):
+        dtm = datetime.datetime(2020, 1, 1, 15, 35)
+        dt = datetime.date(2021, 1, 1)
+        self.assertEqual(
+            datetime.datetime(2021, 1, 1, 15, 35), tf.replace_date(dtm, dt)
+        )
+
+    def test_is_closing_call_auction_time(self):
+        for moment in ["2020-1-7 14:57", "2020-1-7 14:58", "2020-1-7 14:59"]:
+            moment = arrow.get(moment, tzinfo=cfg.tz)
+            self.assertTrue(tf.is_closing_call_auction_time(moment))
+
+        for moment in ["2020-1-7 14:56", "2020-1-7 15:00"]:
+            moment = arrow.get(moment, tzinfo=cfg.tz)
+            self.assertEqual(False, tf.is_closing_call_auction_time(moment))
+
+        # not in trade day
+        self.assertTrue(not tf.is_closing_call_auction_time(arrow.get("2020-1-4")))
+
+    def test_is_opening_call_auction_time(self):
+        for moment in ["2020-1-7 09:16", "2020-1-7 09:25"]:
+            moment = arrow.get(moment, tzinfo=cfg.tz)
+            self.assertTrue(tf.is_opening_call_auction_time(moment))
 
 
 if __name__ == "__main__":

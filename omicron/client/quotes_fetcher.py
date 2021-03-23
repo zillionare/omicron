@@ -49,7 +49,7 @@ async def get_security_list() -> np.ndarray:
         上游服务器返回的证券列表
     """
     fetcher = get_local_fetcher()
-    if fetcher:
+    if fetcher:  # pragma: no cover
         return await fetcher.get_security_list()
     else:
         return await _quotes_server_get("security_list")
@@ -92,7 +92,7 @@ async def get_bars(
         截止到end（或者前一个交易周期结束时间）、不超过n条的行情数据
     """
     fetcher = get_local_fetcher()
-    if fetcher:
+    if fetcher:  # pragma: no cover
         return await fetcher.get_bars(code, end, n_bars, frame_type, include_unclosed)
     else:
         params = {
@@ -141,7 +141,7 @@ async def get_bars_batch(
         以证券代码为key，行情数据为value的集合
     """
     fetcher = get_local_fetcher()
-    if fetcher:
+    if fetcher:  # pragma: no cover
         return await fetcher.get_bars_batch(
             secs, end, n_bars, frame_type, include_unclosed
         )
@@ -177,7 +177,7 @@ async def get_valuation(
 
     if isinstance(sec, str):
         sec = [sec]
-    if fetcher:
+    if fetcher:  # pragma: no cover
         return await fetcher.get_valuation(sec, date, fields, n)
     else:
         params = {"secs": sec, "fields": fields, "date": str(date), "n": n}
