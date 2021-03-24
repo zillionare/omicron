@@ -293,7 +293,8 @@ class RedisCache:
 
     async def load_calendar(self, _type):
         key = f"calendar:{_type}"
-        await self.security.lrange(key, 0, -1)
+        result = await self.security.lrange(key, 0, -1)
+        return [int(x) for x in result]
 
 
 cache = RedisCache()

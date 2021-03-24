@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+在apscheduler.triggers的基础上提供了FrameTrigger和IntervalTrigger，使得它们只在交易日（或者
+基于交易日+延时）时激发。
+"""
+
 import datetime
 import logging
 import re
-from typing import Union
+from typing import Optional, Union
 
 from apscheduler.triggers.base import BaseTrigger
 
@@ -20,17 +25,29 @@ class FrameTrigger(BaseTrigger):
     """
 
     def __init__(self, frame_type: Union[str, FrameType], jitter: str = None):
-        """
+        """构造函数
+
+        jitter的格式用正则式表达为`r"([-]?)(\\d+)([mshd])"`，其中第一组为符号，'-'表示提前；
+        第二组为数字，第三组为单位，可以为`m`(分钟), `s`(秒), `h`（小时）,`d`(天)。
+
+        下面的示例构造了一个只在交易日，每30分钟触发一次，每次提前15秒触的trigger。即它的触发时
+        间是每个交易日的09:29:45, 09:59:45, ...
+
+        Examples:
+            >>> FrameTrigger(FrameType.MIN30, '-15s')
+            ... # doctest: +ELLIPSIS
+            <triggers.FrameTrigger object at 0x...>
+
         Args:
             frame_type:
-            jitter: in seconds unit, offset must within one frame
+            jitter: 单位秒。其中offset必须在一个FrameType的长度以内
         """
         self.frame_type = FrameType(frame_type)
         if jitter is None:
             _jitter = 0
         else:
             matched = re.match(r"([-]?)(\d+)([mshd])", jitter)
-            if matched is None:
+            if matched is None:  # pragma: no cover
                 raise ValueError(
                     "malformed. jitter should be [-](number)(unit), "
                     "for example, -30m, or 30s"
@@ -45,7 +62,7 @@ class FrameTrigger(BaseTrigger):
                 _jitter = 3600 * num
             elif unit.lower() == "d":
                 _jitter = 3600 * 24 * num
-            else:
+            else:  # pragma: no cover
                 raise ValueError("bad time unit. only s,h,m,d is acceptable")
 
             if sign == "-":
@@ -78,6 +95,7 @@ class FrameTrigger(BaseTrigger):
         previous_fire_time: Union[datetime.date, datetime.datetime],
         now: Union[datetime.date, datetime.datetime],
     ):
+        """"""
         ft = self.frame_type
 
         next_tick = now
@@ -95,7 +113,21 @@ class FrameTrigger(BaseTrigger):
 
 
 class TradeTimeIntervalTrigger(BaseTrigger):
+    """只在交易时间触发的固定间隔的trigger"""
+
     def __init__(self, interval: str):
+        """构造函数
+
+        interval的格式用正则表达式表示为 `r"(\\d+)([mshd])"` 。其中第一组为数字，第二组为单位。有效的
+        `interval`如 1 ，表示每1小时触发一次，则该触发器将在交易日的10:30, 11:30, 14:00和
+        15：00各触发一次
+
+        Args:
+            interval : [description]
+
+        Raises:
+            ValueError: [description]
+        """
         matched = re.match(r"(\d+)([mshd])", interval)
         if matched is None:
             raise ValueError(f"malform interval {interval}")
@@ -117,7 +149,12 @@ class TradeTimeIntervalTrigger(BaseTrigger):
     def __str__(self):
         return f"{self.__class__.__name__}:{self.interval.seconds}"
 
-    def get_next_fire_time(self, previous_fire_time, now):
+    def get_next_fire_time(
+        self,
+        previous_fire_time: Optional[datetime.datetime],
+        now: Optional[datetime.datetime],
+    ):
+        """"""
         if previous_fire_time is not None:
             fire_time = previous_fire_time + self.interval
         else:
@@ -125,7 +162,9 @@ class TradeTimeIntervalTrigger(BaseTrigger):
 
         if tf.date2int(fire_time.date()) not in tf.day_frames:
             ft = tf.day_shift(now, 1)
-            fire_time = datetime.datetime(ft.year, ft.month, ft.day, 9, 30)
+            fire_time = datetime.datetime(
+                ft.year, ft.month, ft.day, 9, 30, tzinfo=fire_time.tzinfo
+            )
             return fire_time
 
         minutes = fire_time.hour * 60 + fire_time.minute
@@ -136,6 +175,8 @@ class TradeTimeIntervalTrigger(BaseTrigger):
             fire_time = fire_time.replace(hour=13, minute=0, second=0, microsecond=0)
         elif minutes > 900:
             ft = tf.day_shift(fire_time, 1)
-            fire_time = datetime.datetime(ft.year, ft.month, ft.day, 9, 30)
+            fire_time = datetime.datetime(
+                ft.year, ft.month, ft.day, 9, 30, tzinfo=fire_time.tzinfo
+            )
 
         return fire_time

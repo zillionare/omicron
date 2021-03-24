@@ -7,6 +7,7 @@ import unittest
 import omicron
 from omicron import cache
 from omicron.models.securities import Securities
+from omicron.models.security import Security
 from tests import init_test_env, start_omega
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,22 @@ class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
         s = Securities()
         result = s.choose(["stock", "index"])
         self.assertEqual("000001.XSHE", result[0])
+
+        result = s.choose(["stock"], exclude_300=True)
+        self.assertTrue(all([not x.startswith("300") for x in result]))
+
+        result = s.choose(["stock"], exclude_st=True)
+        for code in result:
+            sec = Security(code)
+            self.assertTrue(sec.display_name.upper().find("ST") == -1)
+
+        result = s.choose(["stock"], exclude_688=True)
+        self.assertTrue(all([not x.startswith("688") for x in result]))
+
+    async def test_choose_cyb(self):
+        cyb = Securities().choose_cyb()
+        self.assertTrue(len(cyb) > 0)
+        self.assertTrue(all([x.startswith("300") for x in cyb]))
 
     async def test_fuzzy_match(self):
         for query in ["600001", "PFYH", "浦发"]:

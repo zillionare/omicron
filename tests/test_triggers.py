@@ -3,7 +3,7 @@ import unittest
 
 import arrow
 
-from omicron.core.triggers import FrameTrigger
+from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
 from omicron.core.types import FrameType
 
 logging.basicConfig(level=logging.INFO)
@@ -57,6 +57,39 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             trigger = FrameTrigger(X[i][0], X[i][1])
             next_tick = trigger.get_next_fire_time(None, _datetime(X[i][3]))
             self.assertEqual(_datetime(Y[i]), next_tick)
+
+    async def test_interval_triggers(self):
+        for i, (interval, prev, now, exp) in enumerate(
+            [
+                (
+                    "5s",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:40:03",
+                    "2020-11-20 14:40:05",
+                ),
+                (
+                    "5m",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:43:00",
+                    "2020-11-20 14:45",
+                ),
+                (
+                    "5h",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:45:00",
+                    "2020-11-23 09:30",
+                ),
+                (
+                    "5d",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:45:00",
+                    "2020-11-25 14:40",
+                ),
+            ]
+        ):
+            trigger = TradeTimeIntervalTrigger(interval)
+            actual = trigger.get_next_fire_time(_datetime(prev), _datetime(now))
+            self.assertEqual(_datetime(exp), actual)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Top-level package for omicron."""
+"""Omicron提供数据持久化、时间（日历、triggers)、行情数据model、基础运算和基础量化因子"""
 
 import logging
 
@@ -6,9 +6,10 @@ import cfg4py
 import gino
 import pkg_resources
 
-from .dal.cache import cache
-from .dal.postgres import db
-from .dal.postgres import init as init_db
+from omicron.core.timeframe import tf
+from omicron.dal.cache import cache
+from omicron.dal.postgres import db
+from omicron.dal.postgres import init as init_db
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
@@ -22,8 +23,8 @@ async def init(fetcher=None):
     """初始化omicron
 
     Args:
-        fetcher: instance of AbstractQuotesFetcher。如果不为None,则Omicron会使用这个fetcher
-        来获取行情数据，否则使用远程接口。
+        fetcher (AbstractQuotesFetcher): 如果不为None,则Omicron会使用这个fetcher
+        来获取行情数据，否则使用远程接口。适用于在`omega`中调用`omicron.init`的情况
 
     Returns:
 
@@ -37,6 +38,7 @@ async def init(fetcher=None):
     await cache.init()
     secs = Securities()
     await secs.load()
+    await tf.update_calendar()
 
     cfg = cfg4py.get_instance()
     if cfg.postgres.enabled:
@@ -44,9 +46,15 @@ async def init(fetcher=None):
 
 
 async def shutdown():
+    """关闭与数据库、缓存的连接"""
     try:
         await db.pop_bind().close()
     except gino.exceptions.UninitializedError:
+        pass
+
+    try:
+        await cache.close()
+    except Exception as e:  # noqa
         pass
 
 

@@ -5,7 +5,15 @@ import functools
 
 
 def singleton(cls):
-    """Make a class a Singleton class (only one instance)"""
+    """Make a class a Singleton class
+
+    Examples:
+        >>> @singleton
+        ... class Foo:
+        ...     # this is a singleton class
+        ...     pass
+
+    """
     instances = {}
 
     @functools.wraps(cls)

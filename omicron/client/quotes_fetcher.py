@@ -185,7 +185,12 @@ async def get_valuation(
         return await _quotes_server_get("valuation", params)
 
 
-async def get_server_version():
+async def get_server_version() -> str:
+    """获取Omega的版本号
+
+    Returns:
+        版本号，如1.0.0.a0
+    """
     url = f"{cfg.omega.urls.quotes_server}/sys/version"
     async with aiohttp.ClientSession() as client:
         async with client.get(url) as resp:

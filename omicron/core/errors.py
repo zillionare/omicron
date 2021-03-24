@@ -7,4 +7,6 @@ class QuotesServerConnectionError(BaseException):
 
 
 class FetcherQuotaError(BaseException):
+    """quotes fetcher quota exceed"""
+
     pass

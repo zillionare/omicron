@@ -1,6 +1,7 @@
 import datetime
 import logging
 import unittest
+from unittest import mock
 
 import arrow
 
@@ -146,20 +147,6 @@ class TimeFrameTest(unittest.TestCase):
             )
             self.assertEqual(expected, actual)
 
-    def test_day_shift(self):
-        X = [  # of test case
-            ["2019-12-13", 0, "2019-12-13"],  # should be 2019-12-13
-            ["2019-12-15", 0, "2019-12-13"],  # should be 2019-12-13
-            ["2019-12-15", 1, "2019-12-16"],  # 2019-12-16
-            ["2019-12-13", 1, "2019-12-16"],  # should be 2019-12-16
-            ["2019-12-15", -1, "2019-12-12"],  # 2019-12-12
-        ]
-
-        for i, (start, offset, expected) in enumerate(X):
-            logger.debug("testing of %s", X[i])
-            actual = tf.day_shift(arrow.get(start).date(), offset)
-            self.assertEqual(arrow.get(expected).date(), actual)
-
     def test_week_shift(self):
         X = [
             ["2020-01-25", 0, "2020-01-23"],
@@ -173,6 +160,20 @@ class TimeFrameTest(unittest.TestCase):
             logger.debug("testing %s", X[i])
             actual = tf.week_shift(arrow.get(x).date(), n)
             self.assertEqual(actual, arrow.get(expected).date())
+
+    def test_day_shift(self):
+        X = [  # of test case
+            ["2019-12-13", 0, "2019-12-13"],  # should be 2019-12-13
+            ["2019-12-15", 0, "2019-12-13"],  # should be 2019-12-13
+            ["2019-12-15", 1, "2019-12-16"],  # 2019-12-16
+            ["2019-12-13", 1, "2019-12-16"],  # should be 2019-12-16
+            ["2019-12-15", -1, "2019-12-12"],  # 2019-12-12
+        ]
+
+        for i, (start, offset, expected) in enumerate(X):
+            logger.debug("testing of %s", X[i])
+            actual = tf.day_shift(arrow.get(start).date(), offset)
+            self.assertEqual(arrow.get(expected).date(), actual)
 
     def test_count_frames_week(self):
         X = [
@@ -569,7 +570,7 @@ class TimeFrameTest(unittest.TestCase):
             )
             self.assertListEqual(expected, actual)
 
-    def test_first_frame(self):
+    def test_first_min_frame(self):
         moments = [
             "2020-1-1",
             "2019-12-31",
@@ -581,7 +582,7 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for moment in moments:
-            actual = tf.first_frame(moment, FrameType.MIN5)
+            actual = tf.first_min_frame(moment, FrameType.MIN5)
             self.assertEqual(arrow.get("2019-12-31 09:35", tzinfo=cfg.tz), actual)
 
         moment = arrow.get("2019-12-31").date()
@@ -595,37 +596,26 @@ class TimeFrameTest(unittest.TestCase):
         for i, ft in enumerate(
             [FrameType.MIN1, FrameType.MIN15, FrameType.MIN30, FrameType.MIN60]
         ):
-            actual = tf.first_frame(moment, ft)
+            actual = tf.first_min_frame(moment, ft)
             self.assertEqual(expected[i], actual)
 
-        self.assertEqual(moment, tf.first_frame(moment, FrameType.DAY))
-
-    def test_last_frame(self):
-        """
-        week_frames: 20191227, 20200103, 20200110, 20200117, 20200123, 20200207,
-        month_frames: 20191231, 20200123, 20200228,
-        """
+    def test_last_min_frame(self):
         try:
-            tf.last_frame(datetime.datetime.now(), FrameType.DAY)
+            tf.last_min_frame(datetime.datetime.now(), FrameType.DAY)
             self.assertTrue(False)
         except ValueError as e:
-            self.assertEqual(
-                "calling last_frame on FrameType.DAY is meaningless.", str(e)
-            )
+            self.assertEqual("FrameType.DAY not supported", str(e))
 
         try:
-            tf.last_frame(10, FrameType.DAY)
+            tf.last_min_frame(10, FrameType.DAY)
             self.assertTrue(False)
         except TypeError:
             self.assertTrue(True)
 
-        actual = tf.last_frame("2020-1-1", FrameType.WEEK)
-        self.assertEqual(datetime.date(2020, 1, 3), actual)
+        actual = tf.last_min_frame(arrow.get("2020-1-24"), FrameType.MIN15)
+        self.assertEqual(arrow.get("2020-1-23 15:00", tzinfo=cfg.tz), actual)
 
-        actual = tf.last_frame(datetime.date(2020, 1, 15), FrameType.MONTH)
-        self.assertEqual(datetime.date(2020, 1, 23), actual)
-
-        actual = tf.last_frame(arrow.get("2020-1-24"), FrameType.MIN15)
+        actual = tf.last_min_frame("2020-1-24", FrameType.MIN15)
         self.assertEqual(arrow.get("2020-1-23 15:00", tzinfo=cfg.tz), actual)
 
     def test_update_calendar(self):
@@ -641,6 +631,15 @@ class TimeFrameTest(unittest.TestCase):
                 self.assertEqual(20050104, tf.day_frames[0])
                 self.assertEqual(20050107, tf.week_frames[0])
                 self.assertEqual(20050131, tf.month_frames[0])
+
+                from omicron import cache
+
+                with mock.patch.object(
+                    cache,
+                    "load_calendar",
+                    return_values=[tf.day_frames, tf.week_frames, tf.month_frames],
+                ):
+                    await tf.update_calendar()
             finally:
                 await omicron.shutdown()
 
@@ -703,6 +702,22 @@ class TimeFrameTest(unittest.TestCase):
         for moment in ["2020-1-7 09:16", "2020-1-7 09:25"]:
             moment = arrow.get(moment, tzinfo=cfg.tz)
             self.assertTrue(tf.is_opening_call_auction_time(moment))
+
+        self.assertTrue(not tf.is_opening_call_auction_time(arrow.get("2020-1-4")))
+
+    def test_is_open_time(self):
+        self.assertTrue(tf.is_open_time(arrow.get("2020-1-7 09:35", tzinfo=cfg.tz)))
+
+        with mock.patch(
+            "arrow.now", return_value=arrow.get("2020-1-7 09:35", tzinfo=cfg.tz)
+        ):
+            self.assertTrue(tf.is_open_time())
+
+    def test_combine_time(self):
+        moment = arrow.get("2020-1-1").date()
+        expect = arrow.get("2020-1-1 14:30", tzinfo=cfg.tz).datetime
+
+        self.assertEqual(expect, tf.combine_time(moment, 14, 30, tzinfo=cfg.tz))
 
 
 if __name__ == "__main__":
