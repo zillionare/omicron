@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 cfg = init_test_env()
 
+
 class SecurityTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         # check if omega is running
