@@ -579,7 +579,11 @@ class TimeFrame:
                 moment.year, moment.month, moment.day, 15, tzinfo=self._tz
             )
 
-        if moment.hour * 60 + moment.minute < 900:
+        # 如果是交易日，但还未收盘
+        if (
+            tf.date2int(moment) in self.day_frames
+            and moment.hour * 60 + moment.minute < 900
+        ):
             moment = self.day_shift(moment, -1)
 
         day = tf.date2int(moment)
