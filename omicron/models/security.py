@@ -195,7 +195,13 @@ class Security(object):
             else:
                 self._bars = await get_bars(self.code, _stop, n, frame_type)
 
-            return self.qfq() if fq else self._bars
+            if fq:
+                self.qfq()
+
+            if turnover:
+                await self._add_turnover(frame_type)
+
+            return self._bars
 
         if start < head:
             n = tf.count_frames(start, head, frame_type)

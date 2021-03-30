@@ -14,10 +14,10 @@ from tests import init_test_env, start_omega
 
 logger = logging.getLogger(__name__)
 
+cfg = init_test_env()
 
 class SecurityTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        self.cfg = init_test_env()
         # check if omega is running
         self.omega = await start_omega()
 
@@ -141,7 +141,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         logger.info("scenario: 1min level backward")
         frame_type = FrameType.MIN1
-        start = arrow.get("2020-05-06 15:00:00", tzinfo=self.cfg.tz).datetime
+        start = arrow.get("2020-05-06 15:00:00", tzinfo=cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
         stop = tf.shift(start, -249, frame_type)
         start, stop = stop, start
@@ -149,11 +149,11 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         # fmt:off
         expected = [
             [
-                arrow.get('2020-04-30 14:51:00', tzinfo=self.cfg.tz).datetime, 13.99, 14.,
+                arrow.get('2020-04-30 14:51:00', tzinfo=cfg.tz).datetime, 13.99, 14.,
                 13.98, 13.99, 281000., 3931001., 118.725646
             ],
             [
-                arrow.get('2020-05-06 15:00:00', tzinfo=self.cfg.tz).datetime, 13.77,
+                arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.77,
                 13.77, 13.77, 13.77, 1383400.0, 19049211.45000005, 118.725646
             ]
         ]
@@ -162,18 +162,18 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         logger.info("scenario: 30 min level")
         frame_type = FrameType.MIN15
-        start = arrow.get("2020-05-06 10:15:00", tzinfo=self.cfg.tz).datetime
+        start = arrow.get("2020-05-06 10:15:00", tzinfo=cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
-        stop = arrow.get("2020-05-06 15:00:00", tzinfo=self.cfg.tz).datetime
+        stop = arrow.get("2020-05-06 15:00:00", tzinfo=cfg.tz).datetime
         bars = await sec.load_bars(start, stop, frame_type)
         # fmt: off
         expected = [
             [
-                arrow.get('2020-05-06 10:15:00', tzinfo=self.cfg.tz).datetime, 13.67,
+                arrow.get('2020-05-06 10:15:00', tzinfo=cfg.tz).datetime, 13.67,
                 13.74, 13.66, 13.72, 8341905., 1.14258451e+08, 118.725646
             ],
             [
-                arrow.get('2020-05-06 15:00:00', tzinfo=self.cfg.tz).datetime, 13.72,
+                arrow.get('2020-05-06 15:00:00', tzinfo=cfg.tz).datetime, 13.72,
                 13.77, 13.72, 13.77, 7053085., 97026350.76999998, 118.725646
             ]
         ]
@@ -187,8 +187,8 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         frame_type = FrameType.MIN15
 
         logger.info("scenario: get realtime bars")
-        start = arrow.get("2020-05-06 10:15:00", tzinfo=self.cfg.tz).datetime
-        stop = arrow.get("2020-05-06 10:25:00", tzinfo=self.cfg.tz).datetime
+        start = arrow.get("2020-05-06 10:15:00", tzinfo=cfg.tz).datetime
+        stop = arrow.get("2020-05-06 10:25:00", tzinfo=cfg.tz).datetime
         await cache.clear_bars_range(sec.code, frame_type)
 
         bars = await sec.load_bars(start, stop, frame_type)
@@ -339,14 +339,17 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
             0.5298,
         ]
 
+        await cache.security.delete(f"{code}:{frame_type.value}")
+
         sec = Security(code)
         bars = await sec.load_bars(start, stop, frame_type, turnover=True)
         for i, bar in enumerate(bars):
             self.assertAlmostEqual(expected[i], bar["turnover"], places=3)
 
-        start = arrow.get("2020-11-02 15:00:00").datetime
-        stop = arrow.get("2020-11-06 14:30:00").datetime
+        start = arrow.get("2020-11-02 15:00:00", tzinfo=cfg.tz).datetime
+        stop = arrow.get("2020-11-06 14:30:00", tzinfo=cfg.tz).datetime
         frame_type = FrameType.MIN30
+        await cache.security.delete(f"{code}:{frame_type.value}")
 
         sec = Security(code)
         bars = await sec.load_bars(start, stop, frame_type, turnover=True)
