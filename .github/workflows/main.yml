@@ -68,7 +68,7 @@ jobs:
             sudo -E apt-get update
             sudo -E apt-get install --yes --no-install-recommends postgresql-client wget
             wget https://raw.githubusercontent.com/zillionare/omega/release/omega/config/sql/init.sql -O init.sql
-            PGPASSWORD=$POSTGRES_PASSWORD psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
+            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
       - name: test with tox
         run:
           tox
