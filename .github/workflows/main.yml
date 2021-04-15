@@ -63,7 +63,7 @@ jobs:
           pip install tox tox-gh-actions poetry
 
       - name: init POSTGRES db
-        - run: |
+        run: |
             export TZ=Asia/Shanghai
             apt-get update
             apt-get install --yes --no-install-recommends postgresql-client wget
