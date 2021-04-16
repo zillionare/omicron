@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: tox
     env:
-      REDIS_HOST: ${{tox.REDIS_HOST}}
+      REDIS_HOST: ${{secrets.REDIS_HOST}}
     steps:
       - name: test envar
         run: echo $REDIS_HOST
