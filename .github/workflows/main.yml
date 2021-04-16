@@ -23,7 +23,7 @@ jobs:
       POSTGRES_DB: zillionare
       POSTGRES_HOST: localhost
       POSTGRES_USER: zillionare
-      PGPASSWORD: zillionare
+      POSTGRES_PASSWORD: zillionare
       POSTGRES_PORT: 5432
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
