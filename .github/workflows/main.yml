@@ -23,8 +23,8 @@ jobs:
       POSTGRES_DB: zillionare
       POSTGRES_HOST: localhost
       POSTGRES_USER: zillionare
+      PGPASSWORD: zillionare
       POSTGRES_PORT: 5432
-      PGPASSWORD: '123456'
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
       POSTGRES_ENABLED: true
@@ -49,7 +49,7 @@ jobs:
       postgres:
         image: postgres
         env: # this is defined by image postgres
-          POSTGRES_PASSWORD: '123456'
+          POSTGRES_PASSWORD: zillionare
           POSTGRES_USER: zillionare
           POSTGRES_DB: zillionare
         options: >-
@@ -79,7 +79,7 @@ jobs:
             sudo -E apt-get update
             sudo -E apt-get install --yes --no-install-recommends postgresql-client wget
             wget https://raw.githubusercontent.com/zillionare/omega/release/omega/config/sql/init.sql -O init.sql
-            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
+            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
       - name: test with tox
         run:
           tox
