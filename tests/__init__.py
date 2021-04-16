@@ -14,6 +14,7 @@ import cfg4py
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
 
+
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("localhost", 0))
@@ -45,7 +46,8 @@ async def is_local_omega_alive(port: int = 3181):
                 if resp.status == 200:
                     return await resp.text()
         return True
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         return False
 
 
@@ -76,16 +78,17 @@ async def start_omega(timeout=60):
         ],
         env=os.environ,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
     )
 
     for i in range(timeout, 0, -1):
         await asyncio.sleep(1)
         if process.poll() is not None:
             # already exit
-            msg = f"Omega server exited abnormally with status {process.returncode}"
-            raise subprocess.SubprocessError(msg)
-        if await is_local_omega_alive():
+            out, err = process.communicate()
+            logger.info("subprocess %s: %s", process.pid, out.decode("utf-8"))
+            raise subprocess.SubprocessError(err.decode("utf-8"))
+        if await is_local_omega_alive(port):
             logger.info("omega server is listen on %s", cfg.omega.urls.quotes_server)
             return process
 
