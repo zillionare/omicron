@@ -9,20 +9,23 @@ import omicron
 from omicron import cache
 from omicron.core.timeframe import tf
 from omicron.core.types import FrameType, bars_dtype
-from tests import init_test_env
+from tests import init_test_env, start_omega
 
 cfg = cfg4py.get_instance()
 
 
-class OmegaClientTest(unittest.IsolatedAsyncioTestCase):
+class CacheTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Set up test fixtures, if any."""
         init_test_env()
+        self.omega = await start_omega()
         await omicron.init()
         await cache.clear_bars_range("000001.XSHE", FrameType.MIN30)
 
     async def asyncTearDown(self) -> None:
         await omicron.shutdown()
+        if self.omega:
+            self.omega.kill()
 
     async def test_bars_x(self):
         bars = np.array(
