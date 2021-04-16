@@ -4,13 +4,22 @@ import logging
 import os
 import subprocess
 import sys
-import time
+import asyncio
+import socket
+from contextlib import closing
 
 import aiohttp
 import cfg4py
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
+
+def find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("localhost", 0))
+        # s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        port = s.getsockname()[1]
+        return port
 
 
 def init_test_env():
@@ -40,7 +49,9 @@ async def is_local_omega_alive(port: int = 3181):
         return False
 
 
-async def start_omega(port: int = 3181):
+async def start_omega(timeout=60):
+    port = find_free_port()
+
     if await is_local_omega_alive(port):
         return None
 
@@ -65,15 +76,17 @@ async def start_omega(port: int = 3181):
         ],
         env=os.environ,
         stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
 
-    for i in range(20, 0, -1):
+    for i in range(timeout, 0, -1):
+        await asyncio.sleep(1)
         if process.poll() is not None:
             # already exit
             msg = f"Omega server exited abnormally with status {process.returncode}"
             raise subprocess.SubprocessError(msg)
         if await is_local_omega_alive():
+            logger.info("omega server is listen on %s", cfg.omega.urls.quotes_server)
             return process
 
-        time.sleep(10)
     raise subprocess.SubprocessError("Omega server malfunction.")
