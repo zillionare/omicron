@@ -10,6 +10,7 @@ from contextlib import closing
 
 import aiohttp
 import cfg4py
+import aioredis
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
@@ -22,6 +23,9 @@ def find_free_port():
         port = s.getsockname()[1]
         return port
 
+async def clear_cache(dsn):
+    redis = await aioredis.create_redis(dsn)
+    await redis.flushall()
 
 def init_test_env():
     os.environ[cfg4py.envar] = "DEV"
