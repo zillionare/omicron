@@ -25,8 +25,9 @@ jobs:
       POSTGRES_USER: zillionare
       POSTGRES_PORT: 5432
       PGPASSWORD: '123456'
-      JQ_ACCOUNT: ${{secrets.JQ_ACCOUNT}}
+      JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
+      POSTGRES_ENABLED: true
     # The type of runner that the job will run on
     strategy:
       matrix:
