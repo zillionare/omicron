@@ -29,18 +29,18 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: create github release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: generate change log
+        uses: heinrichreimer/github-changelog-generator-action@v2.1.1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Changes in this Release
-          draft: false
-          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issues: true
+          issuesWoLabels: true
+          pullRequests: true
+          prWoLabels: true
+          unreleased: true
+          addSections: '{"documentation":{"prefix":"**Documentation:**","labels":["documentation"]}}'
+          sinceTag: v0.4.rc6
+          output: CHANGELOG.md
   
       - uses: actions/setup-python@v2
         with:
@@ -65,6 +65,21 @@ jobs:
       - name: Build wheels and source tarball
         run: >-
           poetry build
+          
+      - name: show temporary files
+        run: >-
+          ls -l
+
+      - name: create github release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          body_path: ./CHANGELOG.md
+          files: dist/*.whl
+          draft: false
+          prerelease: false
           
       - name: 
         uses: pypa/gh-action-pypi-publish@release/v1
