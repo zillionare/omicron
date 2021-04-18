@@ -102,7 +102,9 @@ jobs:
           fail_ci_if_error: true
           files: coverage.xml
       - name: Build wheels and source tarball
-        run: >-
+        run: |
+          poetry version $(poetry version --short)-dev.$GITHUB_RUN_NUMBER
+          poetry version --short
           poetry build
 
       - name: publish to Test PyPI
