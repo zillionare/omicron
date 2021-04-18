@@ -85,17 +85,6 @@ jobs:
           tox
       - name: list files
         run: ls -l .
-          
-      - name: pre-publish documentation
-        run: |
-          poetry install -E doc
-          poetry run mkdocs build
-
-      - name: publish documentation
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: ./site
 
       - uses: codecov/codecov-action@v1
         with:
