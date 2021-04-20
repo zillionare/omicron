@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: dev build
 
 # Controls when the action will run. 
 on:
@@ -80,9 +80,11 @@ jobs:
             sudo -E apt-get install --yes --no-install-recommends postgresql-client wget
             wget https://raw.githubusercontent.com/zillionare/omega/release/omega/config/sql/init.sql -O init.sql
             PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
+            
       - name: test with tox
         run:
           tox
+
       - name: list files
         run: ls -l .
 
