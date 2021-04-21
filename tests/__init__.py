@@ -90,7 +90,7 @@ async def start_omega(timeout=60):
         if process.poll() is not None:
             # already exit
             out, err = process.communicate()
-            logger.info("subprocess %s: %s", process.pid, out.decode("utf-8"))
+            logger.warning("subprocess exited, %s: %s", process.pid, out.decode("utf-8"))
             raise subprocess.SubprocessError(err.decode("utf-8"))
         if await is_local_omega_alive(port):
             logger.info("omega server is listen on %s", cfg.omega.urls.quotes_server)
