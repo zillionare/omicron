@@ -91,8 +91,8 @@ jobs:
           tox
 
       - name: build wheels
-          run:
-            poetry build
+        run:
+          poetry build
 
       - uses: codecov/codecov-action@v1
         with:
