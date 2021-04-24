@@ -18,7 +18,7 @@ class CacheTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         """Set up test fixtures, if any."""
         init_test_env()
-        
+
         await clear_cache(cfg.redis.dsn)
         self.omega = await start_omega()
         await omicron.init()

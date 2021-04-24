@@ -23,9 +23,11 @@ def find_free_port():
         port = s.getsockname()[1]
         return port
 
+
 async def clear_cache(dsn):
     redis = await aioredis.create_redis(dsn)
     await redis.flushall()
+
 
 def init_test_env():
     os.environ[cfg4py.envar] = "DEV"
@@ -90,7 +92,9 @@ async def start_omega(timeout=60):
         if process.poll() is not None:
             # already exit
             out, err = process.communicate()
-            logger.warning("subprocess exited, %s: %s", process.pid, out.decode("utf-8"))
+            logger.warning(
+                "subprocess exited, %s: %s", process.pid, out.decode("utf-8")
+            )
             raise subprocess.SubprocessError(err.decode("utf-8"))
         if await is_local_omega_alive(port):
             logger.info("omega server is listen on %s", cfg.omega.urls.quotes_server)
