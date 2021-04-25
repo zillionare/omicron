@@ -28,6 +28,7 @@ jobs:
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
       POSTGRES_ENABLED: true
+      TEST_PYPI: https://test.pypi.org/simple
     # The type of runner that the job will run on
     strategy:
       matrix:
