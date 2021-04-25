@@ -5,7 +5,7 @@
 
 
 [![Version](http://img.shields.io/pypi/v/zillionare-omicron?color=brightgreen)](https://pypi.python.org/pypi/zillionare-omicron)
-[![CI Status](https://github.com/zillionare/omicron/actions/workflows/main.yml/badge.svg?branch=release)](https://github.com/zillionare/omicron)
+[![CI Status](https://github.com/zillionare/omicron/actions/workflows/release.yml/badge.svg?branch=release)](https://github.com/zillionare/omicron)
 [![Code Coverage](https://img.shields.io/codecov/c/github/zillionare/omicron)](https://app.codecov.io/gh/zillionare/omicron)
 [![ReadtheDos](https://readthedocs.org/projects/omicron/badge/?version=latest)](https://omicron.readthedocs.io/en/latest/?badge=latest)
 [![Dowloads](https://pepy.tech/badge/zillionare-omicron)](https://pepy.tech/project/zillionare-omicron)
