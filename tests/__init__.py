@@ -53,15 +53,11 @@ async def is_local_omega_alive(port: int = 3181):
                     return await resp.text()
         return True
     except Exception as e:
-        logger.exception(e)
         return False
 
 
 async def start_omega(timeout=60):
     port = find_free_port()
-
-    if await is_local_omega_alive(port):
-        return None
 
     cfg.omega.urls.quotes_server = f"http://localhost:{port}"
     account = os.environ["JQ_ACCOUNT"]
