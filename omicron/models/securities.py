@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import asyncio
 import datetime
 import logging
 import re
-from typing import List
+from collections import ChainMap
+from types import FrameType
+from typing import AsyncIterator, List
 
 import arrow
 import cfg4py
 import numpy as np
 
 from omicron import cache
-from omicron.client.quotes_fetcher import get_security_list
+from omicron.client.quotes_fetcher import get_bars_batch, get_security_list
 from omicron.core.lang import singleton
+from omicron.core.timeframe import tf
+from omicron.core.types import Frame
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
@@ -148,3 +153,98 @@ class Securities(object):
                 for sec in self._secs
                 if sec["display_name"].find(query) != -1
             }
+
+    async def load_bars_batch(
+        self, codes: List[str], end: Frame, n: int, frame_type: FrameType
+    ) -> AsyncIterator:
+        """为一批证券品种加载行情数据
+
+        examples:
+        ```
+        codes = ["000001.XSHE", "000001.XSHG"]
+
+        end = arrow.get("2020-08-27").datetime
+        async for code, bars in Security.load_bars_batch(codes, end, 5, FrameType.DAY):
+            print(code, bars[-2:])
+            self.assertEqual(5, len(bars))
+            self.assertEqual(bars[-1]["frame"], end.date())
+            if code == "000001.XSHG":
+                self.assertAlmostEqual(3350.11, bars[-1]["close"], places=2)
+        ```
+
+        Args:
+            codes : 证券列表
+            end : 结束帧
+            n : 周期数
+            frame_type : 帧类型
+
+        Returns:
+            [description]
+
+        Yields:
+            [description]
+        """
+        import warnings
+
+        warnings.warn(
+            "Security.load_bars_batch will be deprecated in version 2, use Securities.load_bars_batch instead",
+            category=PendingDeprecationWarning,
+        )
+
+        assert type(end) in (datetime.date, datetime.datetime)
+        closed_frame = tf.floor(end, frame_type)
+
+        if end == closed_frame:
+            start = tf.shift(closed_frame, -n + 1, frame_type)
+
+            cached = [
+                asyncio.create_task(
+                    self._get_bars(code, start, closed_frame, frame_type)
+                )
+                for code in codes
+            ]
+            for fut in asyncio.as_completed(cached):
+                rec = await fut
+                yield rec
+        else:
+            start = tf.shift(closed_frame, -n + 2, frame_type)
+
+            cached = [
+                asyncio.create_task(
+                    self._get_bars(code, start, closed_frame, frame_type)
+                )
+                for code in codes
+            ]
+            recs1 = await asyncio.gather(*cached)
+            recs2 = await self._load_bars_batch(codes, end, 1, frame_type)
+
+            for code, bars in recs1:
+                _bars = recs2.get(code)
+                if _bars is None or len(_bars) != 1:
+                    logger.warning("wrong/emtpy records for %s", code)
+                    continue
+
+                yield code, np.append(bars, _bars)
+
+    async def _load_bars_batch(
+        self, codes: List[str], end: Frame, n: int, frame_type: FrameType
+    ):
+        batch = 1000 // n
+        tasks = []
+        for i in range(0, batch + 1):
+            if i * batch > len(codes):
+                break
+
+            task = asyncio.create_task(
+                get_bars_batch(codes[i * batch : (i + 1) * batch], end, n, frame_type)
+            )
+            tasks.append(task)
+
+        results = await asyncio.gather(*tasks)
+        return dict(ChainMap(*results))
+
+    async def _get_bars(self, code, start, stop, frame_type):
+        from omicron.models.security import Security
+        sec = Security(code)
+        bars = await sec.load_bars(start, stop, frame_type)
+        return code, bars

@@ -36,6 +36,7 @@ class Security(object):
         ) = Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
+        self._i = None
 
     def __str__(self):
         return f"{self.display_name}[{self.code}]"
@@ -74,7 +75,10 @@ class Security(object):
 
     @property
     def bars(self):
-        return self._bars
+        if self._bars is None:
+            raise ValueError(f"{self.code}: please call load_bars first")
+
+        return self._bars[:self._i]
 
     def to_canonical_code(self, simple_code: str) -> str:
         """
@@ -229,6 +233,8 @@ class Security(object):
         if turnover:
             await self._add_turnover(frame_type)
 
+        self._i = len(self._bars)
+        self._bars.flags['WRITEABLE'] = False
         return self._bars
 
     async def _add_turnover(self, frame_type: FrameType):
@@ -275,6 +281,55 @@ class Security(object):
         else:
             return bars["close"][-1] / bars["close"][0] - 1
 
+    def set_length(self, i:int):
+        """设置bars的长度，用以回测时模拟步进机制
+
+        Args:
+            i (int): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        self._i = i
+
+    def __getitem__(self, item)->np.array:
+        return self._bars[:self._i][item]
+
+    def __getattr__(self, key)->np.array:
+        return self._bars[:self._i][key]
+
+    @property
+    def open(self)->np.array:
+        return self._bars[:self._i]['open']
+
+    @property
+    def high(self)->np.array:
+        return self._bars[:self._i]['high']
+
+    @property
+    def low(self)->np.array:
+        return self._bars[:self._i]['low']
+
+    @property
+    def close(self)->np.array:
+        return self._bars[:self._i]['close']
+
+    @property
+    def frame(self)->np.array:
+        return self._bars[:self._i]['frame']
+
+    @property
+    def volume(self)->np.array:
+        return self._bars[:self._i]['volume']
+
+    @property
+    def amount(self)->np.array:
+        return self._bars[:self._i]['amount']
+
+    @property
+    def turnover(self)->np.array:
+        return self._bars[:self._i]['turnover']
+
     @classmethod
     async def _load_bars_batch(
         cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
@@ -292,12 +347,6 @@ class Security(object):
 
         results = await asyncio.gather(*tasks)
         return dict(ChainMap(*results))
-
-    @classmethod
-    async def _get_bars(cls, code, start, stop, frame_type):
-        sec = Security(code)
-        bars = await sec.load_bars(start, stop, frame_type)
-        return code, bars
 
     @classmethod
     async def load_bars_batch(
@@ -330,37 +379,13 @@ class Security(object):
         Yields:
             [description]
         """
-        assert type(end) in (datetime.date, datetime.datetime)
-        closed_frame = tf.floor(end, frame_type)
+        import warnings
 
-        if end == closed_frame:
-            start = tf.shift(closed_frame, -n + 1, frame_type)
+        warnings.warn(
+            "Security.load_bars_batch will be deprecated in version 2, use Securities.load_bars_batch instead",
+            category=PendingDeprecationWarning,
+        )
 
-            cached = [
-                asyncio.create_task(
-                    cls._get_bars(code, start, closed_frame, frame_type)
-                )
-                for code in codes
-            ]
-            for fut in asyncio.as_completed(cached):
-                rec = await fut
-                yield rec
-        else:
-            start = tf.shift(closed_frame, -n + 2, frame_type)
-
-            cached = [
-                asyncio.create_task(
-                    cls._get_bars(code, start, closed_frame, frame_type)
-                )
-                for code in codes
-            ]
-            recs1 = await asyncio.gather(*cached)
-            recs2 = await cls._load_bars_batch(codes, end, 1, frame_type)
-
-            for code, bars in recs1:
-                _bars = recs2.get(code)
-                if _bars is None or len(_bars) != 1:
-                    logger.warning("wrong/emtpy records for %s", code)
-                    continue
-
-                yield code, np.append(bars, _bars)
+        secs = Securities()
+        async for code, bars in secs.load_bars_batch(codes, end, n, frame_type):
+            yield code, bars
