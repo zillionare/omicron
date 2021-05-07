@@ -292,6 +292,9 @@ class Security(object):
         """
         self._i = i
 
+    def reset_length(self):
+        self._i = len(self._bars)
+
     def __getitem__(self, item)->np.array:
         return self._bars[:self._i][item]
 

@@ -376,6 +376,9 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
             self.assertAlmostEqual(expected_open[i], sec.open[i], places=2)
             self.assertAlmostEqual(expected_open[i], sec["open"][i], places=2)
 
+        sec.reset_length()
+        self.assertEqual(10, len(sec.bars))
+
 
 if __name__ == "__main__":
     unittest.main()
