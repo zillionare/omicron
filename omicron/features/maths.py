@@ -4,7 +4,6 @@ from enum import IntEnum
 from typing import Callable, Optional, Sequence, Tuple
 
 import numpy as np
-
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
 

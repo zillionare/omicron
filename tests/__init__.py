@@ -1,16 +1,16 @@
 """Unit test package for omicron."""
+import asyncio
 import json
 import logging
 import os
+import socket
 import subprocess
 import sys
-import asyncio
-import socket
 from contextlib import closing
 
 import aiohttp
-import cfg4py
 import aioredis
+import cfg4py
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
