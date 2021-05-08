@@ -8,6 +8,23 @@ Frame = Union[datetime.date, datetime.datetime]
 
 
 class FrameType(Enum):
+    """对证券交易中K线周期的封装。提供了以下对应周期:
+
+    |     周期    | 字符串 | 类型                 | 数值 |
+    | --------- | --- | ------------------ | -- |
+    |     年线    | 1Y  | FrameType.YEAR     | 10 |
+    |     季线    | 1Q  | FrameType.QUATER |  9  |
+    |     月线    | 1M  | FrameType.MONTH    | 8  |
+    |     周线    | 1W  | FrameType.WEEK     | 7  |
+    |     日线    | 1D  | FrameType.DAY      | 6  |
+    |     60分钟线 | 60m | FrameType.MIN60    | 5  |
+    |     30分钟线 | 30m | FrameType.MIN30    | 4  |
+    |     15分钟线 | 15m | FrameType.MIN15    | 3  |
+    |     5分钟线  | 5m  | FrameType.MIN5     | 2  |
+    |     分钟线   | 1m  | FrameType.MIN1     |  1 |
+
+    """
+
     DAY = "1d"
     MIN60 = "60m"
     MIN30 = "30m"
@@ -20,6 +37,7 @@ class FrameType(Enum):
     YEAR = "1Y"
 
     def to_int(self) -> int:
+        """转换为整数表示，用于串行化"""
         mapping = {
             FrameType.MIN1: 1,
             FrameType.MIN5: 2,
@@ -36,6 +54,7 @@ class FrameType(Enum):
 
     @staticmethod
     def from_int(frame_type: int) -> "FrameType":
+        """将整数表示的`frame_type`转换为`FrameType`类型"""
         mapping = {
             1: FrameType.MIN1,
             2: FrameType.MIN5,
@@ -76,6 +95,22 @@ class FrameType(Enum):
 
 
 class SecurityType(Enum):
+    """支持的证券品种类型定义
+
+    |     类型                   | 值         | 说明    |
+    | ------------------------ | --------- | ----- |
+    |     SecurityType.STOCK   | stock     | 股票类型  |
+    |     SecurityType.INDEX   | index     | 指数类型  |
+    |     SecurityType.ETF     | etf       | ETF基金 |
+    |     SecurityType.FUND    | fund      | 基金    |
+    |     SecurityType.LOF     | lof，LOF基金 |       |
+    |     SecurityType.FJA     | fja       | 分级A基金 |
+    |     SecurityType.FJB     | fjb       | 分级B基金 |
+    |     SecurityType.BOND    | bond      | 债券基金  |
+    |     SecurityType.STOCK_B | stock_b   | B股    |
+    |     SecurityType.UNKNOWN | unknown   | 未知品种  |
+    """
+
     STOCK = "stock"
     INDEX = "index"
     ETF = "etf"
@@ -90,6 +125,8 @@ class SecurityType(Enum):
 
 
 class MarketType(Enum):
+    """市场类型。当前支持的类型为上交所`XSHG`和`XSHE`"""
+
     XSHG = "XSHG"
     XSHE = "XSHE"
 

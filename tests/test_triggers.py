@@ -3,7 +3,7 @@ import unittest
 
 import arrow
 
-from omicron.core.triggers import FrameTrigger
+from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
 from omicron.core.types import FrameType
 
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,6 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             (FrameType.WEEK, "-30m", None, "2020-11-20 14:31"),
             (FrameType.DAY, "5m", None, "2020-11-21 14:40"),
             (FrameType.DAY, "5m", None, "2020-11-20 14:59"),
-            # 下一个交易日处理。如果刚好scheduler在这一刻进行调度，会产生漏一拍的错误
             (FrameType.DAY, "5m", None, "2020-11-20 15:00"),
         ]
 
@@ -50,14 +49,47 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             "2020-11-27 14:30:00",
             "2020-11-23 15:05:00",
             "2020-11-20 15:05:00",
-            "2020-11-23 15:05:00",
+            "2020-11-20 15:05:00",
         ]
 
-        for i in range(11, len(X)):
+        for i in range(0, len(X)):
             logger.info("%s: %s", i, X[i])
             trigger = FrameTrigger(X[i][0], X[i][1])
             next_tick = trigger.get_next_fire_time(None, _datetime(X[i][3]))
             self.assertEqual(_datetime(Y[i]), next_tick)
+
+    async def test_interval_triggers(self):
+        for i, (interval, prev, now, exp) in enumerate(
+            [
+                (
+                    "5s",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:40:03",
+                    "2020-11-20 14:40:05",
+                ),
+                (
+                    "5m",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:43:00",
+                    "2020-11-20 14:45",
+                ),
+                (
+                    "5h",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:45:00",
+                    "2020-11-23 09:30",
+                ),
+                (
+                    "5d",
+                    "2020-11-20 14:40:00",
+                    "2020-11-20 14:45:00",
+                    "2020-11-25 14:40",
+                ),
+            ]
+        ):
+            trigger = TradeTimeIntervalTrigger(interval)
+            actual = trigger.get_next_fire_time(_datetime(prev), _datetime(now))
+            self.assertEqual(_datetime(exp), actual)
 
 
 if __name__ == "__main__":

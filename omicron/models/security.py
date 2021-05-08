@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Author: Aaron-Yang [code@jieyu.ai]
-Contributors:
 
-"""
 import asyncio
 import datetime
 import logging
@@ -16,13 +12,12 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 import omicron.core.accelerate as accl
+from omicron import cache
+from omicron.client.quotes_fetcher import get_bars, get_bars_batch
+from omicron.core.timeframe import TimeFrame, tf
+from omicron.core.types import Frame, FrameType, MarketType, SecurityType
+from omicron.models.securities import Securities
 from omicron.models.valuation import Valuation
-
-from .. import cache
-from ..client.quotes_fetcher import get_bars, get_bars_batch
-from ..core.timeframe import TimeFrame, tf
-from ..core.types import Frame, FrameType, MarketType, SecurityType
-from ..models.securities import Securities
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +195,13 @@ class Security(object):
             else:
                 self._bars = await get_bars(self.code, _stop, n, frame_type)
 
-            return self.qfq() if fq else self._bars
+            if fq:
+                self.qfq()
+
+            if turnover:
+                await self._add_turnover(frame_type)
+
+            return self._bars
 
         if start < head:
             n = tf.count_frames(start, head, frame_type)
@@ -302,6 +303,33 @@ class Security(object):
     async def load_bars_batch(
         cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
     ) -> AsyncIterator:
+        """为一批证券品种加载行情数据
+
+        examples:
+        ```
+        codes = ["000001.XSHE", "000001.XSHG"]
+
+        end = arrow.get("2020-08-27").datetime
+        async for code, bars in Security.load_bars_batch(codes, end, 5, FrameType.DAY):
+            print(code, bars[-2:])
+            self.assertEqual(5, len(bars))
+            self.assertEqual(bars[-1]["frame"], end.date())
+            if code == "000001.XSHG":
+                self.assertAlmostEqual(3350.11, bars[-1]["close"], places=2)
+        ```
+
+        Args:
+            codes : 证券列表
+            end : 结束帧
+            n : 周期数
+            frame_type : 帧类型
+
+        Returns:
+            [description]
+
+        Yields:
+            [description]
+        """
         assert type(end) in (datetime.date, datetime.datetime)
         closed_frame = tf.floor(end, frame_type)
 

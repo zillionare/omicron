@@ -103,5 +103,6 @@ ENV/
 
 # IDE settings
 .vscode/
-.github/
 /.idea
+
+omicron/config/schema.py

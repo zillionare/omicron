@@ -4,31 +4,13 @@
 <h1 align="center">Omicron - Core Library for Zillionare</h1>
 
 
-<p align="center">
-<a href="https://pypi.python.org/pypi/zillionare-omicron">
-    <img src="http://img.shields.io/pypi/v/zillionare-omicron?color=brightgreen" >
-</a>
-<a href="https://travis-ci.com/zillionare/omicron">
-<img src="https://api.travis-ci.com/zillionare/omicron.svg?branch=release">
-</a>
-<a href="https://omicron.readthedocs.io/en/latest/?badge=latest">
-<img src="https://readthedocs.org/projects/omicron/badge/?version=latest" >
-</a>
-<a href="https://github.com/psf/black/blob/master/LICENSE">
-<img src="https://black.readthedocs.io/en/stable/_static/license.svg" >
-</a>
-
-<a href="https://pepy.tech/project/zillionare-omicron">
-<img src="https://pepy.tech/badge/zillionare-omicron" >
-</a>
-<a href="https://github.com/psf/black">
-<img src="https://img.shields.io/badge/code%20style-black-000000.svg" >
-</a>
-
-<a href="https://opensource.org/licenses/MIT">
-<img src="https://img.shields.io/badge/License-MIT-yellow.svg" >
-</a>
-</p>
+[![Version](http://img.shields.io/pypi/v/zillionare-omicron?color=brightgreen)](https://pypi.python.org/pypi/zillionare-omicron)
+[![CI Status](https://github.com/zillionare/omicron/actions/workflows/release.yml/badge.svg?branch=release)](https://github.com/zillionare/omicron)
+[![Code Coverage](https://img.shields.io/codecov/c/github/zillionare/omicron)](https://app.codecov.io/gh/zillionare/omicron)
+[![ReadtheDos](https://readthedocs.org/projects/omicron/badge/?version=latest)](https://omicron.readthedocs.io/en/latest/?badge=latest)
+[![Dowloads](https://pepy.tech/badge/zillionare-omicron)](https://pepy.tech/project/zillionare-omicron)
+[![License](https://img.shields.io/badge/License-MIT.svg)](https://opensource.org/licenses/MIT)
+[![Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 Contents
 ---------
@@ -44,9 +26,5 @@ Omicron是Zillionare的核心公共模块，实现了数据访问层，向其它
 
 Zillionare-Omicron采用以下技术构建:
 
-* Pycharm开源项目支持计划
-
-    ![](_static/jetbrains-variant-3.svg)
-
 * [Cookiecutter](https://github.com/audreyr/cookiecutter)
-* [Cookiecutter-pypackage](https://github.com/audreyr/cookiecutter-pypackage)
+* [Cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage)

@@ -57,31 +57,6 @@ class RedisCache:
     async def get_securities(self):
         return await self.security.lrange("securities", 0, -1, encoding="utf-8")
 
-    # todo: remove this
-    async def get_turnover(
-        self, code: Union[str, List[str]], date: datetime.date
-    ) -> Union[List[float], float, None]:
-        frame = tf.date2int(date)
-        if isinstance(code, str):
-            key = f"{code}:turnover"
-            turnover = await self.security.hget(key, frame)
-            if turnover is not None:
-                return float(turnover)
-        else:
-            codes = code
-            pl = self.security.pipeline()
-            [pl.hget(f"{code}:turnover", frame) for code in codes]
-            recs = await pl.execute()
-            return [float(rec) for rec in recs]
-        return None
-
-    # todo: remove this
-    async def save_turnover(self, data: np.array, date: datetime.date):
-        frame = tf.date2int(date)
-        pl = self.security.pipeline()
-        [pl.hset(f"{code}:turnover", frame, turnover.item()) for code, turnover in data]
-        await pl.execute()
-
     async def get_bars_range(
         self, code: str, frame_type: FrameType
     ) -> Tuple[Optional[Frame], ...]:
@@ -136,19 +111,27 @@ class RedisCache:
     async def save_bars(
         self, sec: str, bars: np.ndarray, frame_type: FrameType, sync_mode: int = 1
     ):
-        """
-        为每条k线记录生成一个ID，将时间：id存入该sec对应的ordered set
-        code:frame_type -> {
-                20191204: [date, o, l, h, c, v]::json
-                20191205: [date, o, l, h, c, v]::json
-                head: date or datetime
-                tail: date or datetime
-                }
-        :param sec: the full qualified code of a security or index
-        :param bars: the data to save
-        :param frame_type: use this to decide which store to use
-        :param sync_mode: 1 for update, 2 for overwrite
-        :return:
+        """将行情数据存入缓存
+
+        在redis cache中的数据以如下方式存储
+
+        ```text
+        "000001.XSHE:30m" -> {
+            # frame     open    low  high  close volume      amount        factor
+            "20200805": "13.82 13.85 13.62 13.76 144020313.0 1980352978.34 120.77"
+            "20200806": "13.82 13.96 13.65 13.90 135251068.0 1868047342.49 120.77"
+            "head": "20200805"
+            "tail": "20200806"
+        }
+        ```
+
+        这里的amount即对应frame的成交额；factor为复权因子
+
+        args:
+            sec: the full qualified code of a security or index
+            bars: the data to save
+            frame_type: use this to decide which store to use
+            sync_mode: 1 for update, 2 for overwrite
         """
         if bars is None or len(bars) == 0:
             return
@@ -288,7 +271,7 @@ class RedisCache:
         frame_type: FrameType,
     ) -> bytes:
         """
-        如果没有数据，返回空字节串b''
+        如果没有数据，返回空字节串''
         """
         if n == 0:
             return b""
@@ -310,7 +293,8 @@ class RedisCache:
 
     async def load_calendar(self, _type):
         key = f"calendar:{_type}"
-        await self.security.lrange(key, 0, -1)
+        result = await self.security.lrange(key, 0, -1)
+        return [int(x) for x in result]
 
 
 cache = RedisCache()
