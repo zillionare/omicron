@@ -245,6 +245,7 @@ class Securities(object):
 
     async def _get_bars(self, code, start, stop, frame_type):
         from omicron.models.security import Security
+
         sec = Security(code)
         bars = await sec.load_bars(start, stop, frame_type)
         return code, bars
