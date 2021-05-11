@@ -295,3 +295,35 @@ def vcross(f: np.array, g: np.array) -> Tuple:
             return True, (idx0, idx1)
 
     return False, (None, None)
+
+
+def inverse_vcross(f: np.array, g: np.array) -> Tuple:
+    """判断序列f是否与序列g存在^型相交。即存在两个交点，第一个交点为向上相交，第二个交点为向下
+    相交。可用于判断见顶特征等场合。
+
+    Args:
+        f (np.array): [description]
+        g (np.array): [description]
+
+    Returns:
+        Tuple: [description]
+    """
+    indices = np.argwhere(np.diff(np.sign(f - g))).flatten()
+    if len(indices) == 2:
+        idx0, idx1 = indices
+        if f[idx0] < g[idx0] and f[idx1] > g[idx1]:
+            return True, (idx0, idx1)
+
+    return False, (None, None)
+
+
+def slope(ts: np.array, loss_func="re"):
+    """求ts表示的直线（如果能拟合成直线的话）的斜率
+
+    Args:
+        ts (np.array): [description]
+        loss_func (str, optional): [description]. Defaults to 're'.
+    """
+    err, (a, b) = polyfit(ts, deg=1, loss_func=loss_func)
+
+    return err, a
