@@ -47,6 +47,27 @@ def mean_absolute_error(y: np.array, y_hat: np.array):
     return np.mean(np.abs(y - y_hat))
 
 
+def relative_error(y: np.array, y_hat: np.array) -> float:
+    """相对于序列算术均值的误差值
+
+    Examples:
+        >>> y = np.arange(5)
+        >>> y_hat = np.arange(5)
+        >>> y_hat[4] = 0
+        >>> relative_error(y, y_hat)
+        0.4
+
+    Args:
+        y (np.array): [description]
+        y_hat (np.array): [description]
+
+    Returns:
+        float: [description]
+    """
+    mae = mean_absolute_error(y, y_hat)
+    return mae / np.mean(np.abs(y))
+
+
 def normalize(X, scaler="maxabs"):
     """对数据进行规范化处理。
 
