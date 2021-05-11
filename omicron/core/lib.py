@@ -27,6 +27,28 @@ def barssince(condition: Sequence[bool], default=np.inf) -> int:
 
 
 def moving_average(ts: Sequence, win: int, padding=True) -> np.array:
+    """生成ts序列的移动平均值
+
+    使用卷积方法`np.convolve`生成移动平均序列。如果`padding`为`True`,则还要对生成的序列左填充
+    `win-1`个`np.NaN`，使之长度对齐到`ts`。
+
+    Examples:
+
+        >>> ts = np.arange(7)
+        >>> moving_average(ts, 5)
+        array([nan, nan, nan, nan,  2.,  3.,  4.])
+
+        >>> moving_average(ts, 7, False)
+        array([3.])
+
+    Args:
+        ts (Sequence): 时间序列数据
+        win (int): 滑动窗口大小
+        padding (bool, optional): 是否进行对齐填充. Defaults to True.
+
+    Returns:
+        np.array: [description]
+    """
     ma = np.convolve(ts, np.ones(win), "valid") / win
 
     if padding:
@@ -35,10 +57,22 @@ def moving_average(ts: Sequence, win: int, padding=True) -> np.array:
     return ma
 
 
-def mean_absolute_error(y: np.array, y_hat: np.array):
+def mean_absolute_error(y: np.array, y_hat: np.array) -> float:
     """返回预测序列相对于真值序列的平均绝对值差
+
+    Examples:
+
+        >>> y = np.arange(5)
+        >>> y_hat = np.arange(5)
+        >>> y_hat[4] = 0
+        >>> mean_absolute_error(y, y)
+        0.0
+
+        >>> mean_absolute_error(y, y_hat)
+        0.8
+
     Args:
-        y:
+        y (np.array):
         y_hat:
 
     Returns:
@@ -79,8 +113,46 @@ def normalize(X, scaler="maxabs"):
     参考 [sklearn]
 
     [sklearn]: https://scikit-learn.org/stable/auto_examples/preprocessing/plot_all_scaling.html#results
+
+    Examples:
+
+        >>> X = [[ 1., -1.,  2.],
+        ... [ 2.,  0.,  0.],
+        ... [ 0.,  1., -1.]]
+
+        >>> expected = [[ 0.4082, -0.4082,  0.8165],
+        ... [ 1.,  0.,  0.],
+        ... [ 0.,  0.7071, -0.7071]]
+
+        >>> X_hat = normalize(X, scaler='unit_vector')
+        >>> np.testing.assert_array_almost_equal(expected, X_hat, decimal=4)
+
+        >>> expected = [[0.5, -1., 1.],
+        ... [1., 0., 0.],
+        ... [0., 1., -0.5]]
+
+        >>> X_hat = normalize(X, scaler='maxabs')
+        >>> np.testing.assert_array_almost_equal(expected, X_hat, decimal = 2)
+
+        >>> expected = [[0.5       , 0.        , 1.        ],
+        ... [1.        , 0.5       , 0.33333333],
+        ... [0.        , 1.        , 0.        ]]
+        >>> X_hat = normalize(X, scaler='minmax')
+        >>> np.testing.assert_array_almost_equal(expected, X_hat, decimal= 3)
+
+        >>> X = [[0, 0],
+        ... [0, 0],
+        ... [1, 1],
+        ... [1, 1]]
+        >>> expected = [[-1., -1.],
+        ... [-1., -1.],
+        ... [ 1., 1.],
+        ... [ 1.,  1.]]
+        >>> X_hat = normalize(X, scaler='standard')
+        >>> np.testing.assert_array_almost_equal(expected, X_hat, decimal = 3)
+
     Args:
-        X ([type]): [description]
+        X (2D array):
         scaler (str, optional): [description]. Defaults to 'maxabs_scale'.
     """
     if scaler == "maxabs":
@@ -93,12 +165,10 @@ def normalize(X, scaler="maxabs"):
         return StandardScaler().fit_transform(X)
 
 
-def polyfit(ts: Sequence, deg: int = 2) -> Tuple:
+def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
     """对给定的时间序列进行直线/二次曲线拟合。
 
     二次曲线可以拟合到反生反转的行情，如圆弧底、圆弧顶；也可以拟合到上述趋势中的单边走势，即其中一段曲线。对于如长期均线，在一段时间内走势可能呈现为一条直线，故也可用此函数进行直线拟合。
-
-    根据证券分析的性质，这里给出的误差，为绝对值均值误差。
 
     为便于在不同品种、不同的时间之间对误差、系数进行比较，请事先对ts进行归一化。
     如果遇到无法拟合的情况（异常），将返回一个非常大的误差，并将其它项置为np.nan
@@ -112,6 +182,7 @@ def polyfit(ts: Sequence, deg: int = 2) -> Tuple:
     Args:
         ts (Sequence): 待拟合的时间序列
         deg (int): 如果要进行直线拟合，取1；二次曲线拟合取2. Defaults to 2
+        loss_func (str): 误差计算方法，取值为`mae`, `rmse`,`mse` 或`re`。Defaults to `re` (relative_error)
     Returns:
         [Tuple]: 如果为直线拟合，返回误差，(a,b)(一次项系数和常数)。如果为二次曲线拟合，返回
         误差, (a,b,c)(二次项、一次项和常量）, (vert_x, vert_y)(顶点处的index，顶点值)
@@ -281,6 +352,16 @@ def vcross(f: np.array, g: np.array) -> Tuple:
     """
     判断序列f是否与g存在类型v型的相交。即存在两个交点，第一个交点为向下相交，第二个交点为向上
     相交。一般反映为洗盘拉升的特征。
+
+    Examples:
+
+        >>> f = np.array([ 3 * i ** 2 - 20 * i +  2 for i in range(10)])
+        >>> g = np.array([ i - 5 for i in range(10)])
+        >>> flag, indices = vcross(f, g)
+        >>> assert flag is True
+        >>> assert indices[0] == 0
+        >>> assert indices[1] == 6
+
     Args:
         f:
         g:

@@ -90,4 +90,3 @@ class SecuritiesTest(unittest.IsolatedAsyncioTestCase):
                 self.assertAlmostEqual(3350.11, bars[-1]["close"], places=2)
             if code == "000001.XSHE":
                 self.assertAlmostEqual(14.4, bars[-1]["open"], places=2)
-

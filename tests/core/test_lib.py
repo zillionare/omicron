@@ -51,6 +51,14 @@ class LibTest(unittest.TestCase):
         flag, index = lib.cross(y1, y2)
         self.assertEqual(0, flag)
 
+    def test_vcross(self):
+        f = np.array([3 * i ** 2 - 20 * i + 2 for i in range(10)])
+        g = np.array([i - 5 for i in range(10)])
+
+        flag, indices = lib.vcross(f, g)
+        self.assertTrue(flag)
+        self.assertTupleEqual((0, 6), indices)
+
     def test_moving_average(self):
         ts = [i for i in range(5)]
 
@@ -71,52 +79,40 @@ class LibTest(unittest.TestCase):
         self.assertAlmostEquals(0.8, lib.mean_absolute_error(y, y_hat))
         self.assertAlmostEquals(0.8, lib.mean_absolute_error(y_hat, y))
 
+    def test_relative_error(self):
+        y = np.arange(5)
+        y_hat = copy(y)
+        y_hat[4] = 0
+
+        print(lib.relative_error(y, y_hat))
 
     def test_normalize(self):
         # unit_vector
-        X = [[ 1., -1.,  2.],
-             [ 2.,  0.,  0.],
-             [ 0.,  1., -1.]]
+        X = [[1.0, -1.0, 2.0], [2.0, 0.0, 0.0], [0.0, 1.0, -1.0]]
 
-        expected = [[ 0.4082, -0.4082,  0.8165],
-                    [ 1.,  0.,  0.],
-                    [ 0.,  0.7071, -0.7071]
-                ]
+        expected = [[0.4082, -0.4082, 0.8165], [1.0, 0.0, 0.0], [0.0, 0.7071, -0.7071]]
 
-        X_hat = lib.normalize(X, scaler='unit_vector')
+        X_hat = lib.normalize(X, scaler="unit_vector")
         np.testing.assert_array_almost_equal(expected, X_hat, decimal=4)
 
         # max_abs
-        X = np.array([[ 1., -1.,  2.],
-                     [ 2.,  0.,  0.],
-                     [ 0.,  1., -1.]])
+        X = np.array([[1.0, -1.0, 2.0], [2.0, 0.0, 0.0], [0.0, 1.0, -1.0]])
 
-        expected = [[0.5, -1., 1.],
-                    [1., 0., 0.],
-                    [0., 1., -0.5]]
+        expected = [[0.5, -1.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, -0.5]]
 
-        X_hat = lib.normalize(X, scaler='maxabs')
-        np.testing.assert_array_almost_equal(expected, X_hat, decimal = 2)
+        X_hat = lib.normalize(X, scaler="maxabs")
+        np.testing.assert_array_almost_equal(expected, X_hat, decimal=2)
 
         # min_max
-        expected = [[0.5       , 0.        , 1.        ],
-                    [1.        , 0.5       , 0.33333333],
-                    [0.        , 1.        , 0.        ]]
-        X_hat = lib.normalize(X, scaler='minmax')
-        np.testing.assert_array_almost_equal(expected, X_hat, decimal= 3)
+        expected = [[0.5, 0.0, 1.0], [1.0, 0.5, 0.33333333], [0.0, 1.0, 0.0]]
+        X_hat = lib.normalize(X, scaler="minmax")
+        np.testing.assert_array_almost_equal(expected, X_hat, decimal=3)
 
         # standard
-        X = [[0, 0], 
-             [0, 0], 
-             [1, 1], 
-             [1, 1]]
-        expected = [[-1., -1.],
-                    [-1., -1.],
-                    [ 1., 1.],
-                    [ 1.,  1.]]
-        X_hat = lib.normalize(X, scaler='standard')
-        np.testing.assert_array_almost_equal(expected, X_hat, decimal = 3)
-
+        X = [[0, 0], [0, 0], [1, 1], [1, 1]]
+        expected = [[-1.0, -1.0], [-1.0, -1.0], [1.0, 1.0], [1.0, 1.0]]
+        X_hat = lib.normalize(X, scaler="standard")
+        np.testing.assert_array_almost_equal(expected, X_hat, decimal=3)
 
     def test_polyfit(self):
         ts = [i for i in range(5)]
@@ -137,12 +133,34 @@ class LibTest(unittest.TestCase):
         err, _, _ = lib.polyfit(ts)
         self.assertTrue(err >= 1e9)
 
+    def test_angle(self):
+        ts = np.array([i for i in range(5)])
+        err, angle = lib.angle(ts)
+        self.assertTrue(err < 0.01)
+
+        self.assertAlmostEquals(0.707, angle, places=3)  # degree: 45, rad: pi/2
+
+        ts = np.array([np.sqrt(3) / 3 * i for i in range(10)])
+        err, angle = lib.angle(ts)
+        self.assertTrue(err < 0.01)
+        self.assertAlmostEquals(0.866, angle, places=3)  # degree: 30, rad: pi/6
+
+        ts = np.array([-np.sqrt(3) / 3 * i for i in range(7)])
+        err, angle = lib.angle(ts)
+        self.assertTrue(err < 0.01)
+        self.assertAlmostEquals(-0.866, angle, places=3)  # degree: 150, rad: 5*pi/6
+
+    def test_inverse_vcross(self):
+        f = np.array([-3 * i ** 2 + 20 * i - 10 for i in range(10)])
+        g = np.array([i - 5 for i in range(10)])
+
+        flag, indices = lib.inverse_vcross(f, g)
+        self.assertTrue(flag)
+        self.assertTupleEqual((0, 6), indices)
+
     def test_slope(self):
-        ts = np.array([ i for i in range(5)])
-        self.assertAlmostEquals(0.707, lib.slope(ts), places=3) # degree: 45, rad: pi/2
+        ts = [i for i in range(5)]
 
-        ts = np.array([ np.sqrt(3) / 3 * i for i in range(10)])
-        self.assertAlmostEquals(0.866, lib.slope(ts), places=3) # degree: 30, rad: pi/6
-
-        ts = np.array([ -np.sqrt(3) / 3 * i for i in range(7)])
-        self.assertAlmostEquals(-0.866, lib.slope(ts), places = 3) # degree: 150, rad: 5*pi/6
+        err, a = lib.slope(ts)
+        self.assertTrue(err < 1e-13)
+        self.assertAlmostEquals(1, a, places=7)

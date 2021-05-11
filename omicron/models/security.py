@@ -146,9 +146,6 @@ class Security(object):
 
         return _type
 
-    def __getitem__(self, key):
-        return self._bars[key]
-
     def qfq(self) -> np.ndarray:
         last = self._bars[-1]["factor"]
         for field in ["open", "high", "low", "close"]:
