@@ -148,38 +148,43 @@ def polyfit(ts: Sequence, deg: int = 2) -> Tuple:
         return error, (np.nan, np.nan, np.nan), (np.nan, np.nan)
 
 
-def slope(ts) -> float:
-    """求序列ts的斜率（归一化为cosine值，这个值介于[-1,1]之间）
+def angle(ts, threshold=0.01, loss_func="re") -> Tuple[float, float]:
+    """求时间序列`ts`拟合直线相对于`x`轴的夹角的余弦值
 
-    本函数可以看成将ts对应于x坐标为[0, ..., len(ts)]，在平面上作图，然后求其夹角的余弦值。
+    本函数可以用来判断时间序列的增长趋势。当`angle`处于[-1, 0]时，越靠近0，下降越快；当`angle`
+    处于[0, 1]时，越接近0，上升越快。
+
+    如果`ts`无法很好地拟合为直线，则返回[float, None]
 
     Examples:
 
         >>> ts = np.array([ i for i in range(5)])
-        >>> round(slope(ts), 3) # degree: 45, rad: pi/2
+        >>> round(angle(ts)[1], 3) # degree: 45, rad: pi/2
         0.707
 
         >>> ts = np.array([ np.sqrt(3) / 3 * i for i in range(10)])
-        >>> round(slope(ts),3) # degree: 30, rad: pi/6
+        >>> round(angle(ts)[1],3) # degree: 30, rad: pi/6
         0.866
 
         >>> ts = np.array([ -np.sqrt(3) / 3 * i for i in range(7)])
-        >>> round(slope(ts), 3) # degree: 150, rad: 5*pi/6
+        >>> round(angle(ts)[1], 3) # degree: 150, rad: 5*pi/6
         -0.866
 
     Args:
         ts:
 
     Returns:
+        返回 (error, consine(theta))，即拟合误差和夹角余弦值。
 
     """
-    x = np.arange(len(ts))
-    a, b = np.polyfit(x, ts, 1)
+    err, (a, b) = polyfit(ts, deg=1, loss_func=loss_func)
+    if err > threshold:
+        return (err, None)
 
     v = np.array([1, a + b])
     vx = np.array([1, 0])
 
-    return copysign(np.dot(v, vx) / (norm(v) * norm(vx)), a)
+    return err, copysign(np.dot(v, vx) / (norm(v) * norm(vx)), a)
 
 
 def momemtem(ts, deg=1):
