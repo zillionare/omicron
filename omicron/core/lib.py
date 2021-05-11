@@ -126,7 +126,15 @@ def polyfit(ts: Sequence, deg: int = 2) -> Tuple:
 
         p = np.poly1d(z)
         ts_hat = np.array([p(xi) for xi in x])
-        error = mean_absolute_error(ts, ts_hat) / np.sqrt(np.mean(np.square(ts)))
+
+        if loss_func == "mse":
+            error = np.mean(np.square(ts - ts_hat))
+        elif loss_func == "rmse":
+            error = np.sqrt(np.mean(np.square(ts - ts_hat)))
+        elif loss_func == "mae":
+            error = mean_absolute_error(ts, ts_hat)
+        else:  # defaults to relative error
+            error = mean_absolute_error(ts, ts_hat) / np.sqrt(np.mean(np.square(ts)))
 
         if deg == 2:
             a, b, c = z[0], z[1], z[2]
