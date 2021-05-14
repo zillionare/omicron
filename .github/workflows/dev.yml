@@ -2,7 +2,7 @@
 
 name: dev build
 
-# Controls when the action will run. 
+# Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
@@ -46,7 +46,7 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-        
+
       postgres:
         image: postgres
         env: # this is defined by image postgres
@@ -81,7 +81,7 @@ jobs:
             sudo -E apt-get install --yes --no-install-recommends postgresql-client wget
             wget https://raw.githubusercontent.com/zillionare/omega/release/omega/config/sql/init.sql -O init.sql
             PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
-          
+
       - name: versioing with build_number
         run: |
           poetry version $(poetry version --short)-dev.$GITHUB_RUN_NUMBER

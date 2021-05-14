@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from omicron.core.types import FrameType
 import unittest
+
+import arrow
 
 import omicron
 from omicron import cache
+from omicron.core.types import FrameType
 from omicron.models.securities import Securities
 from omicron.models.security import Security
 from tests import init_test_env, start_omega
-import arrow
 
 logger = logging.getLogger(__name__)
 
