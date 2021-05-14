@@ -6,14 +6,14 @@
 TODO： 部分函数之前已使用numba加速，但因numba与OS的兼容性问题取消。需要随时保持跟踪。
 """
 import logging
-import warnings
 
 import numpy as np
+from deprecated import deprecated
 
 logger = logging.getLogger(__name__)
 
 
-@FutureWarning
+@deprecated(version="1.1")
 def index(arr, item):  # pragma: no cover
     for idx, val in np.ndenumerate(arr):
         if val == item:
@@ -23,7 +23,7 @@ def index(arr, item):  # pragma: no cover
     return -1
 
 
-@FutureWarning
+@deprecated(version="1.1")
 def index_sorted(arr, item):  # pragma: no cover
     pos = np.searchsorted(arr, item)
     if arr[pos] == item:
