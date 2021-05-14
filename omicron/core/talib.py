@@ -4,9 +4,10 @@
 import logging
 from itertools import compress
 from math import copysign
-from typing import Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import numpy as np
+from bottleneck import move_sum, move_mean, move_std, move_var, move_min, move_max, move_argmin, move_argmax, move_median, move_rank,nansum, nanmean, nanstd, nanvar, nanmin, nanmax, median, nanmedian, ss, nanargmin, nanargmax, anynan, allnan
 import sklearn
 from numpy.linalg import norm
 from sklearn.preprocessing import MaxAbsScaler, Normalizer, StandardScaler, minmax_scale
@@ -25,12 +26,37 @@ def barssince(condition: Sequence[bool], default=np.inf) -> int:
     """
     return next(compress(range(len(condition)), reversed(condition)), default)
 
+def rolling(arr: np.array, win:int, func:str, axis=None, min_count=None)->Any:
+    """apply `func` along axis on `arr` in rolling window
 
-def moving_average(ts: Sequence, win: int, padding=True) -> np.array:
+    Args:
+        arr (np.array): [description]
+        win (int): [description]
+        func (str): [description]
+        axis ([type], optional): [description]. Defaults to None.
+
+    Returns:
+        Any: [description]
+    """
+
+    meths = {
+        "sum": move_sum,
+        "mean": move_mean,
+        "std": move_std,
+        "var": move_var,
+        "min": move_min,
+        "max": move_max,
+        "argmin": move_argmin,
+        "argmax": move_argmax,
+        "median": move_median,
+        "rank": move_rank
+    }
+    return meths[func](arr, win, axis=axis, min_count=min_count)
+
+def moving_average(ts: Sequence, win: int):
     """生成ts序列的移动平均值
 
-    使用卷积方法`np.convolve`生成移动平均序列。如果`padding`为`True`,则还要对生成的序列左填充
-    `win-1`个`np.NaN`，使之长度对齐到`ts`。
+    生成的序列将与输入序列等长（使用左填充），不足的部分使用np.NaN填充
 
     Examples:
 
@@ -38,23 +64,14 @@ def moving_average(ts: Sequence, win: int, padding=True) -> np.array:
         >>> moving_average(ts, 5)
         array([nan, nan, nan, nan,  2.,  3.,  4.])
 
-        >>> moving_average(ts, 7, False)
-        array([3.])
-
     Args:
-        ts (Sequence): 时间序列数据
-        win (int): 滑动窗口大小
-        padding (bool, optional): 是否进行对齐填充. Defaults to True.
+        ts (Sequence): [description]
+        win (int): [description]
 
     Returns:
-        np.array: [description]
+        [type]: [description]
     """
-    ma = np.convolve(ts, np.ones(win), "valid") / win
-
-    if padding:
-        return np.concatenate([[np.NaN] * (win - 1), ma])
-
-    return ma
+    return move_mean(ts, win)
 
 
 def mean_absolute_error(y: np.array, y_hat: np.array) -> float:
