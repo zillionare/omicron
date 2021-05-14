@@ -379,6 +379,16 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         sec.reset_length()
         self.assertEqual(10, len(sec.bars))
 
+    def test_load_bars_from_dataframe(self):
+        code = "000001.XSHG"
+        sec = Security("000001.XSHG")
+
+        df = load_data(code, "1d")
+
+        sec.load_bars_from_dataframe(df)
+        self.assertEqual(2188, len(sec))
+        self.assertEqual(datetime.date(2012,1,4), sec.frame[0])
+        self.assertEqual(datetime.date(2020, 12, 31), sec.frame[-1])
 
 if __name__ == "__main__":
     unittest.main()

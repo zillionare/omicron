@@ -158,6 +158,23 @@ class Security(object):
 
         return self._bars
 
+    def load_bars_from_dataframe(self, df: DataFrame):
+        """从`df`指向的DataFrame中加载行情数据
+
+        Args:
+            df (DataFrame): [description]
+        """
+        dtypes = [dtype for dtype in bars_dtype if dtype[0] in df.columns]
+        arr = np.empty((len(df)), dtype=dtypes)
+
+        for field, _ in dtypes:
+            if field in df.columns:
+                arr[field] = df[field]
+
+        self._bars = arr
+        self._size = len(self._bars)
+        return self._bars
+
     async def load_bars(
         self,
         start: Frame,
