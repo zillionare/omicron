@@ -6,12 +6,9 @@ import os
 import socket
 import subprocess
 import sys
-import asyncio
-import socket
 from contextlib import closing
 
 import aiohttp
-import cfg4py
 import aioredis
 import cfg4py
 import pandas as pd
@@ -56,7 +53,7 @@ async def is_local_omega_alive(port: int = 3181):
                 if resp.status == 200:
                     return await resp.text()
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -101,3 +98,10 @@ async def start_omega(timeout=60):
             return process
 
     raise subprocess.SubprocessError("Omega server malfunction.")
+
+
+def load_data(sec: str, frame_type: str, ext: str = "csv", sep="\t"):
+    file = os.path.join(os.path.dirname(__file__), f"{sec}.{frame_type}.{ext}")
+    df = pd.read_csv(file, sep=sep)
+    df["frame"] = pd.to_datetime(df["frame"])
+    return df
