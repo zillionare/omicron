@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 import asyncio
 import datetime
 import logging
 import re
 from collections import ChainMap
-from typing import AsyncIterator, List
+from typing import TYPE_CHECKING, AsyncIterator, List
 
 import arrow
 import numpy as np
@@ -18,6 +19,10 @@ from omicron.core.timeframe import TimeFrame, tf
 from omicron.core.types import Frame, FrameType, MarketType, SecurityType
 from omicron.models.securities import Securities
 from omicron.models.valuation import Valuation
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
+
 
 logger = logging.getLogger(__name__)
 
