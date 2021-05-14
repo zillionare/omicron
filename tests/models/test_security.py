@@ -1,5 +1,7 @@
+import datetime
 import logging
 import unittest
+from unittest import mock
 
 import arrow
 import numpy as np
@@ -10,7 +12,7 @@ from omicron.core.timeframe import tf
 from omicron.core.types import FrameType, SecurityType
 from omicron.models.securities import Securities
 from omicron.models.security import Security
-from tests import init_test_env, start_omega
+from tests import init_test_env, load_data, start_omega
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +45,28 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
     def test_000_properties(self):
         sec = Security("000001.XSHE")
+
+        self.assertEqual("平安银行[000001.XSHE]", str(sec))
+
         for key, value in zip(
-            "display_name ipo_date end_date".split(" "),
-            "平安银行 1991-04-03 2200-01-01".split(" "),
+            "name display_name ipo_date end_date".split(" "),
+            "PAYH 平安银行 1991-04-03 2200-01-01".split(" "),
         ):
             self.assertEqual(str(getattr(sec, key)), value)
 
         sec = Security("399001.XSHE")
-        print(sec)
+        self.assertEqual("399001", sec.sim_code)
+        self.assertEqual(SecurityType.INDEX, sec.type)
+        self.assertEqual("399001", Security.simplify_code("399001.XSHE"))
+
+        with mock.patch('arrow.now', return_value=arrow.get('2020-12-31')):
+            self.assertEqual(3889, sec.days_since_ipo())
+
+        try:
+            sec.bars
+            self.assertTrue(False, "should not go here")
+        except ValueError:
+            pass
 
     def test_001_parse_security_type(self):
         codes = [
@@ -369,14 +385,14 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         bars = await sec.load_bars(start, stop, frame_type, turnover=True)
         self.assertEqual(10, len(bars))
 
-        sec.set_length(8)
+        sec.set_size(8)
         self.assertEqual(8, len(sec.bars))
         expected_open = [16.94, 17.01, 17.13, 17.0, 16.81, 16.79, 16.75, 16.99]
         for i in range(len(sec.bars)):
             self.assertAlmostEqual(expected_open[i], sec.open[i], places=2)
             self.assertAlmostEqual(expected_open[i], sec["open"][i], places=2)
 
-        sec.reset_length()
+        sec.reset_size()
         self.assertEqual(10, len(sec.bars))
 
     def test_load_bars_from_dataframe(self):

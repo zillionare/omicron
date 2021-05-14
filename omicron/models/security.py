@@ -11,12 +11,13 @@ from typing import TYPE_CHECKING, AsyncIterator, List
 import arrow
 import numpy as np
 import numpy.lib.recfunctions as rfn
+from deprecated import deprecated
 
 import omicron.core.accelerate as accl
 from omicron import cache
 from omicron.client.quotes_fetcher import get_bars, get_bars_batch
 from omicron.core.timeframe import TimeFrame, tf
-from omicron.core.types import Frame, FrameType, MarketType, SecurityType
+from omicron.core.types import Frame, FrameType, MarketType, SecurityType, bars_dtype
 from omicron.models.securities import Securities
 from omicron.models.valuation import Valuation
 
@@ -41,7 +42,7 @@ class Security(object):
         ) = Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
-        self._i = None
+        self._size = 0
 
     def __str__(self):
         return f"{self.display_name}[{self.code}]"
@@ -83,9 +84,18 @@ class Security(object):
         if self._bars is None:
             raise ValueError(f"{self.code}: please call load_bars first")
 
-        return self._bars[: self._i]
+        return self._bars[: self.size]
 
-    def to_canonical_code(self, simple_code: str) -> str:
+    def __len__(self):
+        """将长度定义为当前拥有的bars的数量
+
+        Returns:
+            [type]: [description]
+        """
+        return len(self._bars)
+
+    @deprecated(reason="bad implementation", action="error")
+    def to_canonical_code(self, simple_code: str) -> str: # pragma: no cover
         """
         将简码转换(比如 000001) 转换成为规范码 (i.e., 000001.XSHE)
         Args:
@@ -252,7 +262,7 @@ class Security(object):
         if turnover:
             await self._add_turnover(frame_type)
 
-        self._i = len(self._bars)
+        self._size = len(self._bars)
         self._bars.flags["WRITEABLE"] = False
         return self._bars
 
@@ -300,7 +310,7 @@ class Security(object):
         else:
             return bars["close"][-1] / bars["close"][0] - 1
 
-    def set_length(self, i: int):
+    def set_size(self, i: int): # pragma: no cover
         """设置bars的长度，用以回测时模拟步进机制
 
         Args:
@@ -309,48 +319,53 @@ class Security(object):
         Returns:
             [type]: [description]
         """
-        self._i = i
+        self._size = i
 
-    def reset_length(self):
-        self._i = len(self._bars)
+    def reset_size(self): # pragma: no cover
+        self._size = len(self._bars)
+
+    @property
+    def size(self): # pragma: no cover
+        """how many bars currently accessible?"""
+        return self._size
 
     def __getitem__(self, item) -> np.array:
-        return self._bars[: self._i][item]
+        return self._bars[: self.size][item]
 
     def __getattr__(self, key) -> np.array:
-        return self._bars[: self._i][key]
+        return self._bars[: self.size][key]
 
     @property
     def open(self) -> np.array:
-        return self._bars[: self._i]["open"]
+        return self._bars[: self.size]["open"]
 
     @property
     def high(self) -> np.array:
-        return self._bars[: self._i]["high"]
+        return self._bars[: self.size]["high"]
 
     @property
     def low(self) -> np.array:
-        return self._bars[: self._i]["low"]
+        return self._bars[: self.size]["low"]
 
     @property
     def close(self) -> np.array:
-        return self._bars[: self._i]["close"]
+        return self._bars[: self.size]["close"]
 
     @property
     def frame(self) -> np.array:
-        return self._bars[: self._i]["frame"]
+        return self._bars[: self.size]["frame"]
 
     @property
     def volume(self) -> np.array:
-        return self._bars[: self._i]["volume"]
+        return self._bars[: self.size]["volume"]
 
     @property
     def amount(self) -> np.array:
-        return self._bars[: self._i]["amount"]
+        return self._bars[: self.size]["amount"]
 
     @property
     def turnover(self) -> np.array:
-        return self._bars[: self._i]["turnover"]
+        return self._bars[: self.size]["turnover"]
 
     @classmethod
     async def _load_bars_batch(
