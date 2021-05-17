@@ -59,7 +59,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(SecurityType.INDEX, sec.type)
         self.assertEqual("399001", Security.simplify_code("399001.XSHE"))
 
-        with mock.patch('arrow.now', return_value=arrow.get('2020-12-31')):
+        with mock.patch("arrow.now", return_value=arrow.get("2020-12-31")):
             self.assertEqual(3889, sec.days_since_ipo())
 
         try:
@@ -403,8 +403,9 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         sec.load_bars_from_dataframe(df)
         self.assertEqual(2188, len(sec))
-        self.assertEqual(datetime.date(2012,1,4), sec.frame[0])
+        self.assertEqual(datetime.date(2012, 1, 4), sec.frame[0])
         self.assertEqual(datetime.date(2020, 12, 31), sec.frame[-1])
+
 
 if __name__ == "__main__":
     unittest.main()

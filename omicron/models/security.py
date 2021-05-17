@@ -95,7 +95,7 @@ class Security(object):
         return len(self._bars)
 
     @deprecated(reason="bad implementation", action="error")
-    def to_canonical_code(self, simple_code: str) -> str: # pragma: no cover
+    def to_canonical_code(self, simple_code: str) -> str:  # pragma: no cover
         """
         将简码转换(比如 000001) 转换成为规范码 (i.e., 000001.XSHE)
         Args:
@@ -301,6 +301,7 @@ class Security(object):
         )
         return self._bars
 
+    @deprecated(version="1.1", reason="refer to alternatives, for example, drawdown")
     async def price_change(
         self, start: Frame, end: Frame, frame_type: FrameType, return_max: False
     ):
@@ -310,7 +311,7 @@ class Security(object):
         else:
             return bars["close"][-1] / bars["close"][0] - 1
 
-    def set_size(self, i: int): # pragma: no cover
+    def set_size(self, i: int):  # pragma: no cover
         """设置bars的长度，用以回测时模拟步进机制
 
         Args:
@@ -321,11 +322,11 @@ class Security(object):
         """
         self._size = i
 
-    def reset_size(self): # pragma: no cover
+    def reset_size(self):  # pragma: no cover
         self._size = len(self._bars)
 
     @property
-    def size(self): # pragma: no cover
+    def size(self):  # pragma: no cover
         """how many bars currently accessible?"""
         return self._size
 
