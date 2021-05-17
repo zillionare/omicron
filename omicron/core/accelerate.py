@@ -32,6 +32,11 @@ def index_sorted(arr, item):  # pragma: no cover
         return -1
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved into omicron.core.numpy_extensions module",
+)
 def count_between(arr, start, end):
     """计算数组中，`start`元素与`end`元素之间共有多少个元素
 
@@ -57,6 +62,11 @@ def count_between(arr, start, end):
     return counter
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved to omicron.core.numpy_extensions module",
+)
 def shift(arr, start, offset):
     """在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素。
 
@@ -125,6 +135,11 @@ def minute_frames_floor(ticks, moment):
     return ticks[index - 1], 0
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved to omicron.core.numpy_extensions module",
+)
 def floor(arr, item):
     """
     在数据arr中，找到小于等于item的那一个值。如果item小于所有arr元素的值，返回arr[0];如果item
@@ -158,6 +173,11 @@ def floor(arr, item):
     return arr[index - 1]
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved to omicron.core.numpy_extensions module",
+)
 def join_by_left(key, r1, r2, mask=True):
     """左连接 `r1`, `r2` by `key`
 
@@ -246,6 +266,11 @@ def join_by_left(key, r1, r2, mask=True):
     return ret
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved to omicron.core.numpy_extensions module",
+)
 def numpy_append_fields(base, names, data, dtypes):
     """给现有的数组`base`增加新的字段
 

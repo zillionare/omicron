@@ -1,12 +1,30 @@
 """Extension function related to numpy
 """
-from typing import Any, Callable, List, Tuple
+from __future__ import annotations
 
+from typing import List, Tuple
 
 import numpy as np
 
 
 def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
+    """convert dictionary to numpy array
+
+    Examples:
+
+    >>> d = {"aaron": 5, "jack": 6}
+    >>> dtype = [("name", "S8"), ("score", "<i4")]
+    >>> dict_to_numpy_array(d, dtype)
+    array([(b'aaron', 5), (b'jack', 6)],
+          dtype=[('name', 'S8'), ('score', '<i4')])
+
+    Args:
+        d (dict): [description]
+        dtype (List[Tuple]): [description]
+
+    Returns:
+        np.array: [description]
+    """
     return np.fromiter(d.items(), dtype=dtype, count=len(d))
 
 
@@ -100,39 +118,6 @@ def shift(arr, start, offset):
         return start
     else:
         return arr[pos + offset - 1]
-
-def minute_frames_floor(ticks, moment):
-    """
-    对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
-    日，则进位为-1，否则为0.
-
-    Examples:
-        >>> ticks = [600, 630, 660, 690, 810, 840, 870, 900]
-        >>> minute_frames_floor(ticks, 545)
-        (900, -1)
-        >>> minute_frames_floor(ticks, 600)
-        (600, 0)
-        >>> minute_frames_floor(ticks, 605)
-        (600, 0)
-        >>> minute_frames_floor(ticks, 899)
-        (870, 0)
-        >>> minute_frames_floor(ticks, 900)
-        (900, 0)
-        >>> minute_frames_floor(ticks, 905)
-        (900, 0)
-
-    Args:
-        ticks (np.array or list): frames刻度
-        moment (int): 整数表示的分钟数，比如900表示15：00
-
-    Returns:
-        tuple, the first is the new moment, the second is carry-on
-    """
-    if moment < ticks[0]:
-        return ticks[-1], -1
-    # ’right' 相当于 ticks <= m
-    index = np.searchsorted(ticks, moment, side="right")
-    return ticks[index - 1], 0
 
 
 def floor(arr, item):
@@ -300,3 +285,33 @@ def numpy_append_fields(base, names, data, dtypes):
         result[names[i]] = data[i]
 
     return result
+
+
+def ffill_na(s: np.array) -> np.array:
+    """前向替换一维数组中的np.NaN
+
+    如果s以np.NaN起头，则起头处的np.NaN将无法被替换。
+
+    Examples:
+
+        >>> arr = np.arange(6, dtype=np.float32)
+        >>> arr[3:5] = np.NaN
+        >>> ffill_na(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([0., 1., 2., 2., 2., 5.], dtype=float32)
+
+        >>> arr[0:2] = np.nan
+        >>> ffill_na(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([nan, nan, 2., 2., 2., 5.], dtype=float32)
+
+    Args:
+        s (np.array): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    mask = np.isnan(s)
+    idx = np.where(~mask, np.arange(len(mask)), 0)
+    np.maximum.accumulate(idx, out=idx)
+    return s[idx]
