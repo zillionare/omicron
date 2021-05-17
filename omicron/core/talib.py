@@ -7,10 +7,36 @@ from math import copysign
 from typing import Any, Optional, Sequence, Tuple
 
 import numpy as np
-from bottleneck import move_sum, move_mean, move_std, move_var, move_min, move_max, move_argmin, move_argmax, move_median, move_rank,nansum, nanmean, nanstd, nanvar, nanmin, nanmax, median, nanmedian, ss, nanargmin, nanargmax, anynan, allnan
 import sklearn
+from bottleneck import (
+    allnan,
+    anynan,
+    median,
+    move_argmax,
+    move_argmin,
+    move_max,
+    move_mean,
+    move_median,
+    move_min,
+    move_rank,
+    move_std,
+    move_sum,
+    move_var,
+    nanargmax,
+    nanargmin,
+    nanmax,
+    nanmean,
+    nanmedian,
+    nanmin,
+    nanstd,
+    nansum,
+    nanvar,
+    ss,
+)
 from numpy.linalg import norm
 from sklearn.preprocessing import MaxAbsScaler, Normalizer, StandardScaler, minmax_scale
+
+from omicron.core.numpy_extensions import ffill_na
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +52,8 @@ def barssince(condition: Sequence[bool], default=np.inf) -> int:
     """
     return next(compress(range(len(condition)), reversed(condition)), default)
 
-def rolling(arr: np.array, win:int, func:str, axis=None, min_count=None)->Any:
+# pragma: no cover this was simply invoke bottleneck's functions
+def rolling(arr: np.array, win: int, func: str, axis=None, min_count=None) -> Any:
     """apply `func` along axis on `arr` in rolling window
 
     Args:
@@ -49,9 +76,10 @@ def rolling(arr: np.array, win:int, func:str, axis=None, min_count=None)->Any:
         "argmin": move_argmin,
         "argmax": move_argmax,
         "median": move_median,
-        "rank": move_rank
+        "rank": move_rank,
     }
     return meths[func](arr, win, axis=axis, min_count=min_count)
+
 
 def moving_average(ts: Sequence, win: int):
     """生成ts序列的移动平均值
@@ -425,3 +453,38 @@ def slope(ts: np.array, loss_func="re"):
     err, (a, b) = polyfit(ts, deg=1, loss_func=loss_func)
 
     return err, a
+
+
+def max_drawdown(ts: np.array):
+    """求区间内的最大回撤
+
+    如果ts中包含np.NaN，它们将被替换成前一个非np.NaN值（前向替换）。如果ts以np.NaN起头，则起头部分被替换成为序列中第一个非np.NaN值。
+
+    如果返回0，意味着序列中不存在最大回撤。
+
+    [See also](https://www.investopedia.com/terms/m/maximum-drawdown-mdd.asp)
+
+    Examples:
+        >>> ts = np.sin(np.arange(10) * np.pi / 10)
+        >>> dd, start, end = max_drawdown(ts)
+        >>> print(start, end)
+        5 9
+
+    Args:
+        ts (np.array): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    arr = ffill_na(ts)
+    if np.isnan(arr[0]):
+        i = np.argmin(~np.isnan(arr))
+        if i + 1 == len(arr):  # arr is full of np.nan
+            return 0, None, None
+
+        arr[:i] = arr[i + 1]
+
+    end = np.argmax(np.maximum.accumulate(arr) - arr)  # end of the period
+    start = np.argmax(arr[:end])  # start of period
+
+    return arr[end] / arr[start] - 1, start, end
