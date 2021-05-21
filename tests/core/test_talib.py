@@ -168,15 +168,3 @@ class LibTest(unittest.TestCase):
 
         self.assertAlmostEquals(-0.691, dd, places=3)
         self.assertListEqual([5, 9], [start, end])
-
-    def test_momentem(self):
-        ts = np.arange(5)
-
-        actual = ta.momemtem(ts)
-        expected = np.ones((4,))
-
-        np.testing.assert_array_equal(expected, actual)
-
-        actual = ta.momemtem(ts, 2)
-        expected = np.ones((3,))
-        np.testing.assert_array_equal(expected, actual)

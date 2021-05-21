@@ -303,16 +303,6 @@ def angle(ts, threshold=0.01, loss_func="re") -> Tuple[float, float]:
     return err, copysign(np.dot(v, vx) / (norm(v) * norm(vx)), a)
 
 
-def momemtem(ts, deg=1):
-    _ts = ts / ts[0]
-
-    dts = np.diff(_ts)
-    if deg == 2:
-        return np.diff(dts)
-    else:
-        return dts
-
-
 def polyfit_inflextion(ts, win=10, err=0.001):
     """
     通过曲线拟合法来寻找时间序列的极值点（局部极大值、极小值）。
