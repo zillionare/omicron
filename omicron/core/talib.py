@@ -80,7 +80,6 @@ def rolling(arr: np.array, win: int, func: str, axis=None, min_count=None) -> An
     }
     return meths[func](arr, win, axis=axis, min_count=min_count)
 
-
 def moving_average(ts: Sequence, win: int):
     """生成ts序列的移动平均值
 
