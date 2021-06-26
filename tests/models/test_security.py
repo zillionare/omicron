@@ -373,28 +373,6 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(expected[0], bars["turnover"][-2], places=3)
         self.assertAlmostEqual(expected[1], bars["turnover"][-1], places=3)
 
-    async def test_accessor(self):
-        code = "000001.XSHE"
-        start = arrow.get("2020-01-03").date()
-        stop = arrow.get("2020-1-16").date()
-        frame_type = FrameType.DAY
-
-        await cache.security.delete(f"{code}:{frame_type.value}")
-
-        sec = Security(code)
-        bars = await sec.load_bars(start, stop, frame_type, turnover=True)
-        self.assertEqual(10, len(bars))
-
-        sec.set_size(8)
-        self.assertEqual(8, len(sec.bars))
-        expected_open = [16.94, 17.01, 17.13, 17.0, 16.81, 16.79, 16.75, 16.99]
-        for i in range(len(sec.bars)):
-            self.assertAlmostEqual(expected_open[i], sec.open[i], places=2)
-            self.assertAlmostEqual(expected_open[i], sec["open"][i], places=2)
-
-        sec.reset_size()
-        self.assertEqual(10, len(sec.bars))
-
     def test_load_bars_from_dataframe(self):
         code = "000001.XSHG"
         sec = Security("000001.XSHG")

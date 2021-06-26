@@ -42,7 +42,6 @@ class Security(object):
         ) = Securities()[code]
         self._type = SecurityType(_type)
         self._bars = None
-        self._size = 0
 
     def __str__(self):
         return f"{self.display_name}[{self.code}]"
@@ -182,7 +181,6 @@ class Security(object):
                 arr[field] = df[field]
 
         self._bars = arr
-        self._size = len(self._bars)
         return self._bars
 
     async def load_bars(
@@ -262,7 +260,6 @@ class Security(object):
         if turnover:
             await self._add_turnover(frame_type)
 
-        self._size = len(self._bars)
         self._bars.flags["WRITEABLE"] = False
         return self._bars
 
@@ -311,62 +308,44 @@ class Security(object):
         else:
             return bars["close"][-1] / bars["close"][0] - 1
 
-    def set_size(self, i: int):  # pragma: no cover
-        """设置bars的长度，用以回测时模拟步进机制
-
-        Args:
-            i (int): [description]
-
-        Returns:
-            [type]: [description]
-        """
-        self._size = i
-
-    def reset_size(self):  # pragma: no cover
-        self._size = len(self._bars)
-
-    @property
-    def size(self):  # pragma: no cover
-        """how many bars currently accessible?"""
-        return self._size
 
     def __getitem__(self, item) -> np.array:
-        return self._bars[: self.size][item]
+        return self._bars[item]
 
     def __getattr__(self, key) -> np.array:
-        return self._bars[: self.size][key]
+        return self._bars[key]
 
     @property
     def open(self) -> np.array:
-        return self._bars[: self.size]["open"]
+        return self._bars["open"]
 
     @property
     def high(self) -> np.array:
-        return self._bars[: self.size]["high"]
+        return self._bars["high"]
 
     @property
     def low(self) -> np.array:
-        return self._bars[: self.size]["low"]
+        return self._bars["low"]
 
     @property
     def close(self) -> np.array:
-        return self._bars[: self.size]["close"]
+        return self._bars["close"]
 
     @property
     def frame(self) -> np.array:
-        return self._bars[: self.size]["frame"]
+        return self._bars["frame"]
 
     @property
     def volume(self) -> np.array:
-        return self._bars[: self.size]["volume"]
+        return self._bars["volume"]
 
     @property
     def amount(self) -> np.array:
-        return self._bars[: self.size]["amount"]
+        return self._bars["amount"]
 
     @property
     def turnover(self) -> np.array:
-        return self._bars[: self.size]["turnover"]
+        return self._bars["turnover"]
 
     @classmethod
     async def _load_bars_batch(
