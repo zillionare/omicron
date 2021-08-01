@@ -1,5 +1,6 @@
 from omicron.core.numpy_extensions import (
     count_between,
+    dataframe_to_structured_array,
     ffill_na,
     shift,
     numpy_array_to_dict,
@@ -13,6 +14,7 @@ import unittest
 
 from omicron.core.timeframe import tf
 import numpy as np
+import pandas as pd
 
 
 class NumpyExtensionsTest(unittest.TestCase):
@@ -103,3 +105,20 @@ class NumpyExtensionsTest(unittest.TestCase):
         np.testing.assert_almost_equal(
             [np.nan, np.nan, 2.0, 2.0, 2.0, 5.0], ffill_na(arr)
         )
+
+    def test_dataframe_to_structured_array(self):
+        df = pd.DataFrame(data=[2 * i for i in range(3)], columns=["seq"])
+        arr = dataframe_to_structured_array(df, [('frame', '<i8'), ('seq', '<i8')])
+
+        expected = np.array([(0,0), (1, 2), (2, 4)], dtype=[('frame', '<i8'), ('seq', '<i8')])
+
+        np.testing.assert_array_equal(expected, arr)
+
+        arr = dataframe_to_structured_array(df, [('seq', '<f8')])
+        expected = np.array([(0,), (2,), (4,)], dtype=[('seq', '<f8')])
+
+        # not sure why we cannot use np.testing.assert_array_almost_equal here
+        self.assertTrue(np.all(arr == expected))
+
+        arr = dataframe_to_structured_array(df)
+        self.assertTrue(np.all(arr == expected))
