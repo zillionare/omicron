@@ -101,6 +101,11 @@ def shift(arr, start, offset):
         return arr[pos + offset - 1]
 
 
+@deprecated(
+    category=PendingDeprecationWarning,
+    version="1.1",
+    reason="this will be moved to omicron.core.timeframe module",
+)
 def minute_frames_floor(ticks, moment):
     """
     对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易

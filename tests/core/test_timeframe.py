@@ -720,6 +720,15 @@ class TimeFrameTest(unittest.TestCase):
 
         self.assertEqual(expect, tf.combine_time(moment, 14, 30, tzinfo=cfg.tz))
 
+    def test_minute_frames_floor(self):
+        ticks = [600, 630, 660, 690, 810, 840, 870, 900]
+        self.assertTupleEqual((900, -1), tf.minute_frames_floor(ticks, 545))
+        self.assertTupleEqual((600, 0), tf.minute_frames_floor(ticks, 600))
+        self.assertTupleEqual((600, 0), tf.minute_frames_floor(ticks, 605))
+        self.assertTupleEqual((870, 0), tf.minute_frames_floor(ticks, 899))
+        self.assertTupleEqual((900, 0), tf.minute_frames_floor(ticks, 900))
+        self.assertTupleEqual((900, 0), tf.minute_frames_floor(ticks, 905))
+
 
 if __name__ == "__main__":
     unittest.main()

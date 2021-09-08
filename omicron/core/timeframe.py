@@ -560,7 +560,7 @@ class TimeFrame:
 
         """
         if frame_type in tf.minute_level_frames:
-            tm, day_offset = accl.minute_frames_floor(
+            tm, day_offset = self.minute_frames_floor(
                 self.ticks[frame_type], moment.hour * 60 + moment.minute
             )
             h, m = tm // 60, tm % 60
@@ -900,6 +900,39 @@ class TimeFrame:
         return datetime.datetime(
             dt.year, dt.month, dt.day, dtm.hour, dtm.minute, dtm.second, dtm.microsecond
         )
+
+    def minute_frames_floor(self, ticks, moment):
+        """
+        对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
+        日，则进位为-1，否则为0.
+
+        Examples:
+            >>> ticks = [600, 630, 660, 690, 810, 840, 870, 900]
+            >>> tf.minute_frames_floor(ticks, 545)
+            (900, -1)
+            >>> tf.minute_frames_floor(ticks, 600)
+            (600, 0)
+            >>> tf.minute_frames_floor(ticks, 605)
+            (600, 0)
+            >>> tf.minute_frames_floor(ticks, 899)
+            (870, 0)
+            >>> tf.minute_frames_floor(ticks, 900)
+            (900, 0)
+            >>> tf.minute_frames_floor(ticks, 905)
+            (900, 0)
+
+        Args:
+            ticks (np.array or list): frames刻度
+            moment (int): 整数表示的分钟数，比如900表示15：00
+
+        Returns:
+            tuple, the first is the new moment, the second is carry-on
+        """
+        if moment < ticks[0]:
+            return ticks[-1], -1
+        # ’right' 相当于 ticks <= m
+        index = np.searchsorted(ticks, moment, side="right")
+        return ticks[index - 1], 0
 
 
 tf = TimeFrame()
