@@ -52,6 +52,7 @@ def barssince(condition: Sequence[bool], default=np.inf) -> int:
     """
     return next(compress(range(len(condition)), reversed(condition)), default)
 
+
 # pragma: no cover this was simply invoke bottleneck's functions
 def rolling(arr: np.array, win: int, func: str, axis=None, min_count=None) -> Any:
     """apply `func` along axis on `arr` in rolling window
@@ -79,6 +80,7 @@ def rolling(arr: np.array, win: int, func: str, axis=None, min_count=None) -> An
         "rank": move_rank,
     }
     return meths[func](arr, win, axis=axis, min_count=min_count)
+
 
 def moving_average(ts: Sequence, win: int):
     """生成ts序列的移动平均值

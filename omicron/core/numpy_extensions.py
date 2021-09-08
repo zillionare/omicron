@@ -1,11 +1,11 @@
 """Extension function related to numpy
 """
 from __future__ import annotations
-from argparse import ArgumentError
 
 from typing import List, Tuple
 
 import numpy as np
+import pandas
 from numpy.typing import ArrayLike
 
 
@@ -30,7 +30,9 @@ def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
     return np.fromiter(d.items(), dtype=dtype, count=len(d))
 
 
-def dataframe_to_structured_array(df: "pandas.DataFrame", dtypes:List[Tuple]=None) -> ArrayLike:
+def dataframe_to_structured_array(
+    df: pandas.DataFrame, dtypes: List[Tuple] = None
+) -> ArrayLike:
     """convert dataframe (with all columns, and index possibly) to numpy structured arrays
 
     `len(dtypes)` should be either equal to `len(df.columns)` or `len(df.columns) + 1`. In the later case, it implies to include `df.index` into converted array.
@@ -51,9 +53,11 @@ def dataframe_to_structured_array(df: "pandas.DataFrame", dtypes:List[Tuple]=Non
             v = df.reset_index()
 
             rename_index_to = set(dtypes_in_dict.keys()).difference(set(df.columns))
-            v.rename(columns={'index': list(rename_index_to)[0]}, inplace=True)
+            v.rename(columns={"index": list(rename_index_to)[0]}, inplace=True)
         elif col_len != len(dtypes):
-            raise ValueError(f"length of dtypes should be either {col_len} or {col_len + 1}, is {len(dtypes)}")
+            raise ValueError(
+                f"length of dtypes should be either {col_len} or {col_len + 1}, is {len(dtypes)}"
+            )
 
         # re-arrange order of dtypes, in order to align with df.columns
         dtypes = []
@@ -63,6 +67,7 @@ def dataframe_to_structured_array(df: "pandas.DataFrame", dtypes:List[Tuple]=Non
         dtypes = df.dtypes
 
     return np.array(np.rec.fromrecords(v.values), dtype=dtypes)
+
 
 def numpy_array_to_dict(arr: np.array, key: str, value: str) -> dict:
     return {item[key]: item[value] for item in arr}

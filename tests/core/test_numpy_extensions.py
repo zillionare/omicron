@@ -108,14 +108,16 @@ class NumpyExtensionsTest(unittest.TestCase):
 
     def test_dataframe_to_structured_array(self):
         df = pd.DataFrame(data=[2 * i for i in range(3)], columns=["seq"])
-        arr = dataframe_to_structured_array(df, [('frame', '<i8'), ('seq', '<i8')])
+        arr = dataframe_to_structured_array(df, [("frame", "<i8"), ("seq", "<i8")])
 
-        expected = np.array([(0,0), (1, 2), (2, 4)], dtype=[('frame', '<i8'), ('seq', '<i8')])
+        expected = np.array(
+            [(0, 0), (1, 2), (2, 4)], dtype=[("frame", "<i8"), ("seq", "<i8")]
+        )
 
         np.testing.assert_array_equal(expected, arr)
 
-        arr = dataframe_to_structured_array(df, [('seq', '<f8')])
-        expected = np.array([(0,), (2,), (4,)], dtype=[('seq', '<f8')])
+        arr = dataframe_to_structured_array(df, [("seq", "<f8")])
+        expected = np.array([(0,), (2,), (4,)], dtype=[("seq", "<f8")])
 
         # not sure why we cannot use np.testing.assert_array_almost_equal here
         self.assertTrue(np.all(arr == expected))

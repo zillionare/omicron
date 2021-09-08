@@ -308,7 +308,6 @@ class Security(object):
         else:
             return bars["close"][-1] / bars["close"][0] - 1
 
-
     def __getitem__(self, item) -> np.array:
         return self._bars[item]
 
