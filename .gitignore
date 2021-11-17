@@ -106,3 +106,5 @@ ENV/
 /.idea
 
 omicron/config/schema.py
+.history/
+omicron.code-workspace
