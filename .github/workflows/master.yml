@@ -1,4 +1,4 @@
-# Publish package on release branch if it's tagged with 'v*'
+# Publish package on master branch if it's tagged with 'v*'
 
 name: release & publish
 
