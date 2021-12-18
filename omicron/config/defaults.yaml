@@ -1,3 +1,7 @@
+logging:
+  version: 1
+  root:
+    level: INFO
 tz: Asia/Shanghai
 redis:
   dsn: redis://${REDIS_HOST}:${REDIS_PORT}
