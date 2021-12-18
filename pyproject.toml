@@ -1,7 +1,3 @@
-[[tool.poetry.source]]
-name = "jieyu"
-url = "https://pypi.jieyu.ai/simple/"
-secondary = true
 
 [tool.poetry]
 name = "zillionare-omicron"
