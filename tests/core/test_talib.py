@@ -61,11 +61,10 @@ class LibTest(unittest.TestCase):
 
     def test_moving_average(self):
         ts = [i for i in range(5)]
-
         ma = ta.moving_average(ts, 3)
-        self.assertEqual(5, len(ma))
-        self.assertListEqual([1.0, 2.0, 3.0], ma.tolist()[2:])
-        self.assertTrue(math.isnan(ma[0]))
+        self.assertEqual(3, len(ma))
+        self.assertListEqual([1., 2., 3.], ma.tolist())
+        self.assertFalse(math.isnan(ma[0]))
 
     def test_mae(self):
         y = np.array([i for i in range(5)])
