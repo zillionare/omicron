@@ -8,36 +8,11 @@ from typing import Any, Optional, Sequence, Tuple
 
 import numpy as np
 import sklearn
-from bottleneck import (
-    allnan,
-    anynan,
-    median,
-    move_argmax,
-    move_argmin,
-    move_max,
-    move_mean,
-    move_median,
-    move_min,
-    move_rank,
-    move_std,
-    move_sum,
-    move_var,
-    nanargmax,
-    nanargmin,
-    nanmax,
-    nanmean,
-    nanmedian,
-    nanmin,
-    nanstd,
-    nansum,
-    nanvar,
-    ss,
-)
+from numpy.lib.stride_tricks import sliding_window_view
 from numpy.linalg import norm
 from sklearn.preprocessing import MaxAbsScaler, Normalizer, StandardScaler, minmax_scale
 
 from omicron.core.numpy_extensions import ffill_na
-
 logger = logging.getLogger(__name__)
 
 
@@ -54,53 +29,26 @@ def barssince(condition: Sequence[bool], default=np.inf) -> int:
 
 
 # pragma: no cover this was simply invoke bottleneck's functions
-def rolling(arr: np.array, win: int, func: str, axis=None, min_count=None) -> Any:
-    """apply `func` along axis on `arr` in rolling window
+def rolling(x, win, func):
+    results = []
+    for subarray in sliding_window_view(x, window_shape=win):
+        results.append(func(subarray))
 
-    Args:
-        arr (np.array): [description]
-        win (int): [description]
-        func (str): [description]
-        axis ([type], optional): [description]. Defaults to None.
-
-    Returns:
-        Any: [description]
-    """
-
-    meths = {
-        "sum": move_sum,
-        "mean": move_mean,
-        "std": move_std,
-        "var": move_var,
-        "min": move_min,
-        "max": move_max,
-        "argmin": move_argmin,
-        "argmax": move_argmax,
-        "median": move_median,
-        "rank": move_rank,
-    }
-    return meths[func](arr, win, axis=axis, min_count=min_count)
+    return np.array(results)
 
 
-def moving_average(ts: Sequence, win: int):
-    """生成ts序列的移动平均值
+def moving_average(ts: np.array, win: int):
+    """计算时间序列ts在win窗口内的移动平均
 
-    生成的序列将与输入序列等长（使用左填充），不足的部分使用np.NaN填充
-
-    Examples:
+    Example:
 
         >>> ts = np.arange(7)
         >>> moving_average(ts, 5)
-        array([nan, nan, nan, nan,  2.,  3.,  4.])
+        array([2., 3., 4.])
 
-    Args:
-        ts (Sequence): [description]
-        win (int): [description]
-
-    Returns:
-        [type]: [description]
     """
-    return move_mean(ts, win)
+
+    return np.convolve(ts, np.ones(win) / win, "valid")
 
 
 def mean_absolute_error(y: np.array, y_hat: np.array) -> float:
