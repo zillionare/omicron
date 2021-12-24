@@ -185,6 +185,24 @@ async def get_valuation(
         return await _quotes_server_get("valuation", params)
 
 
+async def get_funds(
+    code: Union[str, List[str]], fields: Union[str, List[str]] = None
+) -> np.array:
+
+    fetcher = get_local_fetcher()
+    if isinstance(fields, str):
+        fields = [fields]
+
+    if isinstance(code, str):
+        code = [code]
+
+    if fetcher:
+        return await fetcher.get_fund_list(code)
+    else:
+        params = {"code": code, "fields": fields}
+        return await _quotes_server_get("fund_list", params)
+
+
 async def get_server_version() -> str:
     """获取Omega的版本号
 
