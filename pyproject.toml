@@ -4,7 +4,7 @@ name = "zillionare-omicron"
 packages = [
     {include = "omicron"}
 ]
-version = "1.1.5"
+version = "1.1.6"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
@@ -35,7 +35,7 @@ sh = "1.14.1"
 asyncpg = "0.21.0"
 gino = "1.0.1"
 aiohttp = "3.7.4"
-pyemit = "0.4.5"
+pyemit = "0.4.*"
 cfg4py = ">=0.9"
 arrow = "^1.2"
 numpy = "1.21.*"
