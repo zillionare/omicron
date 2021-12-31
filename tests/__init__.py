@@ -26,7 +26,7 @@ def find_free_port():
 
 
 async def clear_cache(dsn):
-    redis = await aioredis.create_redis(dsn)
+    redis = await aioredis.from_url(dsn)
     await redis.flushall()
 
 

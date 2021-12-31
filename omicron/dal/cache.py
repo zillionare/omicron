@@ -8,7 +8,7 @@ from typing import Iterable, List, Optional, Tuple, Union
 import aioredis
 import cfg4py
 import numpy as np
-from aioredis.commands import Redis
+from aioredis.client import Redis
 from arrow.arrow import Arrow
 
 from omicron.core.timeframe import tf
@@ -23,6 +23,7 @@ class RedisCache:
     _security_: Redis
     _sys_: Redis
     _temp_: Redis
+    _raw : Redis
 
     @property
     def security(self) -> Redis:
@@ -41,29 +42,28 @@ class RedisCache:
 
     async def close(self):
         for redis in [self.sys, self.security, self.temp]:
-            redis.close()
-            await redis.wait_closed()
+            await redis.close()
 
     async def init(self):
         cfg = cfg4py.get_instance()
         for i, name in enumerate(self.databases):
-            db = await aioredis.create_redis_pool(
-                cfg.redis.dsn, encoding="utf-8", maxsize=2, db=i
+            db = await aioredis.from_url(
+                cfg.redis.dsn, encoding="utf-8", db=i, decode_responses=True
             )
             await self.sanity_check(db)
             await db.set("__meta__.database", name)
             setattr(self, name, db)
 
     async def get_securities(self):
-        return await self.security.lrange("securities", 0, -1, encoding="utf-8")
+        return await self.security.lrange("securities", 0, -1)
 
     async def get_bars_range(
         self, code: str, frame_type: FrameType
     ) -> Tuple[Optional[Frame], ...]:
-        pl = self.security.pipeline()
-        pl.hget(f"{code}:{frame_type.value}", "head")
-        pl.hget(f"{code}:{frame_type.value}", "tail")
-        head, tail = await pl.execute()
+        async with self.security.pipeline() as pl:
+            pl.hget(f"{code}:{frame_type.value}", "head")
+            pl.hget(f"{code}:{frame_type.value}", "tail")
+            head, tail = await pl.execute()
         converter = (
             tf.int2time
             if frame_type
@@ -79,10 +79,10 @@ class RedisCache:
         return converter(head) if head else None, converter(tail) if tail else None
 
     async def clear_bars_range(self, code: str, frame_type: FrameType):
-        pl = self.security.pipeline()
-        pl.delete(f"{code}:{frame_type.value}", "head")
-        pl.delete(f"{code}:{frame_type.value}", "tail")
-        return await pl.execute()
+        async with self.security.pipeline() as pl:
+            pl.delete(f"{code}:{frame_type.value}", "head")
+            pl.delete(f"{code}:{frame_type.value}", "tail")
+            return await pl.execute()
 
     async def set_bars_range(
         self, code: str, frame_type: FrameType, start: Arrow = None, end: Arrow = None
@@ -193,27 +193,16 @@ class RedisCache:
             tail = tf.time2int(tail or bars["frame"][-1])
             frame_convert_func = tf.time2int
 
-        pipeline = self.security.pipeline()
-        # the cache is empty or error during syncing, save all bars
-        key = f"{code}:{frame_type.value}"
-        # docme: it takes 0.05 secs to save 1000 bars, compares to 0.19 secs if we use
-        # the comment out codes:
-        # for row in bars:
-        #     frame, o, h, l, c, v, a, fq = row
-        #     frame = frame_convert_func(frame)
-        #     value = f"{o:.2f} {h:.2f} {l:.2f} {c:.2f} {v} {a:.2f} {fq:.2f}"
-        #     pipeline.hset(key, frame, value)
-        hmset = {
-            frame_convert_func(
-                frame
-            ): f"{o:.2f} {h:.2f} {l:.2f} {c:.2f} {v} {a:.2f} {fq:.2f}"
-            for frame, o, h, l, c, v, a, fq in bars
-        }
+        async with self.security.pipeline() as pl:
+            # the cache is empty or error during syncing, save all bars
+            key = f"{code}:{frame_type.value}"
 
-        pipeline.hmset_dict(key, hmset)
-        pipeline.hset(key, "head", head)
-        pipeline.hset(key, "tail", tail)
-        await pipeline.execute()
+            # pl.hmset is depracted
+            for frame, o, h, l, c, v, a, fq in bars:
+                pl.hset(key, frame_convert_func(frame), f"{o:.2f} {h:.2f} {l:.2f} {c:.2f} {v} {a:.2f} {fq:.2f}")
+            pl.hset(key, "head", head)
+            pl.hset(key, "tail", tail)
+            await pl.execute()
 
     async def get_bars(
         self,
@@ -263,33 +252,12 @@ class RedisCache:
 
         return data
 
-    async def get_bars_raw_data(
-        self,
-        code: str,
-        end: Union[datetime.date, datetime.datetime, Arrow],
-        n: int,
-        frame_type: FrameType,
-    ) -> bytes:
-        """
-        如果没有数据，返回空字节串''
-        """
-        if n == 0:
-            return b""
-        frames = tf.get_frames_by_count(end, n, frame_type)
-
-        pl = self.security.pipeline()
-        key = f"{code}:{frame_type.value}"
-        [pl.hget(key, int(frame), encoding=None) for frame in frames]
-        recs = await pl.execute()
-
-        return b"".join(filter(None, recs))
-
     async def save_calendar(self, _type: str, days: Iterable[int]):
         key = f"calendar:{_type}"
-        pl = self.security.pipeline()
-        pl.delete(key)
-        pl.rpush(key, *days)
-        await pl.execute()
+        async with self.security.pipeline() as pl:
+            pl.delete(key)
+            pl.rpush(key, *days)
+            await pl.execute()
 
     async def load_calendar(self, _type):
         key = f"calendar:{_type}"

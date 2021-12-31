@@ -381,8 +381,8 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         sec.load_bars_from_dataframe(df)
         self.assertEqual(2188, len(sec))
-        self.assertEqual(datetime.date(2012, 1, 4), sec.frame[0])
-        self.assertEqual(datetime.date(2020, 12, 31), sec.frame[-1])
+        self.assertEqual(datetime.date(2012, 1, 4), sec.frame[0].date())
+        self.assertEqual(datetime.date(2020, 12, 31), sec.frame[-1].date())
 
 
 if __name__ == "__main__":
