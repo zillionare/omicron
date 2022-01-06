@@ -8,7 +8,7 @@ name = "zillionare-omicron"
 packages = [
     {include = "omicron"}
 ]
-version = "1.0.0-alpha.9"
+version = "1.1.0.1"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
@@ -38,7 +38,7 @@ python = ">=3.8,<3.9"
 sh = "1.14.1"
 asyncpg = "0.21.0"
 gino = "1.0.1"
-aiohttp = "3.7.4"
+aiohttp = ">=3.8.0"
 cfg4py = ">=0.9"
 arrow = "0.15.8"
 numpy = "1.20.1"
@@ -65,6 +65,7 @@ mkdocs-material-extensions  = { version = "^1.0.1", optional = true}
 twine  = { version = "^3.3.0", optional = true}
 idna = "2.5"
 mkdocs-autorefs = {version = "^0.1.1", optional = true}
+livereload = {version = "^2.6.3", optional = true}
 
 [tool.poetry.extras]
 test = [
@@ -85,9 +86,11 @@ doc = [
     "mkdocs-include-markdown-plugin",
     "mkdocs-material",
     "mkdocstrings",
-    "mkdocs-material-extension"
+    "mkdocs-material-extension",
+    "livereload"
     ]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
