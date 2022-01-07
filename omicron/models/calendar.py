@@ -4,7 +4,7 @@
 import datetime
 import itertools
 import logging
-from typing import List, Optional, Union
+from typing import Iterable, List, Optional, Union
 
 import arrow
 import numpy as np
@@ -52,14 +52,18 @@ class Calendar:
 
     @classmethod
     async def _load_calendar(cls):
-        """从数据缓存中加载更新日历
-        """
+        """从数据缓存中加载更新日历"""
         from omicron import cache
 
         for name in ["day_frames", "week_frames", "month_frames"]:
             frames = await cache.load_calendar(name)
             if frames and len(frames):
                 setattr(cls, name, np.array(frames))
+
+    @classmethod
+    async def init(cls):
+        """初始化日历"""
+        await cls._load_calendar()
 
     @classmethod
     def int2time(cls, tm: int) -> datetime.datetime:
@@ -82,8 +86,7 @@ class Calendar:
             int(s[4:6]),
             int(s[6:8]),
             int(s[8:10]),
-            int(s[10:12]),
-            tzinfo=cls._tz,
+            int(s[10:12])
         )
 
     @classmethod
@@ -466,7 +469,7 @@ class Calendar:
         Returns:
             [description]
         """
-        tm = tm or arrow.now(cls._tz)
+        tm = tm or arrow.now()
 
         if not cls.is_trade_day(tm):
             return False
@@ -566,12 +569,12 @@ class Calendar:
             else:
                 new_day = moment.date()
             return datetime.datetime(
-                new_day.year, new_day.month, new_day.day, h, m, tzinfo=moment.tzinfo
+                new_day.year, new_day.month, new_day.day, h, m
             )
 
         if type(moment) == datetime.date:
             moment = datetime.datetime(
-                moment.year, moment.month, moment.day, 15, tzinfo=self._tz
+                moment.year, moment.month, moment.day, 15
             )
 
         # 如果是交易日，但还未收盘
@@ -624,7 +627,7 @@ class Calendar:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=15, minute=0, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=15, minute=0
             )
         else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
@@ -683,31 +686,31 @@ class Calendar:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=31, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=9, minute=31
             )
         elif frame_type == FrameType.MIN5:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=35, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=9, minute=35
             )
         elif frame_type == FrameType.MIN15:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=45, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=9, minute=45
             )
         elif frame_type == FrameType.MIN30:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=10, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=10
             )
         elif frame_type == FrameType.MIN60:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
             return datetime.datetime(
-                day.year, day.month, day.day, hour=10, minute=30, tzinfo=cls._tz
+                day.year, day.month, day.day, hour=10, minute=30
             )
         else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
@@ -845,7 +848,7 @@ class Calendar:
         hour: int,
         minute: int = 0,
         second: int = 0,
-        microsecond: int = 0
+        microsecond: int = 0,
     ) -> datetime.datetime:
         """用`date`指定的日期与`hour`, `minute`, `second`等参数一起合成新的时间
 
@@ -864,13 +867,7 @@ class Calendar:
             [description]
         """
         return datetime.datetime(
-            date.year,
-            date.month,
-            date.day,
-            hour,
-            minute,
-            second,
-            microsecond
+            date.year, date.month, date.day, hour, minute, second, microsecond
         )
 
     def replace_date(
@@ -893,6 +890,70 @@ class Calendar:
         return datetime.datetime(
             dt.year, dt.month, dt.day, dtm.hour, dtm.minute, dtm.second, dtm.microsecond
         )
+
+    @classmethod
+    def resample_frames(
+        cls, trade_days: Iterable[datetime.date], frame_type: FrameType
+    ) -> List[int]:
+        """将从行情服务器获取的交易日历重采样，生成周帧和月线帧
+
+        Args:
+            trade_days (Iterable): [description]
+            frame_type (FrameType): [description]
+
+        Returns:
+            List[int]: [description]
+        """
+        if frame_type == FrameType.WEEK:
+            weeks = []
+            last = trade_days[0]
+            for cur in trade_days:
+                if cur.weekday() < last.weekday() or (cur - last).days >= 7:
+                    weeks.append(last)
+                last = cur
+
+            if weeks[-1] < last:
+                weeks.append(last)
+
+            week_frames = [cal.date2int(x) for x in weeks]
+            return week_frames
+        elif frame_type == FrameType.MONTH:
+            months = []
+            last = trade_days[0]
+            for cur in trade_days:
+                if cur.day < last.day:
+                    months.append(last)
+                last = cur
+            months.append(last)
+
+            month_frames = [cal.date2int(x) for x in months]
+            return month_frames
+        elif frame_type == FrameType.QUARTER:
+            quaters = []
+            last = trade_days[0]
+            for cur in trade_days:
+                if cur.month > last.month and last.month % 3 == 0:
+                    quaters.append(last)
+                last = cur
+            quaters.append(last)
+
+            quater_frames = [cal.date2int(x) for x in quaters]
+            return quater_frames
+        elif frame_type == FrameType.YEAR:
+            years = []
+            last = trade_days[0]
+            for cur in trade_days:
+                if cur.year > last.year:
+                    years.append(last)
+                last = cur
+            years.append(last)
+
+            year_frames = [cal.date2int(x) for x in years]
+            return year_frames
+        else:
+            raise ValueError(f"Unsupported FrameType: {frame_type}")
+
+
 
 
 cal = Calendar()

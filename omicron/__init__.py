@@ -6,10 +6,10 @@ import cfg4py
 import gino
 import pkg_resources
 
-from omicron.core.timeframe import tf
 from omicron.dal.cache import cache
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
+from omicron.models.calendar import cal
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
@@ -36,9 +36,10 @@ async def init(fetcher=None):
     _local_fetcher = fetcher
 
     await cache.init()
+    await cal.init()
+
     secs = Securities()
     await secs.load()
-    await tf.update_calendar()
 
     cfg = cfg4py.get_instance()
     if cfg.postgres.enabled:

@@ -4,21 +4,148 @@ import unittest
 from unittest import mock
 
 import arrow
+import numpy as np
 
-from omicron.core.timeframe import tf
 from omicron.core.types import FrameType
-from tests import init_test_env
-
-cfg = init_test_env()
+from omicron.models.calendar import cal
 
 logger = logging.getLogger(__name__)
 
 
-class TimeFrameTest(unittest.TestCase):
+class CalendarTest(unittest.TestCase):
     def setUp(self) -> None:
         root = logging.getLogger()
         root.handlers.clear()
         logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
+
+    def test_resample_frames(self):
+        trade_days = np.array(
+            [
+                datetime.date(2021, 8, 31),
+                datetime.date(2021, 9, 1),
+                datetime.date(2021, 9, 2),
+                datetime.date(2021, 9, 3),
+                datetime.date(2021, 9, 6),
+                datetime.date(2021, 9, 7),
+                datetime.date(2021, 9, 8),
+                datetime.date(2021, 9, 9),
+                datetime.date(2021, 9, 10),
+                datetime.date(2021, 9, 13),
+                datetime.date(2021, 9, 14),
+                datetime.date(2021, 9, 15),
+                datetime.date(2021, 9, 16),
+                datetime.date(2021, 9, 17),
+                datetime.date(2021, 9, 22),
+                datetime.date(2021, 9, 23),
+                datetime.date(2021, 9, 24),
+                datetime.date(2021, 9, 27),
+                datetime.date(2021, 9, 28),
+                datetime.date(2021, 9, 29),
+                datetime.date(2021, 9, 30),
+                datetime.date(2021, 10, 8),
+                datetime.date(2021, 10, 11),
+                datetime.date(2021, 10, 12),
+                datetime.date(2021, 10, 13),
+                datetime.date(2021, 10, 14),
+                datetime.date(2021, 10, 15),
+                datetime.date(2021, 10, 18),
+                datetime.date(2021, 10, 19),
+                datetime.date(2021, 10, 20),
+                datetime.date(2021, 10, 21),
+                datetime.date(2021, 10, 22),
+                datetime.date(2021, 10, 25),
+                datetime.date(2021, 10, 26),
+                datetime.date(2021, 10, 27),
+                datetime.date(2021, 10, 28),
+                datetime.date(2021, 10, 29),
+                datetime.date(2021, 11, 1),
+                datetime.date(2021, 11, 2),
+                datetime.date(2021, 11, 3),
+                datetime.date(2021, 11, 4),
+                datetime.date(2021, 11, 5),
+                datetime.date(2021, 11, 8),
+                datetime.date(2021, 11, 9),
+                datetime.date(2021, 11, 10),
+                datetime.date(2021, 11, 11),
+                datetime.date(2021, 11, 12),
+                datetime.date(2021, 11, 15),
+                datetime.date(2021, 11, 16),
+                datetime.date(2021, 11, 17),
+                datetime.date(2021, 11, 18),
+                datetime.date(2021, 11, 19),
+                datetime.date(2021, 11, 22),
+                datetime.date(2021, 11, 23),
+                datetime.date(2021, 11, 24),
+                datetime.date(2021, 11, 25),
+                datetime.date(2021, 11, 26),
+                datetime.date(2021, 11, 29),
+                datetime.date(2021, 11, 30),
+                datetime.date(2021, 12, 1),
+                datetime.date(2021, 12, 2),
+                datetime.date(2021, 12, 3),
+                datetime.date(2021, 12, 6),
+                datetime.date(2021, 12, 7),
+                datetime.date(2021, 12, 8),
+                datetime.date(2021, 12, 9),
+                datetime.date(2021, 12, 10),
+                datetime.date(2021, 12, 13),
+                datetime.date(2021, 12, 14),
+                datetime.date(2021, 12, 15),
+            ],
+            dtype=object,
+        )
+
+        # test week frames
+        week_frames = cal.resample_frames(trade_days, FrameType.WEEK)
+        exp = [
+            20210903,
+            20210910,
+            20210917,
+            20210924,
+            20210930,
+            20211008,
+            20211015,
+            20211022,
+            20211029,
+            20211105,
+            20211112,
+            20211119,
+            20211126,
+            20211203,
+            20211210,
+            20211215,
+        ]
+
+        self.assertListEqual(exp, week_frames)
+
+        # test month frames
+        month_frames = cal.resample_frames(trade_days, FrameType.MONTH)
+        exp = [20210831, 20210930, 20211029, 20211130, 20211215]
+
+        print(month_frames)
+
+        self.assertListEqual(exp, month_frames)
+
+        # test quarter frames
+        quarter_frames = cal.resample_frames(trade_days, FrameType.QUARTER)
+        exp = [20210930, 20211215]
+    
+        print(quarter_frames)
+
+        self.assertListEqual(exp, quarter_frames)
+
+        # test year frames
+        trade_days = np.array([datetime.date(2021, 12, 23), datetime.date(2021, 12, 24),
+       datetime.date(2021, 12, 27), datetime.date(2021, 12, 28),
+       datetime.date(2021, 12, 29), datetime.date(2021, 12, 30),
+       datetime.date(2021, 12, 31), datetime.date(2022, 1, 4),
+       datetime.date(2022, 1, 5), datetime.date(2022, 1, 6)], dtype=object)
+        year_frames = cal.resample_frames(trade_days, FrameType.YEAR)
+        exp = [20211231, 20220106]
+    
+        print(year_frames)
+
+        self.assertListEqual(exp, year_frames)
 
     def test_shift_min1(self):
         X = [
@@ -33,8 +160,8 @@ class TimeFrameTest(unittest.TestCase):
         ]
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.shift(arrow.get(start, tzinfo=cfg.tz), offset, FrameType.MIN1)
-            self.assertEqual(arrow.get(expected, tzinfo=cfg.tz).datetime, actual)
+            actual = cal.shift(arrow.get(start).naive, offset, FrameType.MIN1)
+            self.assertEqual(arrow.get(expected).naive, actual)
 
     def test_count_frames_min1(self):
         X = [
@@ -49,9 +176,9 @@ class TimeFrameTest(unittest.TestCase):
         ]
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.count_frames(
-                arrow.get(start, tzinfo=cfg.tz),
-                arrow.get(end, tzinfo=cfg.tz),
+            actual = cal.count_frames(
+                arrow.get(start).naive,
+                arrow.get(end).naive,
                 FrameType.MIN1,
             )
             self.assertEqual(expected, actual)
@@ -70,8 +197,8 @@ class TimeFrameTest(unittest.TestCase):
         ]
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.shift(arrow.get(start, tzinfo=cfg.tz), offset, FrameType.MIN5)
-            self.assertEqual(arrow.get(expected, tzinfo=cfg.tz), actual)
+            actual = cal.shift(arrow.get(start).naive, offset, FrameType.MIN5)
+            self.assertEqual(arrow.get(expected).naive, actual)
 
     def test_shift_min15(self):
         X = [
@@ -88,10 +215,10 @@ class TimeFrameTest(unittest.TestCase):
 
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.shift(
-                arrow.get(start, fmt, tzinfo=cfg.tz), offset, FrameType.MIN15
+            actual = cal.shift(
+                arrow.get(start, fmt).naive, offset, FrameType.MIN15
             )
-            self.assertEqual(arrow.get(expected, fmt, tzinfo=cfg.tz).datetime, actual)
+            self.assertEqual(arrow.get(expected, fmt).naive, actual)
 
     def test_count_frames_min15(self):
         X = [
@@ -104,7 +231,7 @@ class TimeFrameTest(unittest.TestCase):
             logger.debug("testing %s", X[i])
             start = arrow.get(start)
             end = arrow.get(end)
-            actual = tf.count_frames(start, end, FrameType.MIN15)
+            actual = cal.count_frames(start, end, FrameType.MIN15)
             self.assertEqual(expected, actual)
 
     def test_shift_frame_min30(self):
@@ -113,9 +240,9 @@ class TimeFrameTest(unittest.TestCase):
     def test_shift(self):
         mom = arrow.get("2020-1-20")
 
-        self.assertEqual(tf.shift(mom, 1, FrameType.DAY), tf.day_shift(mom, 1))
-        self.assertEqual(tf.shift(mom, 1, FrameType.WEEK), tf.week_shift(mom, 1))
-        self.assertEqual(tf.shift(mom, 1, FrameType.MONTH), tf.month_shift(mom, 1))
+        self.assertEqual(cal.shift(mom, 1, FrameType.DAY), cal.day_shift(mom, 1))
+        self.assertEqual(cal.shift(mom, 1, FrameType.WEEK), cal.week_shift(mom, 1))
+        self.assertEqual(cal.shift(mom, 1, FrameType.MONTH), cal.month_shift(mom, 1))
 
     def test_count_frames_min30(self):
         pass
@@ -142,7 +269,7 @@ class TimeFrameTest(unittest.TestCase):
         for i, (s, expected, e) in enumerate(X):
             logger.debug("testing %s", X[i])
             # cause 130 ± 3.34 µs, 130e-6 seconds
-            actual = tf.count_day_frames(
+            actual = cal.count_day_frames(
                 arrow.get(s, "YYYY-MM-DD").date(), arrow.get(e, "YYYY-MM-DD").date()
             )
             self.assertEqual(expected, actual)
@@ -158,7 +285,7 @@ class TimeFrameTest(unittest.TestCase):
 
         for i, (x, n, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.week_shift(arrow.get(x).date(), n)
+            actual = cal.week_shift(arrow.get(x).date(), n)
             self.assertEqual(actual, arrow.get(expected).date())
 
     def test_day_shift(self):
@@ -172,7 +299,7 @@ class TimeFrameTest(unittest.TestCase):
 
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing of %s", X[i])
-            actual = tf.day_shift(arrow.get(start).date(), offset)
+            actual = cal.day_shift(arrow.get(start).date(), offset)
             self.assertEqual(arrow.get(expected).date(), actual)
 
     def test_count_frames_week(self):
@@ -185,7 +312,7 @@ class TimeFrameTest(unittest.TestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.count_frames(
+            actual = cal.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.WEEK
             )
             self.assertEqual(actual, expected)
@@ -202,7 +329,7 @@ class TimeFrameTest(unittest.TestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = tf.count_frames(
+            actual = cal.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.MONTH
             )
             self.assertEqual(expected, actual)
@@ -220,7 +347,7 @@ class TimeFrameTest(unittest.TestCase):
         for i, (start, n, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
 
-            actual = tf.month_shift(arrow.get(start).date(), n)
+            actual = cal.month_shift(arrow.get(start).date(), n)
             self.assertEqual(arrow.get(expected).date(), actual)
 
     def test_floor(self):
@@ -253,16 +380,16 @@ class TimeFrameTest(unittest.TestCase):
         for i, (moment, frame_type, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
 
-            frame = arrow.get(moment).datetime
-            if frame_type in tf.day_level_frames and frame.hour == 0:
+            frame = arrow.get(moment).naive
+            if frame_type in cal.day_level_frames and frame.hour == 0:
                 frame = frame.date()
 
-            actual = tf.floor(frame, frame_type)
-            expected = arrow.get(expected)
-            if frame_type in tf.day_level_frames:
+            actual = cal.floor(frame, frame_type)
+            expected = arrow.get(expected).naive
+            if frame_type in cal.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
-                expected = arrow.get(expected).datetime
+                expected = arrow.get(expected).naive
 
             self.assertEqual(expected, actual)
 
@@ -289,14 +416,13 @@ class TimeFrameTest(unittest.TestCase):
             logger.debug("testing %s: %s", i, X[i])
 
             moment, frame_type, expected = X[i]
-            if frame_type in tf.day_level_frames:
-                actual = tf.ceiling(arrow.get(moment).date(), frame_type)
+            if frame_type in cal.day_level_frames:
+                actual = cal.ceiling(arrow.get(moment).date(), frame_type)
                 expected = arrow.get(expected).date()
             else:
-                actual = tf.ceiling(
-                    arrow.get(moment, tzinfo=cfg.tz).datetime, frame_type
-                )
-                expected = arrow.get(expected, tzinfo=cfg.tz).datetime
+                moment = arrow.get(moment).naive
+                actual = cal.ceiling(moment, frame_type)
+                expected = arrow.get(expected).naive
 
             self.assertEqual(expected, actual)
 
@@ -317,9 +443,9 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i in range(len(days)):
-            end, n = tf.int2date(days[i]), i + 1
+            end, n = cal.int2date(days[i]), i + 1
             expected = days[:n]
-            actual = tf.get_frames_by_count(end, n, FrameType.DAY)
+            actual = cal.get_frames_by_count(end, n, FrameType.DAY)
             logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
@@ -424,17 +550,17 @@ class TimeFrameTest(unittest.TestCase):
             ),
         ]
         for i, (end, n, expected) in enumerate(X):
-            end = tf.int2time(end)
-            actual = tf.get_frames_by_count(end, n, FrameType.MIN30)
+            end = cal.int2time(end)
+            actual = cal.get_frames_by_count(end, n, FrameType.MIN30)
             logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
             self.assertListEqual(expected, actual)
 
-        actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.MONTH)
+        actual = cal.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.MONTH)
         self.assertListEqual([20191129, 20191231, 20200123], actual.tolist())
 
-        actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.WEEK)
+        actual = cal.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.WEEK)
         self.assertListEqual([20200117, 20200123, 20200207], actual.tolist())
 
     def test_get_frames(self):
@@ -454,10 +580,10 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i in range(len(days)):
-            start = tf.int2date(days[0])
-            end = tf.int2date(days[i])
+            start = cal.int2date(days[0])
+            end = cal.int2date(days[i])
 
-            actual = tf.get_frames(start, end, FrameType.DAY)
+            actual = cal.get_frames(start, end, FrameType.DAY)
             logger.debug(
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.DAY, actual
             )
@@ -563,9 +689,9 @@ class TimeFrameTest(unittest.TestCase):
         ]
 
         for i, (end, n, expected) in enumerate(X):
-            start = tf.int2time(expected[0])
-            end = tf.int2time(end)
-            actual = tf.get_frames(start, end, FrameType.MIN30)
+            start = cal.int2time(expected[0])
+            end = cal.int2time(end)
+            actual = cal.get_frames(start, end, FrameType.MIN30)
             logger.debug(
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.MIN30, actual
             )
@@ -578,92 +704,65 @@ class TimeFrameTest(unittest.TestCase):
             "2020-1-1 10:35",
             "2019-12-31 10:35",
             datetime.date(2019, 12, 31),
-            arrow.get("2019-12-31 10:35", tzinfo=cfg.tz).datetime,
-            arrow.get("2019-12-31 10:35", tzinfo=cfg.tz),
+            arrow.get("2019-12-31 10:35").naive,
+            arrow.get("2019-12-31 10:35").naive,
         ]
 
         for moment in moments:
-            actual = tf.first_min_frame(moment, FrameType.MIN5)
-            self.assertEqual(arrow.get("2019-12-31 09:35", tzinfo=cfg.tz), actual)
+            actual = cal.first_min_frame(moment, FrameType.MIN5)
+            self.assertEqual(arrow.get("2019-12-31 09:35").naive, actual)
 
         moment = arrow.get("2019-12-31").date()
 
         expected = [
-            arrow.get("2019-12-31 09:31", tzinfo=cfg.tz),
-            arrow.get("2019-12-31 09:45", tzinfo=cfg.tz),
-            arrow.get("2019-12-31 10:00", tzinfo=cfg.tz),
-            arrow.get("2019-12-31 10:30", tzinfo=cfg.tz),
+            arrow.get("2019-12-31 09:31").naive,
+            arrow.get("2019-12-31 09:45").naive,
+            arrow.get("2019-12-31 10:00").naive,
+            arrow.get("2019-12-31 10:30").naive,
         ]
         for i, ft in enumerate(
             [FrameType.MIN1, FrameType.MIN15, FrameType.MIN30, FrameType.MIN60]
         ):
-            actual = tf.first_min_frame(moment, ft)
+            actual = cal.first_min_frame(moment, ft)
             self.assertEqual(expected[i], actual)
 
     def test_last_min_frame(self):
         try:
-            tf.last_min_frame(datetime.datetime.now(), FrameType.DAY)
+            cal.last_min_frame(datetime.datetime.now(), FrameType.DAY)
             self.assertTrue(False)
         except ValueError as e:
             self.assertEqual("FrameType.DAY not supported", str(e))
 
         try:
-            tf.last_min_frame(10, FrameType.DAY)
+            cal.last_min_frame(10, FrameType.DAY)
             self.assertTrue(False)
         except TypeError:
             self.assertTrue(True)
 
-        actual = tf.last_min_frame(arrow.get("2020-1-24"), FrameType.MIN15)
-        self.assertEqual(arrow.get("2020-1-23 15:00", tzinfo=cfg.tz), actual)
+        actual = cal.last_min_frame(arrow.get("2020-1-24"), FrameType.MIN15)
+        self.assertEqual(arrow.get("2020-1-23 15:00").naive, actual)
 
-        actual = tf.last_min_frame("2020-1-24", FrameType.MIN15)
-        self.assertEqual(arrow.get("2020-1-23 15:00", tzinfo=cfg.tz), actual)
-
-    def test_update_calendar(self):
-        """if there's no sync_calendar called, we should still get calendar"""
-        import asyncio
-
-        async def do_test():
-            import omicron
-
-            try:
-                await omicron.init()
-                await tf.update_calendar()
-                self.assertEqual(20050104, tf.day_frames[0])
-                self.assertEqual(20050107, tf.week_frames[0])
-                self.assertEqual(20050131, tf.month_frames[0])
-
-                from omicron import cache
-
-                with mock.patch.object(
-                    cache,
-                    "load_calendar",
-                    return_values=[tf.day_frames, tf.week_frames, tf.month_frames],
-                ):
-                    await tf.update_calendar()
-            finally:
-                await omicron.shutdown()
-
-        asyncio.run(do_test())
+        actual = cal.last_min_frame("2020-1-24", FrameType.MIN15)
+        self.assertEqual(arrow.get("2020-1-23 15:00").naive, actual)
 
     def test_frame_len(self):
-        self.assertEqual(1, tf.frame_len(FrameType.MIN1))
-        self.assertEqual(5, tf.frame_len(FrameType.MIN5))
-        self.assertEqual(15, tf.frame_len(FrameType.MIN15))
-        self.assertEqual(30, tf.frame_len(FrameType.MIN30))
-        self.assertEqual(60, tf.frame_len(FrameType.MIN60))
-        self.assertEqual(240, tf.frame_len(FrameType.DAY))
+        self.assertEqual(1, cal.frame_len(FrameType.MIN1))
+        self.assertEqual(5, cal.frame_len(FrameType.MIN5))
+        self.assertEqual(15, cal.frame_len(FrameType.MIN15))
+        self.assertEqual(30, cal.frame_len(FrameType.MIN30))
+        self.assertEqual(60, cal.frame_len(FrameType.MIN60))
+        self.assertEqual(240, cal.frame_len(FrameType.DAY))
 
     def test_get_ticks(self):
         expected = [
-            tf.ticks[FrameType.MIN1],
-            tf.ticks[FrameType.MIN5],
-            tf.ticks[FrameType.MIN15],
-            tf.ticks[FrameType.MIN30],
-            tf.ticks[FrameType.MIN60],
-            tf.day_frames,
-            tf.week_frames,
-            tf.month_frames,
+            cal.ticks[FrameType.MIN1],
+            cal.ticks[FrameType.MIN5],
+            cal.ticks[FrameType.MIN15],
+            cal.ticks[FrameType.MIN30],
+            cal.ticks[FrameType.MIN60],
+            cal.day_frames,
+            cal.week_frames,
+            cal.month_frames,
         ]
 
         for i, ft in enumerate(
@@ -678,48 +777,44 @@ class TimeFrameTest(unittest.TestCase):
                 FrameType.MONTH,
             ]
         ):
-            self.assertListEqual(list(expected[i]), list(tf.get_ticks(ft)))
+            self.assertListEqual(list(expected[i]), list(cal.get_ticks(ft)))
 
     def test_replace_date(self):
         dtm = datetime.datetime(2020, 1, 1, 15, 35)
         dt = datetime.date(2021, 1, 1)
         self.assertEqual(
-            datetime.datetime(2021, 1, 1, 15, 35), tf.replace_date(dtm, dt)
+            datetime.datetime(2021, 1, 1, 15, 35), cal.replace_date(dtm, dt)
         )
 
     def test_is_closing_call_auction_time(self):
         for moment in ["2020-1-7 14:57", "2020-1-7 14:58", "2020-1-7 14:59"]:
-            moment = arrow.get(moment, tzinfo=cfg.tz)
-            self.assertTrue(tf.is_closing_call_auction_time(moment))
+            moment = arrow.get(moment).naive
+            self.assertTrue(cal.is_closing_call_auction_time(moment))
 
         for moment in ["2020-1-7 14:56", "2020-1-7 15:00"]:
-            moment = arrow.get(moment, tzinfo=cfg.tz)
-            self.assertEqual(False, tf.is_closing_call_auction_time(moment))
+            moment = arrow.get(moment).naive
+            self.assertEqual(False, cal.is_closing_call_auction_time(moment))
 
         # not in trade day
-        self.assertTrue(not tf.is_closing_call_auction_time(arrow.get("2020-1-4")))
+        self.assertTrue(not cal.is_closing_call_auction_time(arrow.get("2020-1-4")))
 
     def test_is_opening_call_auction_time(self):
         for moment in ["2020-1-7 09:16", "2020-1-7 09:25"]:
-            moment = arrow.get(moment, tzinfo=cfg.tz)
-            self.assertTrue(tf.is_opening_call_auction_time(moment))
+            moment = arrow.get(moment).naive
+            self.assertTrue(cal.is_opening_call_auction_time(moment))
 
-        self.assertTrue(not tf.is_opening_call_auction_time(arrow.get("2020-1-4")))
+        self.assertTrue(not cal.is_opening_call_auction_time(arrow.get("2020-1-4")))
 
     def test_is_open_time(self):
-        self.assertTrue(tf.is_open_time(arrow.get("2020-1-7 09:35", tzinfo=cfg.tz)))
+        self.assertTrue(cal.is_open_time(arrow.get("2020-1-7 09:35").naive))
 
         with mock.patch(
-            "arrow.now", return_value=arrow.get("2020-1-7 09:35", tzinfo=cfg.tz)
+            "arrow.now", return_value=arrow.get("2020-1-7 09:35").naive
         ):
-            self.assertTrue(tf.is_open_time())
+            self.assertTrue(cal.is_open_time())
 
     def test_combine_time(self):
         moment = arrow.get("2020-1-1").date()
-        expect = arrow.get("2020-1-1 14:30", tzinfo=cfg.tz).datetime
+        expect = arrow.get("2020-1-1 14:30").naive
 
-        self.assertEqual(expect, tf.combine_time(moment, 14, 30, tzinfo=cfg.tz))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertEqual(expect, cal.combine_time(moment, 14, 30))
