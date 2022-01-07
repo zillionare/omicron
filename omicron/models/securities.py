@@ -11,7 +11,6 @@ import cfg4py
 import numpy as np
 
 from omicron import cache
-from omicron.client.quotes_fetcher import get_security_list
 from omicron.core.lang import singleton
 
 logger = logging.getLogger(__name__)
