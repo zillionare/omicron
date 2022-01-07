@@ -9,8 +9,6 @@ from typing import List, Optional, Union
 import arrow
 import numpy as np
 from arrow import Arrow
-from dateutil import tz
-from dateutil.tz.tz import datetime_exists
 
 import omicron.core.accelerate as accl
 from omicron.config import calendar
@@ -19,8 +17,7 @@ from omicron.core.types import Frame, FrameType
 logger = logging.getLogger(__file__)
 
 
-class TimeFrame:
-    _tz = tz.gettz("Asia/Shanghai")
+class Calendar:
     back_test_mode = False
     _now: Optional[Arrow] = None
     minute_level_frames = [
@@ -54,10 +51,8 @@ class TimeFrame:
     month_frames = np.array(calendar.month_frames)
 
     @classmethod
-    async def update_calendar(cls):
-        """更新日历
-
-        系统内部调用。Omega从数据源获取最新日历后，存入缓存，并通知监听者更新日历。
+    async def _load_calendar(cls):
+        """从数据缓存中加载更新日历
         """
         from omicron import cache
 
@@ -71,8 +66,8 @@ class TimeFrame:
         """将整数表示的时间转换为`datetime`类型表示
 
         examples:
-            >>> tf.int2time(202005011500)
-            datetime.datetime(2020, 5, 1, 15, 0, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.int2time(202005011500)
+            datetime.datetime(2020, 5, 1, 15, 0)
 
         Args:
             tm: time in YYYYMMDDHHmm format
@@ -98,7 +93,7 @@ class TimeFrame:
         tm可以是Arrow类型，也可以是datetime.datetime或者任何其它类型，只要它有year,month...等
         属性
         Examples:
-            >>> tf.time2int(datetime.datetime(2020, 5, 1, 15))
+            >>> cal.time2int(datetime.datetime(2020, 5, 1, 15))
             202005011500
 
         Args:
@@ -116,7 +111,7 @@ class TimeFrame:
         在zillionare中，如果要对时间和日期进行持久化操作，我们一般将其转换为int类型
 
         Examples:
-            >>> tf.date2int(datetime.date(2020,5,1))
+            >>> cal.date2int(datetime.date(2020,5,1))
             20200501
 
         Args:
@@ -132,7 +127,7 @@ class TimeFrame:
         """将数字表示的日期转换成为日期格式
 
         Examples:
-            >>> tf.int2date(20200501)
+            >>> cal.int2date(20200501)
             datetime.date(2020, 5, 1)
 
         Args:
@@ -154,16 +149,16 @@ class TimeFrame:
         如果 n < 0，则返回d对应的交易日前第 n 个交易日
 
         Examples:
-            >>> tf.day_shift(datetime.date(2019,12,13), 0)
+            >>> cal.day_shift(datetime.date(2019,12,13), 0)
             datetime.date(2019, 12, 13)
 
-            >>> tf.day_shift(datetime.date(2019, 12, 15), 0)
+            >>> cal.day_shift(datetime.date(2019, 12, 15), 0)
             datetime.date(2019, 12, 13)
 
-            >>> tf.day_shift(datetime.date(2019, 12, 15), 1)
+            >>> cal.day_shift(datetime.date(2019, 12, 15), 1)
             datetime.date(2019, 12, 16)
 
-            >>> tf.day_shift(datetime.date(2019, 12, 13), 1)
+            >>> cal.day_shift(datetime.date(2019, 12, 13), 1)
             datetime.date(2019, 12, 16)
 
         Args:
@@ -185,13 +180,13 @@ class TimeFrame:
         参考 [omicron.core.timeframe.TimeFrame.day_shift][]
         Examples:
             >>> moment = arrow.get('2020-1-21').date()
-            >>> tf.week_shift(moment, 1)
+            >>> cal.week_shift(moment, 1)
             datetime.date(2020, 1, 23)
 
-            >>> tf.week_shift(moment, 0)
+            >>> cal.week_shift(moment, 0)
             datetime.date(2020, 1, 17)
 
-            >>> tf.week_shift(moment, -1)
+            >>> cal.week_shift(moment, -1)
             datetime.date(2020, 1, 10)
         """
         start = cls.date2int(start)
@@ -203,16 +198,16 @@ class TimeFrame:
 
         本函数首先将`start`对齐，然后进行移位。
         Examples:
-            >>> tf.month_shift(arrow.get('2015-2-26').date(), 0)
+            >>> cal.month_shift(arrow.get('2015-2-26').date(), 0)
             datetime.date(2015, 1, 30)
 
-            >>> tf.month_shift(arrow.get('2015-2-27').date(), 0)
+            >>> cal.month_shift(arrow.get('2015-2-27').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> tf.month_shift(arrow.get('2015-3-1').date(), 0)
+            >>> cal.month_shift(arrow.get('2015-3-1').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> tf.month_shift(arrow.get('2015-3-1').date(), 1)
+            >>> cal.month_shift(arrow.get('2015-3-1').date(), 1)
             datetime.date(2015, 3, 31)
 
         """
@@ -226,7 +221,7 @@ class TimeFrame:
         对分钟线，返回值仅包含时间，不包含日期（均为整数表示）
 
         Examples:
-            >>> tf.get_ticks(FrameType.MONTH)[:3]
+            >>> cal.get_ticks(FrameType.MONTH)[:3]
             array([20050131, 20050228, 20050331])
 
         Args:
@@ -271,10 +266,10 @@ class TimeFrame:
         - [month_shift][omicron.core.timeframe.TimeFrame.month_shift]
 
         Examples:
-            >>> tf.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
+            >>> cal.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
             datetime.date(2020, 1, 6)
 
-            >>> tf.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
+            >>> cal.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
             datetime.datetime(2020, 1, 6, 11, 30)
 
 
@@ -332,13 +327,13 @@ class TimeFrame:
         Examples:
             >>> start = datetime.date(2019, 12, 21)
             >>> end = datetime.date(2019, 12, 21)
-            >>> tf.count_day_frames(start, end)
+            >>> cal.count_day_frames(start, end)
             1
 
             >>> # non-trade days are removed
             >>> start = datetime.date(2020, 1, 23)
             >>> end = datetime.date(2020, 2, 4)
-            >>> tf.count_day_frames(start, end)
+            >>> cal.count_day_frames(start, end)
             3
 
         args:
@@ -442,7 +437,7 @@ class TimeFrame:
         """判断`dt`是否为交易日
 
         Examples:
-            >>> tf.is_trade_day(arrow.get('2020-1-1'))
+            >>> cal.is_trade_day(arrow.get('2020-1-1'))
             False
 
         Args:
@@ -460,9 +455,9 @@ class TimeFrame:
         交易时间段是指集合竞价时间段之外的开盘时间
 
         Examples:
-            >>> tf.is_open_time(arrow.get('2020-1-1 14:59', tzinfo='Asia/Shanghai'))
+            >>> cal.is_open_time(arrow.get('2020-1-1 14:59')
             False
-            >>> tf.is_open_time(arrow.get('2020-1-3 14:59', tzinfo='Asia/Shanghai'))
+            >>> cal.is_open_time(arrow.get('2020-1-3 14:59')
             True
 
         Args:
@@ -530,27 +525,27 @@ class TimeFrame:
 
         Examples:
             >>> # 如果moment为日期，则当成已收盘处理
-            >>> tf.floor(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> cal.floor(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
             >>> # moment指定的时间还未收盘，floor到上一个交易日
-            >>> tf.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
+            >>> cal.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
             datetime.date(2005, 1, 6)
 
-            >>> tf.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
+            >>> cal.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> tf.floor(datetime.date(2005,2, 27), FrameType.MONTH)
+            >>> cal.floor(datetime.date(2005,2, 27), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> tf.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> cal.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 14, 30)
 
-            >>> tf.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> cal.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> tf.floor(arrow.get('2005-1-5 14:59', tzinfo='Asia/Shanghai').datetime, FrameType.MIN1)
-            datetime.datetime(2005, 1, 5, 14, 59, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.floor(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
+            datetime.datetime(2005, 1, 5, 14, 59)
 
         Args:
             moment:
@@ -559,15 +554,15 @@ class TimeFrame:
         Returns:
 
         """
-        if frame_type in tf.minute_level_frames:
+        if frame_type in cal.minute_level_frames:
             tm, day_offset = accl.minute_frames_floor(
                 self.ticks[frame_type], moment.hour * 60 + moment.minute
             )
             h, m = tm // 60, tm % 60
-            if tf.day_shift(moment, 0) < moment.date() or day_offset == -1:
+            if cal.day_shift(moment, 0) < moment.date() or day_offset == -1:
                 h = 15
                 m = 0
-                new_day = tf.day_shift(moment, day_offset)
+                new_day = cal.day_shift(moment, day_offset)
             else:
                 new_day = moment.date()
             return datetime.datetime(
@@ -581,23 +576,23 @@ class TimeFrame:
 
         # 如果是交易日，但还未收盘
         if (
-            tf.date2int(moment) in self.day_frames
+            cal.date2int(moment) in self.day_frames
             and moment.hour * 60 + moment.minute < 900
         ):
             moment = self.day_shift(moment, -1)
 
-        day = tf.date2int(moment)
+        day = cal.date2int(moment)
         if frame_type == FrameType.DAY:
-            arr = tf.day_frames
+            arr = cal.day_frames
         elif frame_type == FrameType.WEEK:
-            arr = tf.week_frames
+            arr = cal.week_frames
         elif frame_type == FrameType.MONTH:
-            arr = tf.month_frames
+            arr = cal.month_frames
         else:  # pragma: no cover
             raise ValueError(f"frame type {frame_type} not supported.")
 
         floored = accl.floor(arr, day)
-        return tf.int2date(floored)
+        return cal.int2date(floored)
 
     @classmethod
     def last_min_frame(
@@ -606,8 +601,8 @@ class TimeFrame:
         """获取`day`日周期为`frame_type`的结束frame。
 
         Example:
-            >>> tf.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
-            datetime.datetime(2020, 1, 3, 15, 0, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
+            datetime.datetime(2020, 1, 3, 15, 0)
 
         Args:
             day:
@@ -641,7 +636,7 @@ class TimeFrame:
         对日线以上级别没有意义，但会返回240
 
         Examples:
-            >>> tf.frame_len(FrameType.MIN5)
+            >>> cal.frame_len(FrameType.MIN5)
             5
 
         Args:
@@ -671,8 +666,8 @@ class TimeFrame:
         """获取指定日期类型为`frame_type`的`frame`。
 
         Examples:
-            >>> tf.first_min_frame('2019-12-31', FrameType.MIN1)
-            datetime.datetime(2019, 12, 31, 9, 31, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.first_min_frame('2019-12-31', FrameType.MIN1)
+            datetime.datetime(2019, 12, 31, 9, 31)
 
         Args:
             day:
@@ -724,9 +719,9 @@ class TimeFrame:
         调用本函数前，请先通过`floor`或者`ceiling`将时间帧对齐到`frame_type`的边界值
 
         Example:
-            >>> start = arrow.get('2020-1-13 10:00', tzinfo='Asia/Shanghai')
-            >>> end = arrow.get('2020-1-13 13:30', tzinfo='Asia/Shanghai')
-            >>> tf.get_frames(start, end, FrameType.MIN30)
+            >>> start = arrow.get('2020-1-13 10:00'
+            >>> end = arrow.get('2020-1-13 13:30'
+            >>> cal.get_frames(start, end, FrameType.MIN30)
             [202001131000, 202001131030, 202001131100, 202001131130, 202001131330]
 
         Args:
@@ -749,8 +744,8 @@ class TimeFrame:
         调用前请将`end`对齐到`frame_type`的边界
 
         Examples:
-            >>> end = arrow.get('2020-1-6 14:30', tzinfo='Asia/Shanghai')
-            >>> tf.get_frames_by_count(end, 2, FrameType.MIN30)
+            >>> end = arrow.get('2020-1-6 14:30'
+            >>> cal.get_frames_by_count(end, 2, FrameType.MIN30)
             [202001061400, 202001061430]
 
         Args:
@@ -763,17 +758,17 @@ class TimeFrame:
         """
 
         if frame_type == FrameType.DAY:
-            end = tf.date2int(end)
-            pos = np.searchsorted(tf.day_frames, end, side="right")
-            return tf.day_frames[max(0, pos - n) : pos]
+            end = cal.date2int(end)
+            pos = np.searchsorted(cal.day_frames, end, side="right")
+            return cal.day_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.WEEK:
-            end = tf.date2int(end)
-            pos = np.searchsorted(tf.week_frames, end, side="right")
-            return tf.week_frames[max(0, pos - n) : pos]
+            end = cal.date2int(end)
+            pos = np.searchsorted(cal.week_frames, end, side="right")
+            return cal.week_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.MONTH:
-            end = tf.date2int(end)
-            pos = np.searchsorted(tf.month_frames, end, side="right")
-            return tf.month_frames[max(0, pos - n) : pos]
+            end = cal.date2int(end)
+            pos = np.searchsorted(cal.month_frames, end, side="right")
+            return cal.month_frames[max(0, pos - n) : pos]
         elif frame_type in {
             FrameType.MIN1,
             FrameType.MIN5,
@@ -781,11 +776,11 @@ class TimeFrame:
             FrameType.MIN30,
             FrameType.MIN60,
         }:
-            n_days = n // len(tf.ticks[frame_type]) + 2
-            ticks = tf.ticks[frame_type] * n_days
+            n_days = n // len(cal.ticks[frame_type]) + 2
+            ticks = cal.ticks[frame_type] * n_days
 
             days = cls.get_frames_by_count(end, n_days, FrameType.DAY)
-            days = np.repeat(days, len(tf.ticks[frame_type]))
+            days = np.repeat(days, len(cal.ticks[frame_type]))
 
             ticks = [
                 day * 10000 + int(tm / 60) * 100 + tm % 60
@@ -793,7 +788,7 @@ class TimeFrame:
             ]
 
             # list index is much faster than accl.index_sorted
-            pos = ticks.index(tf.time2int(end)) + 1
+            pos = ticks.index(cal.time2int(end)) + 1
 
             return ticks[max(0, pos - n) : pos]
         else:  # pragma: no cover
@@ -805,26 +800,26 @@ class TimeFrame:
         比如`moment`为14:59分，如果`frame_type`为30分钟，则它的上界应该为15:00
 
         Example:
-            >>> tf.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> cal.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
-            >>> tf.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
+            >>> cal.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> tf.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
+            >>> cal.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> tf.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
+            >>> cal.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> tf.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> cal.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 15, 0)
 
-            >>> tf.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> cal.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> tf.ceiling(arrow.get('2005-1-5 14:59', tzinfo='Asia/Shanghai').datetime, FrameType.MIN1)
-            datetime.datetime(2005, 1, 5, 14, 59, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.ceiling(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
+            datetime.datetime(2005, 1, 5, 14, 59))
 
         Args:
             moment (datetime.datetime): [description]
@@ -833,7 +828,7 @@ class TimeFrame:
         Returns:
             [type]: [description]
         """
-        if frame_type in tf.day_level_frames and type(moment) == datetime.datetime:
+        if frame_type in cal.day_level_frames and type(moment) == datetime.datetime:
             moment = moment.date()
 
         floor = self.floor(moment, frame_type)
@@ -850,14 +845,13 @@ class TimeFrame:
         hour: int,
         minute: int = 0,
         second: int = 0,
-        microsecond: int = 0,
-        tzinfo="Asia/Shanghai",
+        microsecond: int = 0
     ) -> datetime.datetime:
         """用`date`指定的日期与`hour`, `minute`, `second`等参数一起合成新的时间
 
         Examples:
-            >>> tf.combine_time(datetime.date(2020, 1, 1), 14, 30)
-            datetime.datetime(2020, 1, 1, 14, 30, tzinfo=tzfile('/usr/share/zoneinfo/Asia/Shanghai'))
+            >>> cal.combine_time(datetime.date(2020, 1, 1), 14, 30)
+            datetime.datetime(2020, 1, 1, 14, 30)
 
         Args:
             date : [description]
@@ -876,8 +870,7 @@ class TimeFrame:
             hour,
             minute,
             second,
-            microsecond,
-            tzinfo=tz.gettz(tzinfo),
+            microsecond
         )
 
     def replace_date(
@@ -886,7 +879,7 @@ class TimeFrame:
         """将`dtm`变量的日期更换为`dt`指定的日期
 
         Example:
-            >>> tf.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
+            >>> cal.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
             datetime.datetime(2019, 1, 1, 13, 49)
 
         Args:
@@ -902,5 +895,5 @@ class TimeFrame:
         )
 
 
-tf = TimeFrame()
-__all__ = ["tf"]
+cal = Calendar()
+__all__ = ["cal"]
