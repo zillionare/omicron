@@ -11,7 +11,7 @@ import numpy as np
 from aioredis.commands import Redis
 from arrow.arrow import Arrow
 
-from omicron.core.timeframe import tf
+from omicron.models.calendar import cal
 from omicron.core.types import Frame, FrameType, bars_dtype
 
 logger = logging.getLogger(__file__)

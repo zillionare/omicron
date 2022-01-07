@@ -6,7 +6,7 @@ import numpy as np
 
 import omicron
 from omicron import cache
-from omicron.core.timeframe import tf
+from omicron.models.calendar import cal
 from omicron.core.types import FrameType, SecurityType
 from omicron.models.securities import Securities
 from omicron.models.security import Security

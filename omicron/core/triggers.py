@@ -13,7 +13,7 @@ from typing import Optional, Union
 
 from apscheduler.triggers.base import BaseTrigger
 
-from omicron.core.timeframe import tf
+from omicron.models.calendar import cal
 from omicron.core.types import FrameType
 
 logger = logging.getLogger(__name__)

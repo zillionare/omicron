@@ -10,7 +10,7 @@ from omicron.core.accelerate import (
     numpy_append_fields,
     shift,
 )
-from omicron.core.timeframe import tf
+from omicron.models.calendar import cal
 
 
 class AccelerateTest(unittest.TestCase):

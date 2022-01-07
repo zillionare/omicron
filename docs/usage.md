@@ -40,7 +40,7 @@ import cfg4py
 import omicron
 from omicron.models.securities import Securities
 from omicron.models.security import Security
-from omicron.core.timeframe import tf
+from omicron.models.calendar import cal
 from omicron.core.types import FrameType
 
 asynd def main():
