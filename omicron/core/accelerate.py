@@ -275,12 +275,8 @@ def numpy_append_fields(base, names, data, dtypes):
         dtypes ([type]): 新增字段的dtype
     """
     if isinstance(names, str):
-        names = [
-            names,
-        ]
-        data = [
-            data,
-        ]
+        names = [names]
+        data = [data]
 
     result = np.empty(base.shape, dtype=base.dtype.descr + dtypes)
     for col in base.dtype.names:
