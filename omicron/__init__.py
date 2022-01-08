@@ -9,7 +9,7 @@ import pkg_resources
 from omicron.dal.cache import cache
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
-from omicron.models.calendar import cal
+from omicron.models.calendar import Calendar as cal
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)

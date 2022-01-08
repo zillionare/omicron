@@ -7,7 +7,7 @@ import numpy as np
 
 import omicron
 from omicron import cache
-from omicron.models.calendar import cal
+from omicron.models.calendar import Calendar as cal
 from omicron.core.types import FrameType, bars_dtype
 from tests import clear_cache, init_test_env, start_omega
 
@@ -101,7 +101,7 @@ class CacheTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(exp, data)
 
     async def test_calendar_crud(self):
-        await cache.save_calendar("day_frames", tf.day_frames.tolist())
+        await cache.save_calendar("day_frames", cal.day_frames.tolist())
         actual = await cache.load_calendar("day_frames")
 
-        self.assertListEqual(tf.day_frames.tolist(), actual)
+        self.assertListEqual(cal.day_frames.tolist(), actual)

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import List, Tuple
 
 import numpy as np
-import pandas
 from numpy.typing import ArrayLike
 
 
@@ -31,7 +30,7 @@ def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
 
 
 def dataframe_to_structured_array(
-    df: pandas.DataFrame, dtypes: List[Tuple] = None
+    df: "pandas.DataFrame", dtypes: List[Tuple] = None
 ) -> ArrayLike:
     """convert dataframe (with all columns, and index possibly) to numpy structured arrays
 

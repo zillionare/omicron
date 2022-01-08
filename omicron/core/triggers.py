@@ -13,7 +13,7 @@ from typing import Optional, Union
 
 from apscheduler.triggers.base import BaseTrigger
 
-from omicron.models.calendar import cal
+from omicron.models.calendar import Calendar as cal
 from omicron.core.types import FrameType
 
 logger = logging.getLogger(__name__)
@@ -99,17 +99,17 @@ class FrameTrigger(BaseTrigger):
         ft = self.frame_type
 
         next_tick = now
-        next_frame = tf.ceiling(now, ft)
+        next_frame = cal.ceiling(now, ft)
         while next_tick <= now:
-            if ft in tf.day_level_frames:
-                next_tick = tf.combine_time(next_frame, 15) + self.jitter
+            if ft in cal.day_level_frames:
+                next_tick = cal.combine_time(next_frame, 15) + self.jitter
             else:
                 next_tick = next_frame + self.jitter
 
             if next_tick > now:
                 return next_tick
             else:
-                next_frame = tf.shift(next_frame, 1, ft)
+                next_frame = cal.shift(next_frame, 1, ft)
 
 
 class TradeTimeIntervalTrigger(BaseTrigger):
@@ -160,8 +160,8 @@ class TradeTimeIntervalTrigger(BaseTrigger):
         else:
             fire_time = now
 
-        if tf.date2int(fire_time.date()) not in tf.day_frames:
-            ft = tf.day_shift(now, 1)
+        if cal.date2int(fire_time.date()) not in cal.day_frames:
+            ft = cal.day_shift(now, 1)
             fire_time = datetime.datetime(
                 ft.year, ft.month, ft.day, 9, 30, tzinfo=fire_time.tzinfo
             )
@@ -174,7 +174,7 @@ class TradeTimeIntervalTrigger(BaseTrigger):
         elif 690 < minutes < 780:
             fire_time = fire_time.replace(hour=13, minute=0, second=0, microsecond=0)
         elif minutes > 900:
-            ft = tf.day_shift(fire_time, 1)
+            ft = cal.day_shift(fire_time, 1)
             fire_time = datetime.datetime(
                 ft.year, ft.month, ft.day, 9, 30, tzinfo=fire_time.tzinfo
             )

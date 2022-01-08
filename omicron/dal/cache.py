@@ -11,7 +11,7 @@ import numpy as np
 from aioredis.commands import Redis
 from arrow.arrow import Arrow
 
-from omicron.models.calendar import cal
+from omicron.models.calendar import Calendar as cal
 from omicron.core.types import Frame, FrameType, bars_dtype
 
 logger = logging.getLogger(__file__)
@@ -65,7 +65,7 @@ class RedisCache:
         pl.hget(f"{code}:{frame_type.value}", "tail")
         head, tail = await pl.execute()
         converter = (
-            tf.int2time
+            cal.int2time
             if frame_type
             in [
                 FrameType.MIN1,
@@ -74,7 +74,7 @@ class RedisCache:
                 FrameType.MIN30,
                 FrameType.MIN60,
             ]
-            else tf.int2date
+            else cal.int2date
         )
         return converter(head) if head else None, converter(tail) if tail else None
 
@@ -88,7 +88,7 @@ class RedisCache:
         self, code: str, frame_type: FrameType, start: Arrow = None, end: Arrow = None
     ):
         converter = (
-            tf.time2int
+            cal.time2int
             if frame_type
             in [
                 FrameType.MIN1,
@@ -97,7 +97,7 @@ class RedisCache:
                 FrameType.MIN30,
                 FrameType.MIN60,
             ]
-            else tf.date2int
+            else cal.date2int
         )
         if start:
             await self.security.hset(
@@ -143,8 +143,8 @@ class RedisCache:
             return
 
         if (
-            tf.shift(bars["frame"][-1], 1, frame_type) < head
-            or tf.shift(bars["frame"][0], -1, frame_type) > tail
+            cal.shift(bars["frame"][-1], 1, frame_type) < head
+            or cal.shift(bars["frame"][0], -1, frame_type) > tail
         ):
             # don't save to database, otherwise the data is not continuous
             logger.warning(
@@ -185,13 +185,13 @@ class RedisCache:
             FrameType.MIN30,
             FrameType.MIN60,
         ]:
-            head = tf.date2int(head or bars["frame"][0])
-            tail = tf.date2int(tail or bars["frame"][-1])
-            frame_convert_func = tf.date2int
+            head = cal.date2int(head or bars["frame"][0])
+            tail = cal.date2int(tail or bars["frame"][-1])
+            frame_convert_func = cal.date2int
         else:
-            head = tf.time2int(head or bars["frame"][0])
-            tail = tf.time2int(tail or bars["frame"][-1])
-            frame_convert_func = tf.time2int
+            head = cal.time2int(head or bars["frame"][0])
+            tail = cal.time2int(tail or bars["frame"][-1])
+            frame_convert_func = cal.time2int
 
         pipeline = self.security.pipeline()
         # the cache is empty or error during syncing, save all bars
@@ -225,14 +225,14 @@ class RedisCache:
         if n == 0:
             return np.ndarray([], dtype=bars_dtype)
 
-        frames = tf.get_frames_by_count(end, n, frame_type)
+        frames = cal.get_frames_by_count(end, n, frame_type)
         tr = self.security.pipeline()
         key = f"{code}:{frame_type.value}"
         [tr.hget(key, int(frame)) for frame in frames]
         recs = await tr.execute()
 
         converter = (
-            tf.int2time
+            cal.int2time
             if frame_type
             in [
                 FrameType.MIN1,
@@ -241,7 +241,7 @@ class RedisCache:
                 FrameType.MIN30,
                 FrameType.MIN60,
             ]
-            else tf.int2date
+            else cal.int2date
         )
         data = np.empty(len(frames), dtype=bars_dtype)
         for i, frame in enumerate(frames):
@@ -275,7 +275,7 @@ class RedisCache:
         """
         if n == 0:
             return b""
-        frames = tf.get_frames_by_count(end, n, frame_type)
+        frames = cal.get_frames_by_count(end, n, frame_type)
 
         pl = self.security.pipeline()
         key = f"{code}:{frame_type.value}"

@@ -40,7 +40,7 @@ import cfg4py
 import omicron
 from omicron.models.securities import Securities
 from omicron.models.security import Security
-from omicron.models.calendar import cal
+from omicron.models import calendar as cal
 from omicron.core.types import FrameType
 
 asynd def main():
@@ -67,8 +67,8 @@ asynd def main():
     print(bars)
 
     # 日期转换
-    n = tf.count_day_frames(start, end)
-    start = tf.day_shift(end, -n)
+    n = cal.count_day_frames(start, end)
+    start = cal.day_shift(end, -n)
     bars = await sec.load_bars(start, stop, frame_type)
     print(bars)
 ```

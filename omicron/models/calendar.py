@@ -9,17 +9,14 @@ from typing import Iterable, List, Optional, Union
 import arrow
 import numpy as np
 from arrow import Arrow
+from omicron import extensions as ext
 
-import omicron.core.accelerate as accl
-from omicron.config import calendar
 from omicron.core.types import Frame, FrameType
 
 logger = logging.getLogger(__file__)
 
 
 class Calendar:
-    back_test_mode = False
-    _now: Optional[Arrow] = None
     minute_level_frames = [
         FrameType.MIN1,
         FrameType.MIN5,
@@ -45,17 +42,24 @@ class Calendar:
             int(s[:2]) * 60 + int(s[2:]) for s in ["1030", "1130", "1400", "1500"]
         ],
     }
-
-    day_frames = np.array(calendar.day_frames)
-    week_frames = np.array(calendar.week_frames)
-    month_frames = np.array(calendar.month_frames)
+    day_frames = None
+    week_frames = None
+    month_frames = None
+    quater_frames = None
+    year_frames = None
 
     @classmethod
     async def _load_calendar(cls):
         """从数据缓存中加载更新日历"""
         from omicron import cache
 
-        for name in ["day_frames", "week_frames", "month_frames"]:
+        for name in [
+            "day_frames",
+            "week_frames",
+            "month_frames",
+            "quater_frames",
+            "year_frames",
+        ]:
             frames = await cache.load_calendar(name)
             if frames and len(frames):
                 setattr(cls, name, np.array(frames))
@@ -70,7 +74,7 @@ class Calendar:
         """将整数表示的时间转换为`datetime`类型表示
 
         examples:
-            >>> cal.int2time(202005011500)
+            >>> cls.int2time(202005011500)
             datetime.datetime(2020, 5, 1, 15, 0)
 
         Args:
@@ -82,11 +86,7 @@ class Calendar:
         s = str(tm)
         # its 8 times faster than arrow.get()
         return datetime.datetime(
-            int(s[:4]),
-            int(s[4:6]),
-            int(s[6:8]),
-            int(s[8:10]),
-            int(s[10:12])
+            int(s[:4]), int(s[4:6]), int(s[6:8]), int(s[8:10]), int(s[10:12])
         )
 
     @classmethod
@@ -96,7 +96,7 @@ class Calendar:
         tm可以是Arrow类型，也可以是datetime.datetime或者任何其它类型，只要它有year,month...等
         属性
         Examples:
-            >>> cal.time2int(datetime.datetime(2020, 5, 1, 15))
+            >>> cls.time2int(datetime.datetime(2020, 5, 1, 15))
             202005011500
 
         Args:
@@ -114,7 +114,7 @@ class Calendar:
         在zillionare中，如果要对时间和日期进行持久化操作，我们一般将其转换为int类型
 
         Examples:
-            >>> cal.date2int(datetime.date(2020,5,1))
+            >>> cls.date2int(datetime.date(2020,5,1))
             20200501
 
         Args:
@@ -130,7 +130,7 @@ class Calendar:
         """将数字表示的日期转换成为日期格式
 
         Examples:
-            >>> cal.int2date(20200501)
+            >>> cls.int2date(20200501)
             datetime.date(2020, 5, 1)
 
         Args:
@@ -152,16 +152,16 @@ class Calendar:
         如果 n < 0，则返回d对应的交易日前第 n 个交易日
 
         Examples:
-            >>> cal.day_shift(datetime.date(2019,12,13), 0)
+            >>> cls.day_shift(datetime.date(2019,12,13), 0)
             datetime.date(2019, 12, 13)
 
-            >>> cal.day_shift(datetime.date(2019, 12, 15), 0)
+            >>> cls.day_shift(datetime.date(2019, 12, 15), 0)
             datetime.date(2019, 12, 13)
 
-            >>> cal.day_shift(datetime.date(2019, 12, 15), 1)
+            >>> cls.day_shift(datetime.date(2019, 12, 15), 1)
             datetime.date(2019, 12, 16)
 
-            >>> cal.day_shift(datetime.date(2019, 12, 13), 1)
+            >>> cls.day_shift(datetime.date(2019, 12, 13), 1)
             datetime.date(2019, 12, 16)
 
         Args:
@@ -174,7 +174,7 @@ class Calendar:
         # accelerated from 0.12 to 0.07, per 10000 loop, type conversion time included
         start = cls.date2int(start)
 
-        return cls.int2date(accl.shift(cls.day_frames, start, offset))
+        return cls.int2date(ext.shift(cls.day_frames, start, offset))
 
     @classmethod
     def week_shift(cls, start: datetime.date, offset: int) -> datetime.date:
@@ -183,17 +183,17 @@ class Calendar:
         参考 [omicron.core.timeframe.TimeFrame.day_shift][]
         Examples:
             >>> moment = arrow.get('2020-1-21').date()
-            >>> cal.week_shift(moment, 1)
+            >>> cls.week_shift(moment, 1)
             datetime.date(2020, 1, 23)
 
-            >>> cal.week_shift(moment, 0)
+            >>> cls.week_shift(moment, 0)
             datetime.date(2020, 1, 17)
 
-            >>> cal.week_shift(moment, -1)
+            >>> cls.week_shift(moment, -1)
             datetime.date(2020, 1, 10)
         """
         start = cls.date2int(start)
-        return cls.int2date(accl.shift(cls.week_frames, start, offset))
+        return cls.int2date(ext.shift(cls.week_frames, start, offset))
 
     @classmethod
     def month_shift(cls, start: datetime.date, offset: int) -> datetime.date:
@@ -201,21 +201,21 @@ class Calendar:
 
         本函数首先将`start`对齐，然后进行移位。
         Examples:
-            >>> cal.month_shift(arrow.get('2015-2-26').date(), 0)
+            >>> cls.month_shift(arrow.get('2015-2-26').date(), 0)
             datetime.date(2015, 1, 30)
 
-            >>> cal.month_shift(arrow.get('2015-2-27').date(), 0)
+            >>> cls.month_shift(arrow.get('2015-2-27').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> cal.month_shift(arrow.get('2015-3-1').date(), 0)
+            >>> cls.month_shift(arrow.get('2015-3-1').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> cal.month_shift(arrow.get('2015-3-1').date(), 1)
+            >>> cls.month_shift(arrow.get('2015-3-1').date(), 1)
             datetime.date(2015, 3, 31)
 
         """
         start = cls.date2int(start)
-        return cls.int2date(accl.shift(cls.month_frames, start, offset))
+        return cls.int2date(ext.shift(cls.month_frames, start, offset))
 
     @classmethod
     def get_ticks(cls, frame_type: FrameType) -> Union[List, np.array]:
@@ -224,7 +224,7 @@ class Calendar:
         对分钟线，返回值仅包含时间，不包含日期（均为整数表示）
 
         Examples:
-            >>> cal.get_ticks(FrameType.MONTH)[:3]
+            >>> cls.get_ticks(FrameType.MONTH)[:3]
             array([20050131, 20050228, 20050331])
 
         Args:
@@ -269,10 +269,10 @@ class Calendar:
         - [month_shift][omicron.core.timeframe.TimeFrame.month_shift]
 
         Examples:
-            >>> cal.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
+            >>> cls.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
             datetime.date(2020, 1, 6)
 
-            >>> cal.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
+            >>> cls.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
             datetime.datetime(2020, 1, 6, 11, 30)
 
 
@@ -330,13 +330,13 @@ class Calendar:
         Examples:
             >>> start = datetime.date(2019, 12, 21)
             >>> end = datetime.date(2019, 12, 21)
-            >>> cal.count_day_frames(start, end)
+            >>> cls.count_day_frames(start, end)
             1
 
             >>> # non-trade days are removed
             >>> start = datetime.date(2020, 1, 23)
             >>> end = datetime.date(2020, 2, 4)
-            >>> cal.count_day_frames(start, end)
+            >>> cls.count_day_frames(start, end)
             3
 
         args:
@@ -345,7 +345,7 @@ class Calendar:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
-        return int(accl.count_between(cls.day_frames, start, end))
+        return int(ext.count_between(cls.day_frames, start, end))
 
     @classmethod
     def count_week_frames(cls, start: datetime.date, end: datetime.date) -> int:
@@ -361,7 +361,7 @@ class Calendar:
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
-        return int(accl.count_between(cls.week_frames, start, end))
+        return int(ext.count_between(cls.week_frames, start, end))
 
     @classmethod
     def count_month_frames(cls, start: datetime.date, end: datetime.date) -> int:
@@ -381,7 +381,7 @@ class Calendar:
         start = cls.date2int(start)
         end = cls.date2int(end)
 
-        return int(accl.count_between(cls.month_frames, start, end))
+        return int(ext.count_between(cls.month_frames, start, end))
 
     @classmethod
     def count_frames(
@@ -440,7 +440,7 @@ class Calendar:
         """判断`dt`是否为交易日
 
         Examples:
-            >>> cal.is_trade_day(arrow.get('2020-1-1'))
+            >>> cls.is_trade_day(arrow.get('2020-1-1'))
             False
 
         Args:
@@ -458,9 +458,9 @@ class Calendar:
         交易时间段是指集合竞价时间段之外的开盘时间
 
         Examples:
-            >>> cal.is_open_time(arrow.get('2020-1-1 14:59')
+            >>> cls.is_open_time(arrow.get('2020-1-1 14:59')
             False
-            >>> cal.is_open_time(arrow.get('2020-1-3 14:59')
+            >>> cls.is_open_time(arrow.get('2020-1-3 14:59')
             True
 
         Args:
@@ -521,33 +521,34 @@ class Calendar:
         minutes = tm.hour * 60 + tm.minute
         return 15 * 60 - 3 <= minutes < 15 * 60
 
-    def floor(self, moment: Frame, frame_type: FrameType) -> Frame:
+    @classmethod
+    def floor(cls, moment: Frame, frame_type: FrameType) -> Frame:
         """求`moment`在指定的`frame_type`中的下界
 
         比如，如果`moment`为10:37，则当`frame_type`为30分钟时，对应的上界为10:00
 
         Examples:
             >>> # 如果moment为日期，则当成已收盘处理
-            >>> cal.floor(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> cls.floor(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
             >>> # moment指定的时间还未收盘，floor到上一个交易日
-            >>> cal.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
+            >>> cls.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
             datetime.date(2005, 1, 6)
 
-            >>> cal.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
+            >>> cls.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cal.floor(datetime.date(2005,2, 27), FrameType.MONTH)
+            >>> cls.floor(datetime.date(2005,2, 27), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> cal.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> cls.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 14, 30)
 
-            >>> cal.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> cls.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> cal.floor(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
+            >>> cls.floor(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
         Args:
@@ -557,45 +558,41 @@ class Calendar:
         Returns:
 
         """
-        if frame_type in cal.minute_level_frames:
-            tm, day_offset = accl.minute_frames_floor(
-                self.ticks[frame_type], moment.hour * 60 + moment.minute
+        if frame_type in cls.minute_level_frames:
+            tm, day_offset = cls.minute_frames_floor(
+                cls.ticks[frame_type], moment.hour * 60 + moment.minute
             )
             h, m = tm // 60, tm % 60
-            if cal.day_shift(moment, 0) < moment.date() or day_offset == -1:
+            if cls.day_shift(moment, 0) < moment.date() or day_offset == -1:
                 h = 15
                 m = 0
-                new_day = cal.day_shift(moment, day_offset)
+                new_day = cls.day_shift(moment, day_offset)
             else:
                 new_day = moment.date()
-            return datetime.datetime(
-                new_day.year, new_day.month, new_day.day, h, m
-            )
+            return datetime.datetime(new_day.year, new_day.month, new_day.day, h, m)
 
         if type(moment) == datetime.date:
-            moment = datetime.datetime(
-                moment.year, moment.month, moment.day, 15
-            )
+            moment = datetime.datetime(moment.year, moment.month, moment.day, 15)
 
         # 如果是交易日，但还未收盘
         if (
-            cal.date2int(moment) in self.day_frames
+            cls.date2int(moment) in cls.day_frames
             and moment.hour * 60 + moment.minute < 900
         ):
-            moment = self.day_shift(moment, -1)
+            moment = cls.day_shift(moment, -1)
 
-        day = cal.date2int(moment)
+        day = cls.date2int(moment)
         if frame_type == FrameType.DAY:
-            arr = cal.day_frames
+            arr = cls.day_frames
         elif frame_type == FrameType.WEEK:
-            arr = cal.week_frames
+            arr = cls.week_frames
         elif frame_type == FrameType.MONTH:
-            arr = cal.month_frames
+            arr = cls.month_frames
         else:  # pragma: no cover
             raise ValueError(f"frame type {frame_type} not supported.")
 
-        floored = accl.floor(arr, day)
-        return cal.int2date(floored)
+        floored = ext.floor(arr, day)
+        return cls.int2date(floored)
 
     @classmethod
     def last_min_frame(
@@ -604,7 +601,7 @@ class Calendar:
         """获取`day`日周期为`frame_type`的结束frame。
 
         Example:
-            >>> cal.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
+            >>> cls.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
             datetime.datetime(2020, 1, 3, 15, 0)
 
         Args:
@@ -626,9 +623,7 @@ class Calendar:
         if frame_type in cls.minute_level_frames:
             last_close_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(last_close_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=15, minute=0
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=15, minute=0)
         else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
 
@@ -639,7 +634,7 @@ class Calendar:
         对日线以上级别没有意义，但会返回240
 
         Examples:
-            >>> cal.frame_len(FrameType.MIN5)
+            >>> cls.frame_len(FrameType.MIN5)
             5
 
         Args:
@@ -669,7 +664,7 @@ class Calendar:
         """获取指定日期类型为`frame_type`的`frame`。
 
         Examples:
-            >>> cal.first_min_frame('2019-12-31', FrameType.MIN1)
+            >>> cls.first_min_frame('2019-12-31', FrameType.MIN1)
             datetime.datetime(2019, 12, 31, 9, 31)
 
         Args:
@@ -685,33 +680,23 @@ class Calendar:
         if frame_type == FrameType.MIN1:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=31
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=31)
         elif frame_type == FrameType.MIN5:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=35
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=35)
         elif frame_type == FrameType.MIN15:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=9, minute=45
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=9, minute=45)
         elif frame_type == FrameType.MIN30:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=10
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=10)
         elif frame_type == FrameType.MIN60:
             floor_day = cls.day_frames[cls.day_frames <= day][-1]
             day = cls.int2date(floor_day)
-            return datetime.datetime(
-                day.year, day.month, day.day, hour=10, minute=30
-            )
+            return datetime.datetime(day.year, day.month, day.day, hour=10, minute=30)
         else:  # pragma: no cover
             raise ValueError(f"{frame_type} not supported")
 
@@ -724,7 +709,7 @@ class Calendar:
         Example:
             >>> start = arrow.get('2020-1-13 10:00'
             >>> end = arrow.get('2020-1-13 13:30'
-            >>> cal.get_frames(start, end, FrameType.MIN30)
+            >>> cls.get_frames(start, end, FrameType.MIN30)
             [202001131000, 202001131030, 202001131100, 202001131130, 202001131330]
 
         Args:
@@ -748,7 +733,7 @@ class Calendar:
 
         Examples:
             >>> end = arrow.get('2020-1-6 14:30'
-            >>> cal.get_frames_by_count(end, 2, FrameType.MIN30)
+            >>> cls.get_frames_by_count(end, 2, FrameType.MIN30)
             [202001061400, 202001061430]
 
         Args:
@@ -761,17 +746,17 @@ class Calendar:
         """
 
         if frame_type == FrameType.DAY:
-            end = cal.date2int(end)
-            pos = np.searchsorted(cal.day_frames, end, side="right")
-            return cal.day_frames[max(0, pos - n) : pos]
+            end = cls.date2int(end)
+            pos = np.searchsorted(cls.day_frames, end, side="right")
+            return cls.day_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.WEEK:
-            end = cal.date2int(end)
-            pos = np.searchsorted(cal.week_frames, end, side="right")
-            return cal.week_frames[max(0, pos - n) : pos]
+            end = cls.date2int(end)
+            pos = np.searchsorted(cls.week_frames, end, side="right")
+            return cls.week_frames[max(0, pos - n) : pos]
         elif frame_type == FrameType.MONTH:
-            end = cal.date2int(end)
-            pos = np.searchsorted(cal.month_frames, end, side="right")
-            return cal.month_frames[max(0, pos - n) : pos]
+            end = cls.date2int(end)
+            pos = np.searchsorted(cls.month_frames, end, side="right")
+            return cls.month_frames[max(0, pos - n) : pos]
         elif frame_type in {
             FrameType.MIN1,
             FrameType.MIN5,
@@ -779,49 +764,50 @@ class Calendar:
             FrameType.MIN30,
             FrameType.MIN60,
         }:
-            n_days = n // len(cal.ticks[frame_type]) + 2
-            ticks = cal.ticks[frame_type] * n_days
+            n_days = n // len(cls.ticks[frame_type]) + 2
+            ticks = cls.ticks[frame_type] * n_days
 
             days = cls.get_frames_by_count(end, n_days, FrameType.DAY)
-            days = np.repeat(days, len(cal.ticks[frame_type]))
+            days = np.repeat(days, len(cls.ticks[frame_type]))
 
             ticks = [
                 day * 10000 + int(tm / 60) * 100 + tm % 60
                 for day, tm in zip(days, ticks)
             ]
 
-            # list index is much faster than accl.index_sorted
-            pos = ticks.index(cal.time2int(end)) + 1
+            # list index is much faster than ext.index_sorted when the arr is small
+            pos = ticks.index(cls.time2int(end)) + 1
 
             return ticks[max(0, pos - n) : pos]
         else:  # pragma: no cover
             raise ValueError(f"{frame_type} not support yet")
 
-    def ceiling(self, moment: Frame, frame_type: FrameType) -> Frame:
+    @classmethod
+    def ceiling(cls, moment: Frame, frame_type: FrameType) -> Frame:
         """求`moment`所在类型为`frame_type`周期的上界
 
         比如`moment`为14:59分，如果`frame_type`为30分钟，则它的上界应该为15:00
 
         Example:
-            >>> cal.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> cls.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
-            >>> cal.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
+            >>> cls.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cal.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
+            >>> cls.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cal.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
+            >>> cls.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> cal.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> cls.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 15, 0)
 
-            >>> cal.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> cls.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> cal.ceiling(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
+            >>> cls.ceiling(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59))
 
         Args:
@@ -831,19 +817,20 @@ class Calendar:
         Returns:
             [type]: [description]
         """
-        if frame_type in cal.day_level_frames and type(moment) == datetime.datetime:
+        if frame_type in cls.day_level_frames and type(moment) == datetime.datetime:
             moment = moment.date()
 
-        floor = self.floor(moment, frame_type)
+        floor = cls.floor(moment, frame_type)
         if floor == moment:
             return moment
         elif floor > moment:
             return floor
         else:
-            return self.shift(floor, 1, frame_type)
+            return cls.shift(floor, 1, frame_type)
 
+    @classmethod
     def combine_time(
-        self,
+        cls,
         date: datetime.date,
         hour: int,
         minute: int = 0,
@@ -853,7 +840,7 @@ class Calendar:
         """用`date`指定的日期与`hour`, `minute`, `second`等参数一起合成新的时间
 
         Examples:
-            >>> cal.combine_time(datetime.date(2020, 1, 1), 14, 30)
+            >>> cls.combine_time(datetime.date(2020, 1, 1), 14, 30)
             datetime.datetime(2020, 1, 1, 14, 30)
 
         Args:
@@ -870,13 +857,14 @@ class Calendar:
             date.year, date.month, date.day, hour, minute, second, microsecond
         )
 
+    @classmethod
     def replace_date(
-        self, dtm: datetime.datetime, dt: datetime.date
+        cls, dtm: datetime.datetime, dt: datetime.date
     ) -> datetime.datetime:
         """将`dtm`变量的日期更换为`dt`指定的日期
 
         Example:
-            >>> cal.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
+            >>> cls.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
             datetime.datetime(2019, 1, 1, 13, 49)
 
         Args:
@@ -915,7 +903,7 @@ class Calendar:
             if weeks[-1] < last:
                 weeks.append(last)
 
-            week_frames = [cal.date2int(x) for x in weeks]
+            week_frames = [cls.date2int(x) for x in weeks]
             return week_frames
         elif frame_type == FrameType.MONTH:
             months = []
@@ -926,7 +914,7 @@ class Calendar:
                 last = cur
             months.append(last)
 
-            month_frames = [cal.date2int(x) for x in months]
+            month_frames = [cls.date2int(x) for x in months]
             return month_frames
         elif frame_type == FrameType.QUARTER:
             quaters = []
@@ -937,7 +925,7 @@ class Calendar:
                 last = cur
             quaters.append(last)
 
-            quater_frames = [cal.date2int(x) for x in quaters]
+            quater_frames = [cls.date2int(x) for x in quaters]
             return quater_frames
         elif frame_type == FrameType.YEAR:
             years = []
@@ -948,13 +936,41 @@ class Calendar:
                 last = cur
             years.append(last)
 
-            year_frames = [cal.date2int(x) for x in years]
+            year_frames = [cls.date2int(x) for x in years]
             return year_frames
         else:
             raise ValueError(f"Unsupported FrameType: {frame_type}")
 
+    @classmethod
+    def minute_frames_floor(cls, ticks, moment):
+        """
+        对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
+        日，则进位为-1，否则为0.
 
+        Examples:
+            >>> ticks = [600, 630, 660, 690, 810, 840, 870, 900]
+            >>> minute_frames_floor(ticks, 545)
+            (900, -1)
+            >>> minute_frames_floor(ticks, 600)
+            (600, 0)
+            >>> minute_frames_floor(ticks, 605)
+            (600, 0)
+            >>> minute_frames_floor(ticks, 899)
+            (870, 0)
+            >>> minute_frames_floor(ticks, 900)
+            (900, 0)
+            >>> minute_frames_floor(ticks, 905)
+            (900, 0)
 
+        Args:
+            ticks (np.array or list): frames刻度
+            moment (int): 整数表示的分钟数，比如900表示15：00
 
-cal = Calendar()
-__all__ = ["cal"]
+        Returns:
+            tuple, the first is the new moment, the second is carry-on
+        """
+        if moment < ticks[0]:
+            return ticks[-1], -1
+        # ’right' 相当于 ticks <= m
+        index = np.searchsorted(ticks, moment, side="right")
+        return ticks[index - 1], 0
