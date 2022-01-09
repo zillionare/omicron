@@ -1,7 +1,13 @@
 import datetime
 from typing import List
 from omicron.core.errors import DataNotReadyError
-from omicron.core.types import MarketType, SecurityType, Frame, FrameType
+from omicron.core.types import (
+    MarketType,
+    SecurityType,
+    Frame,
+    FrameType,
+    stock_bars_dtype,
+)
 from omicron.dal import cache
 import numpy as np
 import arrow
@@ -37,18 +43,52 @@ class Stock:
         self._type = SecurityType(_type)
 
     @classmethod
-    async def load_stocks(cls):
-        secs = await cache.get_securities()
+    async def load_securities(cls):
+        """
+        加载所有证券的信息，并缓存到内存中。
+        """
+        secs = await cache.security.lrange("security:stock", 0, -1, encoding="utf-8")
         if len(secs) != 0:
             _stocks = np.array(
                 [tuple(x.split(",")) for x in secs], dtype=cls.fileds_type
             )
 
-            cls._stocks = _stocks[(_stocks.type == "stock") | (_stocks.type == "index")]
+            _stocks = _stocks[
+                (_stocks["type"] == "stock") | (_stocks["type"] == "index")
+            ]
 
-        raise DataNotReadyError(
-            "No securities in cache, make sure you have called omicron.init() first."
-        )
+            _stocks["ipo"] = [arrow.get(x).date() for x in _stocks["ipo"]]
+            _stocks["end"] = [arrow.get(x).date() for x in _stocks["end"]]
+
+            return _stocks
+        else:
+            return None
+
+    @classmethod
+    async def init(cls):
+        secs = await cls.load_securities()
+        if len(secs) != 0:
+            cls._stocks = secs
+        else:
+            raise DataNotReadyError(
+                "No securities in cache, make sure you have called omicron.init() first."
+            )
+
+    @classmethod
+    async def save_securities(cls, securities: List[str]):
+        """
+        保存指定的证券到缓存中。
+        Args:
+            securities: 证券代码列表。
+        """
+        key = "security:stock"
+        pipeline = cache.security.pipeline()
+        pipeline.delete(key)
+        for code, display_name, name, start, end, _type in securities:
+            pipeline.rpush(
+                key, f"{code},{display_name},{name},{start}," f"{end},{_type}"
+            )
+        await pipeline.execute()
 
     @classmethod
     def choose(
@@ -282,4 +322,114 @@ class Stock:
         Raises:
             NotImplementedError: [description]
         """
+        raise NotImplementedError
+
+    @classmethod
+    async def reset_cache(cls):
+        """清除缓存"""
+        for ft in cal.minute_level_frames:
+            await cache.security.delete(f"bars:{ft.value}:unclosed")
+            keys = await cache.security.keys(f"bars:{ft.value}:*")
+            if keys:
+                await cache.security.delete(*keys)
+
+    @classmethod
+    async def _get_cached_bars(
+        cls, code: str, frame_type: FrameType, unclosed=True
+    ) -> np.ndarray:
+        """从缓存中获取指定代码的行情数据
+
+        如果行情数据为日线以上级别，则最多只会返回一条数据（也可能没有）。如果行情数据为分钟级别数据，则一次返回当天已缓存的所有数据。
+
+        args:
+            code: the full qualified code of a security or index
+            end: the end frame of the bars
+            frame_type: use this to decide which store to use
+        """
+        raw = []
+        if frame_type in cal.day_level_frames:
+            if unclosed:
+                key = f"bars:{frame_type.value}:unclosed"
+                r1 = await cache.security.hget(key, code)
+                if r1 is None:
+                    return None
+
+                raw.append(r1)
+            else:
+                assert (
+                    False
+                ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
+        else:
+            key = f"bars:{frame_type.value}:{code}"
+            r1 = await cache.security.lrange(key, 0, -1)
+            raw.extend(r1)
+
+            if unclosed:
+                key = f"bars:{frame_type.value}:unclosed"
+                r2 = await cache.security.hget(key, code)
+                raw.append(r2)
+
+        # convert
+        frame_convertor = (
+            cal.int2time if frame_type in cal.minute_level_frames else cal.int2date
+        )
+
+        recs = []
+        for raw_rec in raw:
+            f, o, h, l, c, v, m, a, hl, ll, pc, fac = raw_rec.split(",")
+            recs.append(
+                (
+                    frame_convertor(f),
+                    float(o),
+                    float(h),
+                    float(l),
+                    float(c),
+                    float(v),
+                    float(m),
+                    float(a),
+                    float(hl),
+                    float(ll),
+                    float(pc),
+                    float(fac),
+                )
+            )
+
+        return np.array(recs, dtype=stock_bars_dtype)
+
+    @classmethod
+    async def cache_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
+        """将行情数据缓存"""
+        bars = bars.copy()
+        # 转换时间为int
+        if frame_type in cal.day_level_frames:
+            bars["frame"] = [cal.date2int(x) for x in bars["frame"]]
+        else:
+            bars["frame"] = [cal.time2int(x) for x in bars["frame"]]
+
+        pl = cache.security.pipeline()
+        for bar in bars:
+            pl.rpush(f"bars:{frame_type.value}:{code}", ",".join(map(str, bar)))
+        await pl.execute()
+
+    @classmethod
+    async def cache_unclosed_bars(
+        cls, code: str, frame_type: FrameType, bars: np.ndarray
+    ):
+        """将未结束的行情数据缓存"""
+        bars = bars.copy()
+        # 转换时间为int
+        if frame_type in cal.day_level_frames:
+            bars["frame"] = [cal.date2int(x) for x in bars["frame"]]
+        else:
+            bars["frame"] = [cal.time2int(x) for x in bars["frame"]]
+
+        assert len(bars) == 1, "unclosed bars should only have one record"
+
+        await cache.security.hset(
+            f"bars:{frame_type.value}:unclosed", code, ",".join(map(str, bars[0]))
+        )
+
+    @classmethod
+    async def persist_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
+        """将行情数据持久化"""
         raise NotImplementedError

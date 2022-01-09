@@ -1,1 +1,1 @@
-from .np import *
+from omicron.extensions.np import *

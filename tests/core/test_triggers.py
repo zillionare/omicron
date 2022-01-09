@@ -2,19 +2,25 @@ import logging
 import unittest
 
 import arrow
-
+from tests import init_test_env
+import omicron
 from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
 from omicron.core.types import FrameType
+import tzlocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def _datetime(tm: str):
-    return arrow.get(tm, tzinfo="Asia/Shanghai").datetime
+    return arrow.get(tm).datetime
 
 
 class TriggersTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        await init_test_env()
+        await omicron.init()
+
     async def test_frame_trigger(self):
         X = [
             # FrameType      jitter  prev   now
@@ -56,7 +62,9 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             logger.info("%s: %s", i, X[i])
             trigger = FrameTrigger(X[i][0], X[i][1])
             next_tick = trigger.get_next_fire_time(None, _datetime(X[i][3]))
-            self.assertEqual(_datetime(Y[i]), next_tick)
+
+            tz = tzlocal.get_localzone()
+            self.assertEqual(_datetime(Y[i]).astimezone(tz), next_tick)
 
     async def test_interval_triggers(self):
         for i, (interval, prev, now, exp) in enumerate(
@@ -89,7 +97,9 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
         ):
             trigger = TradeTimeIntervalTrigger(interval)
             actual = trigger.get_next_fire_time(_datetime(prev), _datetime(now))
-            self.assertEqual(_datetime(exp), actual)
+            tz = tzlocal.get_localzone()
+
+            self.assertEqual(_datetime(exp).astimezone(tz), actual)
 
 
 if __name__ == "__main__":

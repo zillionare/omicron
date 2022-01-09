@@ -13,7 +13,7 @@ class FrameType(Enum):
     |     周期    | 字符串 | 类型                 | 数值 |
     | --------- | --- | ------------------ | -- |
     |     年线    | 1Y  | FrameType.YEAR     | 10 |
-    |     季线    | 1Q  | FrameType.QUATER |  9  |
+    |     季线    | 1Q  | FrameType.QUARTER |  9  |
     |     月线    | 1M  | FrameType.MONTH    | 8  |
     |     周线    | 1W  | FrameType.WEEK     | 7  |
     |     日线    | 1D  | FrameType.DAY      | 6  |
@@ -131,13 +131,17 @@ class MarketType(Enum):
     XSHE = "XSHE"
 
 
-bars_dtype = [
+stock_bars_dtype = [
     ("frame", "O"),
     ("open", "f4"),
     ("high", "f4"),
     ("low", "f4"),
     ("close", "f4"),
     ("volume", "f8"),
-    ("amount", "f8"),
+    ("money", "f8"),
+    ("avg", "f4"),
+    ("high_limit", "f4"),
+    ("low_limit", "f4"),
+    ("pre_close", "f4"),
     ("factor", "f4"),
 ]

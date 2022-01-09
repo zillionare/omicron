@@ -9,9 +9,11 @@ from typing import Iterable, List, Optional, Union
 import arrow
 import numpy as np
 from arrow import Arrow
-from omicron import extensions as ext
 
+from omicron import extensions as ext
+from omicron.core.errors import DataNotReadyError
 from omicron.core.types import Frame, FrameType
+from omicron.dal import cache
 
 logger = logging.getLogger(__file__)
 
@@ -24,7 +26,13 @@ class Calendar:
         FrameType.MIN30,
         FrameType.MIN60,
     ]
-    day_level_frames = [FrameType.DAY, FrameType.WEEK, FrameType.MONTH, FrameType.YEAR]
+    day_level_frames = [
+        FrameType.DAY,
+        FrameType.WEEK,
+        FrameType.MONTH,
+        FrameType.QUARTER,
+        FrameType.YEAR,
+    ]
 
     ticks = {
         FrameType.MIN1: [i for i in itertools.chain(range(571, 691), range(781, 901))],
@@ -53,16 +61,21 @@ class Calendar:
         """从数据缓存中加载更新日历"""
         from omicron import cache
 
-        for name in [
+        names = [
             "day_frames",
             "week_frames",
             "month_frames",
             "quater_frames",
             "year_frames",
-        ]:
-            frames = await cache.load_calendar(name)
-            if frames and len(frames):
+        ]
+        for name, frame_type in zip(names, cls.day_level_frames):
+            key = f"calendar:{frame_type.value}"
+            result = await cache.security.lrange(key, 0, -1)
+            if result is not None and len(result):
+                frames = [int(x) for x in result]
                 setattr(cls, name, np.array(frames))
+            else:
+                raise DataNotReadyError(f"calendar data is not ready: {name} missed")
 
     @classmethod
     async def init(cls):
@@ -903,8 +916,7 @@ class Calendar:
             if weeks[-1] < last:
                 weeks.append(last)
 
-            week_frames = [cls.date2int(x) for x in weeks]
-            return week_frames
+            return weeks
         elif frame_type == FrameType.MONTH:
             months = []
             last = trade_days[0]
@@ -914,8 +926,7 @@ class Calendar:
                 last = cur
             months.append(last)
 
-            month_frames = [cls.date2int(x) for x in months]
-            return month_frames
+            return months
         elif frame_type == FrameType.QUARTER:
             quaters = []
             last = trade_days[0]
@@ -925,8 +936,7 @@ class Calendar:
                 last = cur
             quaters.append(last)
 
-            quater_frames = [cls.date2int(x) for x in quaters]
-            return quater_frames
+            return quaters
         elif frame_type == FrameType.YEAR:
             years = []
             last = trade_days[0]
@@ -936,8 +946,7 @@ class Calendar:
                 last = cur
             years.append(last)
 
-            year_frames = [cls.date2int(x) for x in years]
-            return year_frames
+            return years
         else:
             raise ValueError(f"Unsupported FrameType: {frame_type}")
 
@@ -974,3 +983,22 @@ class Calendar:
         # ’right' 相当于 ticks <= m
         index = np.searchsorted(ticks, moment, side="right")
         return ticks[index - 1], 0
+
+    @classmethod
+    async def save_calendar(cls, trade_days):
+        for ft in [FrameType.WEEK, FrameType.MONTH, FrameType.QUARTER, FrameType.YEAR]:
+            days = cls.resample_frames(trade_days, ft)
+            frames = [cls.date2int(x) for x in days]
+
+            key = f"calendar:{ft.value}"
+            pl = cache.security.pipeline()
+            pl.delete(key)
+            pl.rpush(key, *frames)
+            await pl.execute()
+
+        frames = [cls.date2int(x) for x in trade_days]
+        key = f"calendar:{FrameType.DAY.value}"
+        pl = cache.security.pipeline()
+        pl.delete(key)
+        pl.rpush(key, *frames)
+        await pl.execute()

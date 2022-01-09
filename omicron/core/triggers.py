@@ -10,6 +10,8 @@ import datetime
 import logging
 import re
 from typing import Optional, Union
+import pytz
+import tzlocal
 
 from apscheduler.triggers.base import BaseTrigger
 
@@ -98,6 +100,8 @@ class FrameTrigger(BaseTrigger):
         """"""
         ft = self.frame_type
 
+        # `now` is timezone aware, while ceiling isn't
+        now = now.replace(tzinfo=None)
         next_tick = now
         next_frame = cal.ceiling(now, ft)
         while next_tick <= now:
@@ -107,7 +111,8 @@ class FrameTrigger(BaseTrigger):
                 next_tick = next_frame + self.jitter
 
             if next_tick > now:
-                return next_tick
+                tz = tzlocal.get_localzone()
+                return next_tick.astimezone(tz)
             else:
                 next_frame = cal.shift(next_frame, 1, ft)
 
