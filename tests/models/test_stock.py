@@ -1,12 +1,14 @@
-from re import A
-import unittest
-from omicron.models.stock import Stock
-import numpy as np
-from unittest import mock
-import omicron
-from tests import init_test_env
 import datetime
+import unittest
+from re import A
+from unittest import mock
+
+import numpy as np
+
+import omicron
 from omicron.core.types import FrameType, stock_bars_dtype
+from omicron.models.stock import Stock
+from tests import init_test_env
 
 
 class StockTest(unittest.IsolatedAsyncioTestCase):
@@ -99,7 +101,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         await Stock.cache_unclosed_bars("000001.XSHE", FrameType.DAY, bars)
         actual = await Stock._get_cached_bars("000001.XSHE", FrameType.DAY)
-        np.testing.assert_array_equal(bars, bars)
+        np.testing.assert_array_equal(bars, actual)
 
         bars = np.array(
             [

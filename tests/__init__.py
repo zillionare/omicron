@@ -2,16 +2,17 @@
 import ftplib
 import logging
 import os
-from omicron.core.types import FrameType
 from unittest import mock
-import arrow
 
 import aioredis
+import arrow
 import cfg4py
 import numpy as np
+
+from omicron.core.types import FrameType
+from omicron.dal import cache
 from omicron.models.calendar import Calendar as cal
 from omicron.models.stock import Stock
-from omicron.dal import cache
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)

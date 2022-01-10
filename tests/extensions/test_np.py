@@ -1,6 +1,16 @@
 import unittest
+
+import numpy as np
+
+from omicron.extensions.np import (
+    count_between,
+    floor,
+    join_by_left,
+    numpy_append_fields,
+    shift,
+)
 from omicron.models.calendar import Calendar as cal
-from omicron.extensions.np import *
+
 
 class NpTest(unittest.TestCase):
     def test_count_between(self):
@@ -70,4 +80,3 @@ class NpTest(unittest.TestCase):
         self.assertEqual(9, floor(a, 9))
         self.assertEqual(3, floor(a, 4))
         self.assertEqual(9, floor(a, 10))
-

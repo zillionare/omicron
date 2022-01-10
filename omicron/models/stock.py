@@ -1,17 +1,19 @@
 import datetime
+import re
 from typing import List
+
+import arrow
+import numpy as np
+
 from omicron.core.errors import DataNotReadyError
 from omicron.core.types import (
-    MarketType,
-    SecurityType,
     Frame,
     FrameType,
+    MarketType,
+    SecurityType,
     stock_bars_dtype,
 )
 from omicron.dal import cache
-import numpy as np
-import arrow
-import re
 from omicron.models.calendar import Calendar as cal
 
 

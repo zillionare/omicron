@@ -10,13 +10,13 @@ import datetime
 import logging
 import re
 from typing import Optional, Union
+
 import pytz
 import tzlocal
-
 from apscheduler.triggers.base import BaseTrigger
 
-from omicron.models.calendar import Calendar as cal
 from omicron.core.types import FrameType
+from omicron.models.calendar import Calendar as cal
 
 logger = logging.getLogger(__name__)
 

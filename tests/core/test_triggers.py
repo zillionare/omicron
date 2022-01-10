@@ -2,11 +2,12 @@ import logging
 import unittest
 
 import arrow
-from tests import init_test_env
+import tzlocal
+
 import omicron
 from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
 from omicron.core.types import FrameType
-import tzlocal
+from tests import init_test_env
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
