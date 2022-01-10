@@ -1,10 +1,10 @@
 import datetime
-from typing import Union, List
+from typing import List, Union
 
 import numpy as np
 import sqlalchemy
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.types import BigInteger, Date, Float, Integer, String
 
 from omicron import db
