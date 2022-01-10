@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.types import BigInteger, Date, Float, Integer, String
 
 from omicron import db
-from omicron.core.timeframe import tf
+from omicron.models.calendar import Calendar as cal
 from omicron.core.types import FrameType
 
 
@@ -196,11 +196,10 @@ class FundNetValue(db.Model):
         result = []
 
         today = day or datetime.date.today()
-
-        last_week_trade_day = tf.floor(
+        last_week_trade_day = cal.floor(
             today - datetime.timedelta(today.weekday() + 1), frame_type=FrameType.DAY
         )
-        last_month_trade_day = tf.floor(
+        last_month_trade_day = cal.floor(
             datetime.date(today.year, today.month, 1) - datetime.timedelta(1),
             frame_type=FrameType.DAY,
         )

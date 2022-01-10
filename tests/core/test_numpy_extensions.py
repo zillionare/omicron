@@ -12,7 +12,7 @@ from omicron.core.numpy_extensions import (
 import unittest
 
 
-from omicron.core.timeframe import tf
+from omicron.models.calendar import Calendar as cal
 import numpy as np
 import pandas as pd
 
@@ -23,7 +23,7 @@ class NumpyExtensionsTest(unittest.TestCase):
          20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = tf.day_frames
+        arr = cal.day_frames
 
         actual = count_between(arr, start=20050104, end=20050111)
         self.assertEqual(6, actual)
@@ -42,7 +42,7 @@ class NumpyExtensionsTest(unittest.TestCase):
         20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = tf.day_frames
+        arr = cal.day_frames
 
         self.assertEqual(20050105, shift(arr, 20050104, 1))
         self.assertEqual(20050104, shift(arr, 20050105, -1))

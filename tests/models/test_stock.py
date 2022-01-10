@@ -190,3 +190,25 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         np.testing.assert_array_equal(bars[0], cached[0])
         np.testing.assert_array_equal(unclosed[0], cached[1])
+
+    async def test_persist_bars(self):
+        bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 7, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.2,
+                    1.1266307e08,
+                    1.93771096e09,
+                    17.2,
+                    18.83,
+                    15.41,
+                    17.12,
+                    1.0,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+        await Stock.persist_bars("000001.XSHE", FrameType.MIN30, bars)
