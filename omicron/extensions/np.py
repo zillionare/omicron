@@ -1,42 +1,109 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""Extension function related to numpy
 """
-将Omicron中与性能相关比较密切的函数抽取到这个模块。以便将来进行加速。
+from __future__ import annotations
 
-TODO： 部分函数之前已使用numba加速，但因numba与OS的兼容性问题取消。需要随时保持跟踪。
-"""
-import logging
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
-from deprecated import deprecated
+from numpy.typing import ArrayLike
 
-logger = logging.getLogger(__name__)
-
-
-@deprecated(version="1.1")
-def index(arr, item):  # pragma: no cover
-    for idx, val in np.ndenumerate(arr):
-        if val == item:
-            return idx
-    # If no item was found return None, other return types might be a problem due to
-    # numba's type inference.
-    return -1
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
 
-@deprecated(version="1.1")
-def index_sorted(arr, item):  # pragma: no cover
-    pos = np.searchsorted(arr, item)
-    if arr[pos] == item:
-        return pos
+def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
+    """convert dictionary to numpy array
+
+    Examples:
+
+    >>> d = {"aaron": 5, "jack": 6}
+    >>> dtype = [("name", "S8"), ("score", "<i4")]
+    >>> dict_to_numpy_array(d, dtype)
+    array([(b'aaron', 5), (b'jack', 6)],
+          dtype=[('name', 'S8'), ('score', '<i4')])
+
+    Args:
+        d (dict): [description]
+        dtype (List[Tuple]): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    return np.fromiter(d.items(), dtype=dtype, count=len(d))
+
+
+def dataframe_to_structured_array(
+    df: "DataFrame", dtypes: List[Tuple] = None
+) -> ArrayLike:
+    """convert dataframe (with all columns, and index possibly) to numpy structured arrays
+
+    `len(dtypes)` should be either equal to `len(df.columns)` or `len(df.columns) + 1`. In the later case, it implies to include `df.index` into converted array.
+
+    Args:
+        df: the one needs to be converted
+        dtypes: Defaults to None. If it's `None`, then dtypes of `df` is used, in such case, the `index` of `df` will not be converted.
+
+    Returns:
+        ArrayLike: [description]
+    """
+    v = df
+    if dtypes is not None:
+        dtypes_in_dict = {key: value for key, value in dtypes}
+
+        col_len = len(df.columns)
+        if len(dtypes) == col_len + 1:
+            v = df.reset_index()
+
+            rename_index_to = set(dtypes_in_dict.keys()).difference(set(df.columns))
+            v.rename(columns={"index": list(rename_index_to)[0]}, inplace=True)
+        elif col_len != len(dtypes):
+            raise ValueError(
+                f"length of dtypes should be either {col_len} or {col_len + 1}, is {len(dtypes)}"
+            )
+
+        # re-arrange order of dtypes, in order to align with df.columns
+        dtypes = []
+        for name in v.columns:
+            dtypes.append((name, dtypes_in_dict[name]))
     else:
-        return -1
+        dtypes = df.dtypes
+
+    return np.array(np.rec.fromrecords(v.values), dtype=dtypes)
 
 
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved into omicron.core.numpy_extensions module",
-)
+def numpy_array_to_dict(arr: np.array, key: str, value: str) -> dict:
+    return {item[key]: item[value] for item in arr}
+
+
+def find_runs(x):
+    """Find runs of consecutive items in an array."""
+
+    # ensure array
+    x = np.asanyarray(x)
+    if x.ndim != 1:
+        raise ValueError("only 1D array supported")
+    n = x.shape[0]
+
+    # handle empty array
+    if n == 0:
+        return np.array([]), np.array([]), np.array([])
+
+    else:
+        # find run starts
+        loc_run_start = np.empty(n, dtype=bool)
+        loc_run_start[0] = True
+        np.not_equal(x[:-1], x[1:], out=loc_run_start[1:])
+        run_starts = np.nonzero(loc_run_start)[0]
+
+        # find run values
+        run_values = x[loc_run_start]
+
+        # find run lengths
+        run_lengths = np.diff(np.append(run_starts, n))
+
+        return run_values, run_starts, run_lengths
+
+
 def count_between(arr, start, end):
     """计算数组中，`start`元素与`end`元素之间共有多少个元素
 
@@ -62,11 +129,6 @@ def count_between(arr, start, end):
     return counter
 
 
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved to omicron.core.numpy_extensions module",
-)
 def shift(arr, start, offset):
     """在numpy数组arr中，找到start(或者最接近的一个），取offset对应的元素。
 
@@ -101,50 +163,6 @@ def shift(arr, start, offset):
         return arr[pos + offset - 1]
 
 
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved to omicron.core.timeframe module",
-)
-def minute_frames_floor(ticks, moment):
-    """
-    对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
-    日，则进位为-1，否则为0.
-
-    Examples:
-        >>> ticks = [600, 630, 660, 690, 810, 840, 870, 900]
-        >>> minute_frames_floor(ticks, 545)
-        (900, -1)
-        >>> minute_frames_floor(ticks, 600)
-        (600, 0)
-        >>> minute_frames_floor(ticks, 605)
-        (600, 0)
-        >>> minute_frames_floor(ticks, 899)
-        (870, 0)
-        >>> minute_frames_floor(ticks, 900)
-        (900, 0)
-        >>> minute_frames_floor(ticks, 905)
-        (900, 0)
-
-    Args:
-        ticks (np.array or list): frames刻度
-        moment (int): 整数表示的分钟数，比如900表示15：00
-
-    Returns:
-        tuple, the first is the new moment, the second is carry-on
-    """
-    if moment < ticks[0]:
-        return ticks[-1], -1
-    # ’right' 相当于 ticks <= m
-    index = np.searchsorted(ticks, moment, side="right")
-    return ticks[index - 1], 0
-
-
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved to omicron.core.numpy_extensions module",
-)
 def floor(arr, item):
     """
     在数据arr中，找到小于等于item的那一个值。如果item小于所有arr元素的值，返回arr[0];如果item
@@ -178,11 +196,6 @@ def floor(arr, item):
     return arr[index - 1]
 
 
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved to omicron.core.numpy_extensions module",
-)
 def join_by_left(key, r1, r2, mask=True):
     """左连接 `r1`, `r2` by `key`
 
@@ -271,11 +284,6 @@ def join_by_left(key, r1, r2, mask=True):
     return ret
 
 
-@deprecated(
-    category=PendingDeprecationWarning,
-    version="1.1",
-    reason="this will be moved to omicron.core.numpy_extensions module",
-)
 def numpy_append_fields(base, names, data, dtypes):
     """给现有的数组`base`增加新的字段
 
@@ -305,12 +313,8 @@ def numpy_append_fields(base, names, data, dtypes):
         dtypes ([type]): 新增字段的dtype
     """
     if isinstance(names, str):
-        names = [
-            names,
-        ]
-        data = [
-            data,
-        ]
+        names = [names]
+        data = [data]
 
     result = np.empty(base.shape, dtype=base.dtype.descr + dtypes)
     for col in base.dtype.names:
@@ -320,3 +324,33 @@ def numpy_append_fields(base, names, data, dtypes):
         result[names[i]] = data[i]
 
     return result
+
+
+def ffill_na(s: np.array) -> np.array:
+    """前向替换一维数组中的np.NaN
+
+    如果s以np.NaN起头，则起头处的np.NaN将无法被替换。
+
+    Examples:
+
+        >>> arr = np.arange(6, dtype=np.float32)
+        >>> arr[3:5] = np.NaN
+        >>> ffill_na(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([0., 1., 2., 2., 2., 5.], dtype=float32)
+
+        >>> arr[0:2] = np.nan
+        >>> ffill_na(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([nan, nan, 2., 2., 2., 5.], dtype=float32)
+
+    Args:
+        s (np.array): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    mask = np.isnan(s)
+    idx = np.where(~mask, np.arange(len(mask)), 0)
+    np.maximum.accumulate(idx, out=idx)
+    return s[idx]

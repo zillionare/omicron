@@ -6,17 +6,13 @@ import cfg4py
 import gino
 import pkg_resources
 
-from omicron.core.timeframe import tf
 from omicron.dal.cache import cache
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
+from omicron.models.calendar import Calendar as cal
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
-
-# 如果omicron是与omega在同一进程中，则会调用AbstractQuotesFetcher来获取行情数据，否则将使用
-# 远程接口来获取数据
-_local_fetcher = None
 
 
 async def init(fetcher=None):
@@ -29,23 +25,22 @@ async def init(fetcher=None):
     Returns:
 
     """
-    # to avoid circular import
-    from .models.securities import Securities
-
     global _local_fetcher, cache
     _local_fetcher = fetcher
 
     await cache.init()
-    secs = Securities()
-    await secs.load()
-    await tf.update_calendar()
+    await cal.init()
+
+    from omicron.models.stock import Stock
+
+    await Stock.init()
 
     cfg = cfg4py.get_instance()
     if cfg.postgres.enabled:
         await init_db(cfg.postgres.dsn)
 
 
-async def shutdown():
+async def close():
     """关闭与数据库、缓存的连接"""
     try:
         await db.pop_bind().close()
@@ -56,12 +51,6 @@ async def shutdown():
         await cache.close()
     except Exception as e:  # noqa
         pass
-
-
-def get_local_fetcher():
-    global _local_fetcher
-
-    return _local_fetcher
 
 
 def has_db():

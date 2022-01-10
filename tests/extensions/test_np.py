@@ -2,24 +2,23 @@ import unittest
 
 import numpy as np
 
-from omicron.core.accelerate import (
+from omicron.extensions.np import (
     count_between,
     floor,
     join_by_left,
-    minute_frames_floor,
     numpy_append_fields,
     shift,
 )
-from omicron.core.timeframe import tf
+from omicron.models.calendar import Calendar as cal
 
 
-class AccelerateTest(unittest.TestCase):
+class NpTest(unittest.TestCase):
     def test_count_between(self):
         """day frames:
          20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = tf.day_frames
+        arr = cal.day_frames
 
         actual = count_between(arr, start=20050104, end=20050111)
         self.assertEqual(6, actual)
@@ -38,7 +37,7 @@ class AccelerateTest(unittest.TestCase):
         20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = tf.day_frames
+        arr = cal.day_frames
 
         self.assertEqual(20050105, shift(arr, 20050104, 1))
         self.assertEqual(20050104, shift(arr, 20050105, -1))
@@ -81,12 +80,3 @@ class AccelerateTest(unittest.TestCase):
         self.assertEqual(9, floor(a, 9))
         self.assertEqual(3, floor(a, 4))
         self.assertEqual(9, floor(a, 10))
-
-    def test_minute_frames_floor(self):
-        ticks = [600, 630, 660, 690, 810, 840, 870, 900]
-        self.assertTupleEqual((900, -1), minute_frames_floor(ticks, 545))
-        self.assertTupleEqual((600, 0), minute_frames_floor(ticks, 600))
-        self.assertTupleEqual((600, 0), minute_frames_floor(ticks, 605))
-        self.assertTupleEqual((870, 0), minute_frames_floor(ticks, 899))
-        self.assertTupleEqual((900, 0), minute_frames_floor(ticks, 900))
-        self.assertTupleEqual((900, 0), minute_frames_floor(ticks, 905))
