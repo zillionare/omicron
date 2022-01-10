@@ -10,6 +10,7 @@ from omicron.dal.cache import cache
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
 from omicron.models.calendar import Calendar as cal
+from omicron.dal.influxdb import influxdb
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ async def init(fetcher=None):
 
     await cache.init()
     await cal.init()
-
+    await influxdb.init()
     from omicron.models.stock import Stock
 
     await Stock.init()

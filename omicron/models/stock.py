@@ -4,6 +4,7 @@ from typing import List
 
 import arrow
 import numpy as np
+import pandas as pd
 
 from omicron.core.errors import DataNotReadyError
 from omicron.core.types import (
@@ -13,7 +14,7 @@ from omicron.core.types import (
     SecurityType,
     stock_bars_dtype,
 )
-from omicron.dal import cache
+from omicron.dal import cache, influxdb
 from omicron.models.calendar import Calendar as cal
 
 
@@ -434,4 +435,8 @@ class Stock:
     @classmethod
     async def persist_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
         """将行情数据持久化"""
-        raise NotImplementedError
+        df = pd.DataFrame(data=bars, columns=bars.dtype.names)
+        df["code"] = code
+        df["frame_type"] = frame_type.to_int()
+        df.index = df["frame"]
+        await influxdb.write("zillionare", df, "stock", ["frame", "frame_type", "code"])
