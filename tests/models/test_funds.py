@@ -1,10 +1,12 @@
 import logging
 import unittest
 from unittest.mock import patch
+
 import arrow
+
 import omicron
-from tests import init_test_env
 from omicron.models.funds import Funds
+from tests import init_test_env
 
 logger = logging.getLogger(__name__)
 

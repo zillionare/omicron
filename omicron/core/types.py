@@ -139,9 +139,5 @@ stock_bars_dtype = [
     ("close", "f4"),
     ("volume", "f8"),
     ("money", "f8"),
-    ("avg", "f4"),
-    ("high_limit", "f4"),
-    ("low_limit", "f4"),
-    ("pre_close", "f4"),
     ("factor", "f4"),
 ]

@@ -1,5 +1,7 @@
 import datetime
+import ftplib
 import unittest
+from unittest import mock
 
 import arrow
 import numpy as np
@@ -153,10 +155,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.2,
                     1.1266307e08,
                     1.93771096e09,
-                    17.2,
-                    18.83,
-                    15.41,
-                    17.12,
                     1.0,
                 )
             ],
@@ -173,10 +171,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.12,
                     1.10788519e08,
                     1.89653584e09,
-                    17.12,
-                    18.87,
-                    15.44,
-                    17.15,
                     1.0,
                 ),
             ],
@@ -501,3 +495,175 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         bars["code"] = "000001.XSHE"
         await Stock.persist_bars(FrameType.MIN30, bars)
+
+    async def test_get_bars(self):
+        await Stock.reset_cache()
+
+        code = "000001.XSHE"
+        cache_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 10, 9, 45),
+                    17.29,
+                    17.42,
+                    17.16,
+                    17.18,
+                    23069200.0,
+                    3.99426730e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 0),
+                    17.17,
+                    17.27,
+                    17.08,
+                    17.13,
+                    12219500.0,
+                    2.09659075e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 15),
+                    17.14,
+                    17.15,
+                    17.03,
+                    17.04,
+                    11106800.0,
+                    1.89643093e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 30),
+                    17.05,
+                    17.12,
+                    17.05,
+                    17.09,
+                    3352900.0,
+                    5.72981150e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 45),
+                    17.08,
+                    17.19,
+                    17.07,
+                    17.14,
+                    3150400.0,
+                    5.39887270e07,
+                    121.71913,
+                ),
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        cache_unclosed_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 10, 10, 47),
+                    17.14,
+                    17.17,
+                    17.14,
+                    17.15,
+                    376200.0,
+                    6.45355700e06,
+                    121.71913,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        await Stock.cache_bars(code, FrameType.MIN15, cache_bars)
+        await Stock.cache_unclosed_bars(code, FrameType.MIN15, cache_unclosed_bars)
+
+        persist_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 7, 13, 15),
+                    17.24,
+                    17.28,
+                    17.24,
+                    17.26,
+                    7509700.0,
+                    1.29655754e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 13, 30),
+                    17.25,
+                    17.26,
+                    17.17,
+                    17.19,
+                    6348400.0,
+                    1.09249162e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 13, 45),
+                    17.18,
+                    17.22,
+                    17.16,
+                    17.2,
+                    2748100.0,
+                    4.72354460e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 0),
+                    17.19,
+                    17.2,
+                    17.17,
+                    17.2,
+                    3153700.0,
+                    5.42049370e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 15),
+                    17.19,
+                    17.23,
+                    17.19,
+                    17.22,
+                    5729200.0,
+                    9.86084270e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 30),
+                    17.22,
+                    17.25,
+                    17.2,
+                    17.22,
+                    6729300.0,
+                    1.15946564e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 45),
+                    17.21,
+                    17.23,
+                    17.17,
+                    17.18,
+                    7203100.0,
+                    1.23899524e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 15, 0),
+                    17.16,
+                    17.2,
+                    17.15,
+                    17.2,
+                    8683800.0,
+                    1.49181676e08,
+                    121.71913,
+                ),
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        with mock.patch.object(Stock, "_get_persited_bars", return_value=persist_bars):
+            ft = FrameType.MIN15
+            end = datetime.datetime(2022, 1, 10, 10, 47)
+            n = 1
+            bars = await Stock.get_bars("000001.XSHE", n, ft, end)
+            self.assertEqual(len(bars), n)

@@ -269,22 +269,22 @@ class Stock:
     @classmethod
     async def get_bars(
         cls,
+        code: str,
         n: int,
         frame_type: FrameType,
         end: Frame = None,
         fq=True,
-        closed=True,
-        skip_paused=True,
+        unclosed=True,
     ) -> np.ndarray:
         """获取最近的`n`个行情数据。
 
         返回的数据包含以下字段：
 
-        frame, open, high, low, close, volume, amount, high_limit, low_limit, pre_close
+        frame, open, high, low, close, volume, money, high_limit
 
         返回数据格式为numpy strucutre array，每一行对应一个bar,可以通过下标访问，如bars['frame'][-1]
 
-        返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，如果skip_paused未指定为False，则返回数据包含停牌时间段，其`frame`字段有意义，但其它字段，特别是close取值为None。如果指定为True，则返回数据不包含停牌时间段数据。此时返回的数据条数将少于`n`。
+        返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，该时段数据将被跳过，因此返回的记录可能不是交易日连续的。
 
         如果系统当前没有到指定时间`end`的数据，将尽最大努力返回数据。调用者可以通过判断最后一条数据的时间是否等于`end`来判断是否获取到了全部数据。
 
@@ -294,6 +294,38 @@ class Stock:
             frame_type (FrameType): [description]
             fq (bool, optional): [description]. Defaults to True.
             closed (bool, optional): 是否包含未收盘的数据。 Defaults to True.
+        """
+        closed_frame = cal.floor(end, frame_type)
+
+        if unclosed and closed_frame != end:
+            # 数据在cache中
+            part2 = await cls._get_cached_bars(code, frame_type, unclosed)
+
+        if len(part2) >= n:
+            bars = part2[-n:]
+        else:
+            part1 = await cls._get_persited_bars(code, n, frame_type, end)
+            bars = np.concatenate((part1, part2))[-n:]
+
+        if fq:
+            bars = cls.qfq(bars)
+
+        return bars
+
+    @classmethod
+    async def _get_persited_bars(
+        cls, code: str, n: int, frame_type: FrameType, end: Frame
+    ):
+        """从influxdb中获取数据
+
+        Args:
+            code (str): [description]
+            n (int): [description]
+            frame_type (FrameType): [description]
+            end (Frame): [description]
+
+        Raises:
+            NotImplemented: [description]
         """
         raise NotImplementedError
 
@@ -379,7 +411,7 @@ class Stock:
 
         recs = []
         for raw_rec in raw:
-            f, o, h, l, c, v, m, a, hl, ll, pc, fac = raw_rec.split(",")
+            f, o, h, l, c, v, m, fac = raw_rec.split(",")
             recs.append(
                 (
                     frame_convertor(f),
@@ -389,10 +421,6 @@ class Stock:
                     float(c),
                     float(v),
                     float(m),
-                    float(a),
-                    float(hl),
-                    float(ll),
-                    float(pc),
                     float(fac),
                 )
             )
