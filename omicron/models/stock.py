@@ -435,3 +435,96 @@ class Stock:
     async def persist_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
         """将行情数据持久化"""
         raise NotImplementedError
+
+    @classmethod
+    def resample(
+        cls, bars: np.ndarray, from_frame: FrameType, to_frame: FrameType
+    ) -> np.ndarray:
+        """将原来为`from_frame`的行情数据转换为`to_frame`的行情数据
+
+        如果`to_frame`为日线或者分钟级别线，则`from_frame`必须为分钟线；如果`to_frame`为周以上级别线，则`from_frame`必须为日线。其它级别之间的转换不支持。
+
+        如果`from_frame`为1分钟线，则必须从9：31起。
+
+        Args:
+            bars (np.ndarray): [description]
+            from_frame (FrameType): [description]
+            to_frame (FrameType): [description]
+
+        Returns:
+            np.ndarray: [description]
+        """
+        if from_frame == FrameType.MIN1:
+            return cls._resample_from_min1(bars, to_frame)
+        elif from_frame == FrameType.DAY:
+            return cls._resample_from_day(bars, to_frame)
+        else:
+            raise TypeError(f"unsupported from_frame: {from_frame}")
+
+    @classmethod
+    def _resample_from_min1(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
+        """将`bars`从1分钟线转换为`to_frame`的行情数据
+
+        重采样后的数据只包含frame, open, high, low, close, volume, money, factor，无论传入数据是否还有别的字段，它们都将被丢弃。
+
+        resampling 240根分钟线到5分钟大约需要100微秒。
+
+        TODO： 如果`bars`中包含nan怎么处理？
+        """
+        if bars[0]["frame"].minute != 31:
+            raise ValueError("resampling from 1min must start from 9:31")
+
+        bins_len = {
+            FrameType.MIN5: 5,
+            FrameType.MIN15: 15,
+            FrameType.MIN30: 30,
+            FrameType.MIN60: 60,
+        }[to_frame]
+
+        bins = len(bars) // bins_len
+        npart1 = bins * bins_len
+
+        part1 = bars[:npart1].reshape((-1, bins_len))
+        part2 = bars[npart1:]
+
+        open_pos = np.arange(bins) * bins_len
+        close_pos = np.arange(1, bins + 1) * bins_len - 1
+        if len(bars) > bins_len * bins:
+            close_pos = np.append(close_pos, len(bars) - 1)
+            resampled = np.empty((bins + 1,), dtype=stock_bars_dtype)
+        else:
+            resampled = np.empty((bins,), dtype=stock_bars_dtype)
+
+        resampled[:bins]["open"] = bars[open_pos]["open"]
+
+        resampled[:bins]["high"] = np.max(part1["high"], axis=1)
+        resampled[:bins]["low"] = np.min(part1["low"], axis=1)
+
+        resampled[:bins]["volume"] = np.sum(part1["volume"], axis=1)
+        resampled[:bins]["money"] = np.sum(part1["money"], axis=1)
+
+        if len(part2):
+            resampled[-1]["open"] = part2["open"][0]
+            resampled[-1]["high"] = np.max(part2["high"])
+            resampled[-1]["low"] = np.min(part2["low"])
+
+            resampled[-1]["volume"] = np.sum(part2["volume"])
+            resampled[-1]["money"] = np.sum(part2["money"])
+
+        cols = ["frame", "close", "factor"]
+        resampled[cols] = bars[close_pos][cols]
+
+        return resampled
+
+    @classmethod
+    def _resample_from_day(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
+        """将`bars`从日线转换成`to_frame`的行情数据
+
+        Args:
+            bars (np.ndarray): [description]
+            to_frame (FrameType): [description]
+
+        Returns:
+            np.ndarray: [description]
+        """
+        raise NotImplementedError
