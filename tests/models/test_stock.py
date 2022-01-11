@@ -7,7 +7,7 @@ import arrow
 import numpy as np
 
 import omicron
-from omicron.core.types import FrameType, stock_bars_dtype
+from omicron.core.types import FrameType, bars_with_limit_dtype, stock_bars_dtype
 from omicron.models.stock import Stock
 from tests import init_test_env
 
@@ -90,10 +90,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.2,
                     1.1266307e08,
                     1.93771096e09,
-                    17.2,
-                    18.83,
-                    15.41,
-                    17.12,
                     1.0,
                 ),
             ],
@@ -114,10 +110,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.2,
                     1.1266307e08,
                     1.93771096e09,
-                    17.2,
-                    18.83,
-                    15.41,
-                    17.12,
                     1.0,
                 ),
                 (
@@ -128,10 +120,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.12,
                     1.10788519e08,
                     1.89653584e09,
-                    17.12,
-                    18.87,
-                    15.44,
-                    17.15,
                     1.0,
                 ),
             ],
@@ -484,14 +472,12 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     17.2,
                     1.1266307e08,
                     1.93771096e09,
-                    17.2,
                     18.83,
                     15.41,
-                    17.12,
                     1.0,
                 )
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_with_limit_dtype,
         )
         bars["code"] = "000001.XSHE"
         await Stock.persist_bars(FrameType.MIN30, bars)

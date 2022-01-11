@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 class FundsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        self.cfg = init_test_env()
+        self.cfg = await init_test_env()
 
         self.cfg.postgres.enabled = True
         await omicron.init()
 
     async def asyncTearDown(self) -> None:
-        await omicron.shutdown()
+        await omicron.close()
 
     async def test_crud(self):
         await Funds.truncate()
