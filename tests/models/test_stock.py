@@ -211,4 +211,5 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             ],
             dtype=stock_bars_dtype,
         )
-        await Stock.persist_bars("000001.XSHE", FrameType.MIN30, bars)
+        bars["code"] = "000001.XSHE"
+        await Stock.persist_bars(FrameType.MIN30, bars)

@@ -433,10 +433,9 @@ class Stock:
         )
 
     @classmethod
-    async def persist_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
+    async def persist_bars(cls, frame_type: FrameType, bars: np.ndarray):
         """将行情数据持久化"""
         df = pd.DataFrame(data=bars, columns=bars.dtype.names)
-        df["code"] = code
         df["frame_type"] = frame_type.to_int()
         df.index = df["frame"]
         await influxdb.write("zillionare", df, "stock", ["frame", "frame_type", "code"])
