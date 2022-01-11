@@ -2,7 +2,6 @@
     selection:
         members:
             - init
-            - shutdown
-            - has_db
+            - close
     rendering:
         heading_level: 1

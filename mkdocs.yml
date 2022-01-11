@@ -8,9 +8,11 @@ nav:
   - 版本历史: history.md
   - API文档:
     - omicron: api/omicron.md
-    - omicron.core.timeframe: api/timeframe.md
-    - omicron.core.triggers: api/triggers.md
-    - omicron.core.types: api/types.md
+    - stock: api/stock.md
+    - calendar: api/calendar.md
+    - fund: api/fund.md
+    - triggers: api/triggers.md
+    - types: api/types.md
 
 theme:
   name: material
@@ -27,5 +29,10 @@ plugins:
   - mkdocstrings:
       watch:
         - omicron
+      handlers:
+        python:
+          setup_commands:
+            - import sys
+            - sys.path.append("omicron")
   - search
   - autorefs

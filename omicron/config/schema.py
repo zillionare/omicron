@@ -27,6 +27,13 @@ class Config(object):
     class redis:
         dsn: Optional[str] = None
 
+    class influxdb:
+        url: Optional[str] = None
+
+        token: Optional[str] = None
+
+        org: Optional[str] = None
+
     class postgres:
         dsn: Optional[str] = None
 
