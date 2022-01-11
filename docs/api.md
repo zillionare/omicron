@@ -1,6 +1,4 @@
-::: omicron.client
-::: omicron.core.accelerate
-::: omicron.core.lang
-::: omicron.core.timeframe.TimeFrame
+::: omicron.models.stock
+::: omicron.models.calendar
 ::: omicron.core.triggers
 ::: omicron.core.types

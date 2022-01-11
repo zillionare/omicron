@@ -8,9 +8,6 @@ nav:
   - 版本历史: history.md
   - API文档:
     - omicron: api/omicron.md
-    - omicron.core.accelerate: api/accelerate.md
-    - omicron.client: api/client.md
-    - omicron.core.lang: api/lang.md
     - omicron.core.timeframe: api/timeframe.md
     - omicron.core.triggers: api/triggers.md
     - omicron.core.types: api/types.md
