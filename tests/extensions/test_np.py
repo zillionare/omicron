@@ -4,6 +4,7 @@ import numpy as np
 
 from omicron.extensions.np import (
     count_between,
+    find_runs,
     floor,
     join_by_left,
     numpy_append_fields,
@@ -80,3 +81,18 @@ class NpTest(unittest.TestCase):
         self.assertEqual(9, floor(a, 9))
         self.assertEqual(3, floor(a, 4))
         self.assertEqual(9, floor(a, 10))
+
+    def test_find_runs(self):
+        a = [
+            1,
+            1,
+            2,
+            2,
+            3,
+            3,
+            3,
+        ]
+        value, pos, length = find_runs(a)
+        self.assertListEqual([1, 2, 3], value.tolist())
+        self.assertListEqual([0, 2, 4], pos.tolist())
+        self.assertListEqual([2, 2, 3], length.tolist())
