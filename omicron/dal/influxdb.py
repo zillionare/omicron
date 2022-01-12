@@ -5,6 +5,8 @@ import pandas as pd
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
 
+from omicron.core.types import Frame
+
 
 class PerssidentInfluxDb(object):
     @property
@@ -64,6 +66,31 @@ class PerssidentInfluxDb(object):
         self._org = cfg.influxdb.org
         self._token = cfg.influxdb.token
         self._url = cfg.influxdb.url
+
+    async def get_limit_in_date_range(
+        self, bucket: str, code: str, begin: Frame, end: Frame
+    ) -> pd.DataFrame:
+        params = {
+            "bucket": bucket,
+            "begin": begin,
+            "end": end,
+            "code": code,
+        }
+        query = """
+        from(bucket: bucket)
+            |> range(start: -200d)
+            |> filter(fn: (r) => r["_measurement"] == "stock")
+            |> filter(fn: (r) => r["_field"] == "high_limit" or r["_field"] == "low_limit" or r["_field"] = "close")
+            |> filter(fn: (r) => r["code"] == code)
+            |> filter(fn: (r) => r["frame"] >= begin or r["frame"] <= end)
+            |> filter(fn: (r) => r["frame_type"] == "6")
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> keep(columns: ["_time", "code", "frame", "frame_type","high_limit", "low_limit"])
+        """
+        data = self.client.query_api().query_data_frame(
+            query, params=params, org=self.org
+        )
+        return data
 
 
 cfg = cfg4py.get_instance()

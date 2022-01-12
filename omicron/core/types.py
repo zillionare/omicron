@@ -153,4 +153,5 @@ bars_with_limit_dtype = [
     ("high_limit", "f4"),
     ("low_limit", "O"),
     ("factor", "f4"),
+    ("code", "O"),
 ]
