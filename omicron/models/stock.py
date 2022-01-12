@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 from typing import List
 
@@ -17,6 +18,8 @@ from omicron.core.types import (
 from omicron.dal import cache, influxdb
 from omicron.models.calendar import Calendar as cal
 
+logger = logging.getLogger(__name__)
+
 
 class Stock:
     """ "
@@ -32,6 +35,17 @@ class Stock:
         ("end", "O"),
         ("type", "O"),
     ]
+
+    _cached_frames_start = {
+        FrameType.DAY: None,
+        FrameType.MIN60: None,
+        FrameType.MIN30: None,
+        FrameType.MIN15: None,
+        FrameType.MIN5: None,
+        FrameType.MIN1: None,
+    }
+
+    _is_cache_empty = True
 
     def __init__(self, code: str):
         self._code = code
@@ -247,7 +261,7 @@ class Stock:
     def qfq(bars) -> np.ndarray:
         """对行情数据执行前复权操作"""
         last = bars[-1]["factor"]
-        for field in ["open", "high", "low", "close"]:
+        for field in ["open", "high", "low", "close", "volume"]:
             bars[field] = (bars[field] / last) * bars["factor"]
 
         return bars
@@ -295,17 +309,20 @@ class Stock:
             fq (bool, optional): [description]. Defaults to True.
             closed (bool, optional): 是否包含未收盘的数据。 Defaults to True.
         """
-        closed_frame = cal.floor(end, frame_type)
+        end = end or arrow.now().naive
 
-        if unclosed and closed_frame != end:
-            # 数据在cache中
-            part2 = await cls._get_cached_bars(code, frame_type, unclosed)
+        part2 = await cls._get_cached_bars(code, end, n, frame_type, unclosed)
 
-        if len(part2) >= n:
-            bars = part2[-n:]
+        n2 = len(part2)
+        n1 = n - n2
+        if n1 > 0:
+            pend = cal.shift(cls.get_cached_first_frame(frame_type), -1, frame_type)
+            part1 = await cls._get_persited_bars(code, pend, n1, frame_type, unclosed)
         else:
-            part1 = await cls._get_persited_bars(code, n, frame_type, end)
-            bars = np.concatenate((part1, part2))[-n:]
+            part1 = np.empty((0,), dtype=stock_bars_dtype)
+
+        bars = np.concatenate([part1, part2])
+        assert len(bars) == n
 
         if fq:
             bars = cls.qfq(bars)
@@ -360,27 +377,98 @@ class Stock:
         raise NotImplementedError
 
     @classmethod
+    async def batch_cache_bars(cls, frame_type: FrameType, bars: np.ndarray):
+        """缓存已收盘的分钟线和日线
+
+        当缓存日线时，仅限于当日收盘后的第一次同步时调用。
+
+        bars的数据结构为：
+        （[“frame", "open", ..., "factor", "code”)]
+
+        bars中可能存在同一`code`的多条数据，这些数据在时间上按增序排列
+        """
+        fields = [x[0] for x in stock_bars_dtype][1:]
+        if frame_type == FrameType.DAY:
+            await cls.batch_cache_unclosed_bars(frame_type, bars)
+            return
+
+        pl = cache.security.pipeline()
+        for bar in bars:
+            code = bar["code"]
+            frame = cal.time2int(bar["frame"])
+            val = [frame, *bar[fields]]
+            pl.rpush(f"bars:{frame_type.value}:{code}", ",".join(map(str, val)))
+        await pl.execute()
+
+        cls.set_cached(bars[0]["frame"])
+
+    @classmethod
+    async def batch_cache_unclosed_bars(cls, frame_type: FrameType, bars: np.ndarray):
+        """缓存未收盘的5、15、30、60分钟线及日线
+
+        `bars`数据结构同`batch_cache_bars`方法。 `bars`中不应该存在同一code的多条数据。
+        """
+        pl = cache.security.pipeline()
+        key = f"bars:{frame_type.value}:unclosed"
+        for bar in bars:
+            code = bar["code"]
+            pl.hset(key, code, ",".join(map(str, bar[:-1])))
+        await pl.execute()
+
+    @classmethod
     async def reset_cache(cls):
         """清除缓存"""
-        for ft in cal.minute_level_frames:
-            await cache.security.delete(f"bars:{ft.value}:unclosed")
-            keys = await cache.security.keys(f"bars:{ft.value}:*")
-            if keys:
-                await cache.security.delete(*keys)
+        try:
+            for ft in cal.minute_level_frames:
+                await cache.security.delete(f"bars:{ft.value}:unclosed")
+                keys = await cache.security.keys(f"bars:{ft.value}:*")
+                if keys:
+                    await cache.security.delete(*keys)
+        finally:
+            cls._is_cache_empty = True
+
+    @classmethod
+    def get_cached_first_frame(cls, frame_type: FrameType) -> Frame:
+        if cls._is_cache_empty:
+            return None
+
+        return cls._cached_frames_start.get(frame_type, None)
+
+    @classmethod
+    def set_cached(cls, frame: Frame):
+        if cls._is_cache_empty:
+            dt = arrow.get(frame).date()
+
+            for ft in cal.minute_level_frames:
+                frame = cal.first_min_frame(dt, ft)
+                cls._cached_frames_start[ft] = frame
+            cls._cached_frames_start[FrameType.DAY] = dt
+
+            cls._is_cache_empty = False
+        else:
+            return
 
     @classmethod
     async def _get_cached_bars(
-        cls, code: str, frame_type: FrameType, unclosed=True
+        cls, code: str, end: Frame, n: int, frame_type: FrameType, unclosed=True
     ) -> np.ndarray:
         """从缓存中获取指定代码的行情数据
 
         如果行情数据为日线以上级别，则最多只会返回一条数据（也可能没有）。如果行情数据为分钟级别数据，则一次返回当天已缓存的所有数据。
+
+        本接口在如下场景下，性能不是最优的：
+        如果cache中存在接近240根分钟线，取截止到9：35分的前5根K线，此段实现也会取出全部k线，但只返回前5根。这样会引起不必要的网络通信及反串行化时间。
 
         args:
             code: the full qualified code of a security or index
             end: the end frame of the bars
             frame_type: use this to decide which store to use
         """
+        ff = cls.get_cached_first_frame(frame_type)
+
+        if ff is None or end < ff:
+            return np.empty((0,), dtype=stock_bars_dtype)
+
         raw = []
         if frame_type in cal.day_level_frames:
             if unclosed:
@@ -396,13 +484,14 @@ class Stock:
                 ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
         else:
             key = f"bars:{frame_type.value}:{code}"
-            r1 = await cache.security.lrange(key, 0, -1)
+            r1 = (await cache.security.lrange(key, 0, -1)) or []
             raw.extend(r1)
 
             if unclosed:
                 key = f"bars:{frame_type.value}:unclosed"
                 r2 = await cache.security.hget(key, code)
-                raw.append(r2)
+                if r2 is not None:
+                    raw.append(r2)
 
         # convert
         frame_convertor = (
@@ -425,12 +514,14 @@ class Stock:
                 )
             )
 
-        return np.array(recs, dtype=stock_bars_dtype)
+        bars = np.array(recs, dtype=stock_bars_dtype)
+        return bars[bars["frame"] <= end][-n:]
 
     @classmethod
     async def cache_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
         """将行情数据缓存"""
         bars = bars.copy()
+        today = bars[0]["frame"]
         # 转换时间为int
         if frame_type in cal.day_level_frames:
             bars["frame"] = [cal.date2int(x) for x in bars["frame"]]
@@ -442,11 +533,14 @@ class Stock:
             pl.rpush(f"bars:{frame_type.value}:{code}", ",".join(map(str, bar)))
         await pl.execute()
 
+        cls.set_cached(today)
+
     @classmethod
     async def cache_unclosed_bars(
         cls, code: str, frame_type: FrameType, bars: np.ndarray
     ):
         """将未结束的行情数据缓存"""
+        today = bars[0]["frame"]
         bars = bars.copy()
         # 转换时间为int
         if frame_type in cal.day_level_frames:
@@ -459,6 +553,8 @@ class Stock:
         await cache.security.hset(
             f"bars:{frame_type.value}:unclosed", code, ",".join(map(str, bars[0]))
         )
+
+        cls.set_cached(today)
 
     @classmethod
     async def persist_bars(cls, frame_type: FrameType, bars: np.ndarray):

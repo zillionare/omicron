@@ -4,8 +4,10 @@ import os
 
 import aioredis
 import cfg4py
+import numpy as np
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from omicron.core.types import FrameType
+from omicron.core.types import FrameType, stock_bars_dtype
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
@@ -5710,3 +5712,16 @@ async def init_test_env():
             await redis.wait_closed()
 
     return cfg
+
+
+def assert_bars_equal(exp, actual):
+    assert len(exp) == len(
+        actual
+    ), f"Bars length is not equal: exp {len(exp)}, actual {len(actual)}"
+
+    assert_array_equal(exp["frame"], actual["frame"])
+
+    for field, _ in stock_bars_dtype:
+        if field == "frame":
+            continue
+        assert_array_almost_equal(exp[field], actual[field], decimal=2)
