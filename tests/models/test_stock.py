@@ -475,11 +475,11 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     18.83,
                     15.41,
                     1.0,
+                    "000001.XSHE"
                 )
             ],
             dtype=bars_with_limit_dtype,
         )
-        bars["code"] = "000001.XSHE"
         await Stock.persist_bars(FrameType.MIN30, bars)
 
     async def test_get_bars(self):
