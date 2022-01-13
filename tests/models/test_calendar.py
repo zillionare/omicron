@@ -16,7 +16,7 @@ class CalendarTest(unittest.TestCase):
     def setUp(self) -> None:
         root = logging.getLogger()
         root.handlers.clear()
-        logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
+        logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
 
         cal.day_frames = np.array(
             [
