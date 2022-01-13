@@ -16,18 +16,14 @@ __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
 
 
-async def init(fetcher=None):
-    """初始化omicron
+async def init():
+    """初始化Omicron
 
-    Args:
-        fetcher (AbstractQuotesFetcher): 如果不为None,则Omicron会使用这个fetcher
-        来获取行情数据，否则使用远程接口。适用于在`omega`中调用`omicron.init`的情况
+    初始化数据库(postgres), influxDB, 缓存等连接， 并加载日历和证券列表
 
-    Returns:
-
+    上述初始化的连接，应该在程序退出时，通过调用`close()`关闭
     """
-    global _local_fetcher, cache
-    _local_fetcher = fetcher
+    global cache
 
     await cache.init()
     await cal.init()
@@ -53,9 +49,10 @@ async def close():
     except Exception as e:  # noqa
         pass
 
-
-def has_db():
-    return cfg4py.get_instance().postgres.enabled
+    try:
+        await influxdb.close()
+    except Exception as e:  # noqa
+        pass
 
 
 __all__ = ["cache", "db"]
