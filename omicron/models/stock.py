@@ -662,3 +662,83 @@ class Stock:
             np.ndarray: [description]
         """
         raise NotImplementedError
+
+    @classmethod
+    async def get_limits_in_range(cls, code: str, begin: Frame, end: Frame) -> np.array:
+        """获取股票的涨跌停价"""
+        now = datetime.datetime.now()
+        assert begin > now, "begin time can't gt now()"
+        assert begin > end, "begin time can't gt end time"
+        df = pd.DataFrame(
+            columns=["code", "frame", "frame_type", "high_limit", "low_limit", "close"],
+        )
+        if begin < now:
+            df = await influxdb.get_limit_in_date_range(
+                bucket="zillionare", code=code, begin=begin, end=end
+            )
+            df = df.sort_values(
+                by=[
+                    "frame",
+                ],
+                ascending=[
+                    False,
+                ],
+            )
+        df1 = pd.DataFrame(
+            columns=["code", "frame", "frame_type", "high_limit", "low_limit"],
+        )
+        if end == now:
+            high_limit = cache._security_.hget("high_low_limit", f"{code}.high_limit")
+            low_limit = cache._security_.hget("high_low_limit", f"{code}.low_limit")
+            items = [
+                {
+                    "code": code,
+                    "frame": now,
+                    "frame_type": FrameType.DAY.to_int(),
+                    "high_limit": high_limit,
+                    "low_limit": low_limit,
+                }
+            ]
+            df1 = pd.DataFrame(
+                items,
+                columns=["code", "frame", "frame_type", "high_limit", "low_limit"],
+            )
+        if df1.empty:
+            if df.empty:
+                return df.to_numpy()
+            else:
+                stock = Stock(code)
+                if code.startswith("300"):
+                    if stock.display_name.startswith("ST"):
+                        percent = 0.1
+                    else:
+                        percent = 0.2
+                else:
+                    if stock.display_name.startswith("ST"):
+                        percent = 0.05
+                    else:
+                        percent = 0.1
+                close = df.iloc[1, 5]
+                high_limit = close + close * percent
+                low_limit = close - close * percent
+                s = pd.Series(
+                    {
+                        "code": code,
+                        "frame": now,
+                        "frame_type": FrameType.DAY.to_int(),
+                        "high_limit": high_limit,
+                        "low_limit": low_limit,
+                    }
+                )
+                df.append(s)
+        else:
+            df = pd.concat(df, df1)
+        df = df[["code", "frame", "frame_type", "high_limit", "low_limit"]]
+        dtypes = [
+            ("code", "O"),
+            ("frame", "O"),
+            ("frame_type", "O"),
+            ("high_limit", "f4"),
+            ("low_limit", "f4"),
+        ]
+        return np.array(np.rec.fromrecords(df.values), dtype=dtypes)

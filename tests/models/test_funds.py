@@ -22,8 +22,6 @@ class FundsTest(unittest.IsolatedAsyncioTestCase):
         await omicron.close()
 
     async def test_crud(self):
-        await Funds.truncate()
-
         date = arrow.get("2021-12-21")
 
         logger.info("setp 1: fetch from remote")
