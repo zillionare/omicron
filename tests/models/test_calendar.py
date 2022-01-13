@@ -5571,6 +5571,89 @@ class CalendarTest(unittest.TestCase):
             ]
         )
 
+        cal.quater_frames = np.array(
+            [
+                20050331,
+                20050630,
+                20050930,
+                20060331,
+                20060630,
+                20060929,
+                20070330,
+                20070629,
+                20070928,
+                20080331,
+                20080630,
+                20080926,
+                20090331,
+                20090630,
+                20090930,
+                20100331,
+                20100630,
+                20100930,
+                20110331,
+                20110630,
+                20110930,
+                20120330,
+                20120629,
+                20120928,
+                20130329,
+                20130628,
+                20130930,
+                20140331,
+                20140630,
+                20140930,
+                20150331,
+                20150630,
+                20150930,
+                20160331,
+                20160630,
+                20160930,
+                20170331,
+                20170630,
+                20170929,
+                20180330,
+                20180629,
+                20180928,
+                20190329,
+                20190628,
+                20190930,
+                20200331,
+                20200630,
+                20200930,
+                20210331,
+                20210630,
+                20210930,
+                20211231,
+                20220331,
+                20220630,
+                20220930,
+            ]
+        )
+
+        cal.year_frames = np.array(
+            [
+                20051230,
+                20061229,
+                20071228,
+                20081231,
+                20091231,
+                20101231,
+                20111230,
+                20121231,
+                20131231,
+                20141231,
+                20151231,
+                20161230,
+                20171229,
+                20181228,
+                20191231,
+                20201231,
+                20211231,
+                20221230,
+            ]
+        )
+
     def test_resample_frames(self):
         trade_days = np.array(
             [
@@ -5897,6 +5980,38 @@ class CalendarTest(unittest.TestCase):
             logger.debug("testing %s", X[i])
             actual = cal.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.MONTH
+            )
+            self.assertEqual(expected, actual)
+
+    def test_count_frames_quater(self):
+        X = [
+            ["2021-12-31", 1, "2021-12-31"],
+            ["2021-12-30", 2, "2021-12-31"],
+            ["2021-09-30", 2, "2021-12-31"],
+            ["2021-09-29", 3, "2021-12-31"],
+            ["2021-06-30", 3, "2021-12-31"],
+            ["2021-06-30", 3, "2022-01-01"],
+        ]
+
+        for i, (start, expected, end) in enumerate(X):
+            logger.info("testing %s", X[i])
+            actual = cal.count_frames(
+                arrow.get(start).date(), arrow.get(end).date(), FrameType.QUARTER
+            )
+            self.assertEqual(expected, actual)
+
+    def test_count_frames_year(self):
+        X = [
+            ["2021-12-31", 1, "2021-12-31"],
+            ["2020-12-31", 2, "2021-12-31"],
+            ["2020-12-30", 3, "2021-12-31"],
+            ["2018-12-28", 4, "2021-12-31"],
+        ]
+
+        for i, (start, expected, end) in enumerate(X):
+            logger.info("testing %s", X[i])
+            actual = cal.count_frames(
+                arrow.get(start).date(), arrow.get(end).date(), FrameType.YEAR
             )
             self.assertEqual(expected, actual)
 

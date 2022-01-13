@@ -397,6 +397,46 @@ class Calendar:
         return int(ext.count_between(cls.month_frames, start, end))
 
     @classmethod
+    def count_quater_frames(cls, start: datetime.date, end: datetime.date) -> int:
+        """calc trade quaters between start and end date in close-to-close way
+        Both start and end will be aligned to open trade day before calculation. After
+        that, if start == end, this will returns 1.
+
+        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+
+        Args:
+            start (datetime.date): [description]
+            end (datetime.date): [description]
+
+        Returns:
+            int: [description]
+        """
+        start = cls.date2int(start)
+        end = cls.date2int(end)
+
+        return int(ext.count_between(cls.quater_frames, start, end))
+
+    @classmethod
+    def count_year_frames(cls, start: datetime.date, end: datetime.date) -> int:
+        """calc trade years between start and end date in close-to-close way
+        Both start and end will be aligned to open trade day before calculation. After
+        that, if start == end, this will returns 1.
+
+        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+
+        Args:
+            start (datetime.date): [description]
+            end (datetime.date): [description]
+
+        Returns:
+            int: [description]
+        """
+        start = cls.date2int(start)
+        end = cls.date2int(end)
+
+        return int(ext.count_between(cls.year_frames, start, end))
+
+    @classmethod
     def count_frames(
         cls,
         start: Union[datetime.date, datetime.datetime, Arrow],
@@ -428,6 +468,10 @@ class Calendar:
             return cls.count_week_frames(start, end)
         elif frame_type == FrameType.MONTH:
             return cls.count_month_frames(start, end)
+        elif frame_type == FrameType.QUARTER:
+            return cls.count_quater_frames(start, end)
+        elif frame_type == FrameType.YEAR:
+            return cls.count_year_frames(start, end)
         elif frame_type in [
             FrameType.MIN1,
             FrameType.MIN5,
