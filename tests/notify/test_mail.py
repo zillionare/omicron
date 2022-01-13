@@ -1,5 +1,6 @@
 import os
 import unittest
+from email.message import EmailMessage
 
 import cfg4py
 
@@ -54,6 +55,27 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
 
         await send_mail(sender, receiver, password, msg, host=host)
 
+        # 参数检查
+        try:
+            await send_mail(sender, receiver, password)
+            self.assertTrue(False, "未进行参数检查")
+        except TypeError:
+            pass
+
+        try:
+            await send_mail(
+                sender,
+                receiver,
+                password,
+                subject="test",
+                body=body,
+                msg=EmailMessage(),
+                host=host,
+            )
+            self.assertTrue(False, "未进行参数检查")
+        except TypeError:
+            pass
+
     async def test_mail_notify(self):
         body = """
         <html>
@@ -67,3 +89,6 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         """
 
         await mail_notify("test mail_notify", body=body, html=True)
+
+    def test_compose(self):
+        pass

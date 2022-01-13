@@ -90,7 +90,7 @@ async def send_mail(
         plain (str, optional): [description]. Defaults to None.
         username (str, optional): the username used to logon to mail server. if not provied, then `sender` is used.
     """
-    if all([msg, subject or body]):
+    if all([msg is not None, subject is not None or body is not None]):
         raise TypeError("msg参数与subject/body只能提供其中之一")
     elif all([msg is None, subject is None, body is None]):
         raise TypeError("必须提供msg参数或者subjecdt/body参数")
