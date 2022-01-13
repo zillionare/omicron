@@ -408,6 +408,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         # todo: 一般数据写入以后，还要读出来，看看是否正确
 
     async def test_get_cached_bars(self):
+        """cache_bars, cache_unclosed_bars are tested also"""
         await Stock.reset_cache()
 
         # 当cache为空时，应该返回空数组
@@ -459,6 +460,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             ],
             dtype=stock_bars_dtype,
         )
+
         await Stock.cache_bars("000001.XSHE", FrameType.MIN15, data)
 
         end = datetime.datetime(2022, 1, 10, 9, 30)
@@ -518,7 +520,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         await Stock.cache_unclosed_bars("000001.XSHE", FrameType.MIN15, unclosed)
 
-        # cache 不为空， end小于最后一根bar,且unclosed = True，此时只返回到end为止
+        # cache 不为空， end小于最后一根bar,且unclosed = True，此时只返回到end为止,避免未来数据
         end = datetime.datetime(2022, 1, 10, 10, 10)
         bars = await Stock._get_cached_bars(
             "000001.XSHE", end, 10, FrameType.MIN15, unclosed=True
@@ -537,11 +539,22 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         # cache 不为空， end大于等于未结束bars
         end = datetime.datetime(2022, 1, 10, 10, 18)
         bars = await Stock._get_cached_bars(
-            "000001.XSHE", end, 10, FrameType.MIN15, unclosed=True
+            "000001.XSHE", end, 4, FrameType.MIN15, unclosed=True
         )
 
         assert_bars_equal(data, bars[:-1])
         assert_bars_equal(unclosed, bars[-1:])
+
+        # 取日线
+        unclosed[0]["frame"] = datetime.date(2022, 1, 10)
+        await Stock.cache_unclosed_bars("000001.XSHE", FrameType.DAY, unclosed)
+        end = datetime.date(2022, 1, 9)
+        bars = await Stock._get_cached_bars("000001.XSHE", end, 10, FrameType.DAY)
+        self.assertEqual(0, len(bars))
+
+        end = datetime.date(2022, 1, 10)
+        bars = await Stock._get_cached_bars("000001.XSHE", end, 10, FrameType.DAY)
+        assert_bars_equal(unclosed, bars)
 
     async def test_get_bars(self):
         await Stock.reset_cache()

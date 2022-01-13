@@ -159,6 +159,7 @@ class Stock:
 
     @classmethod
     def fuzzy_match(cls, query: str):
+        """对股票/指数进行模糊匹配查找"""
         query = query.upper()
         if re.match(r"\d+", query):
             return {
@@ -208,6 +209,11 @@ class Stock:
 
     @property
     def type(self) -> SecurityType:
+        """返回证券类型
+
+        Returns:
+            SecurityType: [description]
+        """
         return self._type
 
     @staticmethod
@@ -394,7 +400,6 @@ class Stock:
 
         bars中可能存在同一`code`的多条数据，这些数据在时间上按增序排列
         """
-        fields = [x[0] for x in stock_bars_dtype][1:]
         if frame_type == FrameType.DAY:
             await cls.batch_cache_unclosed_bars(frame_type, bars)
             return
@@ -403,8 +408,9 @@ class Stock:
         for bar in bars:
             code = bar["code"]
             frame = cal.time2int(bar["frame"])
-            val = [frame, *bar[fields]]
-            pl.rpush(f"bars:{frame_type.value}:{code}", ",".join(map(str, val)))
+            val = [*bar][:-1]
+            val[0] = frame
+            pl.hset(f"bars:{frame_type.value}:{code}", frame, ",".join(map(str, val)))
         await pl.execute()
 
         cls.set_cached(bars[0]["frame"])
@@ -417,10 +423,19 @@ class Stock:
         """
         pl = cache.security.pipeline()
         key = f"bars:{frame_type.value}:unclosed"
+
+        convert = (
+            cal.time2int if frame_type in cal.minute_level_frames else cal.time2date
+        )
+
         for bar in bars:
             code = bar["code"]
-            pl.hset(key, code, ",".join(map(str, bar[:-1])))
+            val = [*bar[:-1]]  # 去掉code
+            val[0] = convert(bar["frame"])  # 时间转换
+            pl.hset(key, code, ",".join(map(str, val)))
         await pl.execute()
+
+        cal.set_cached(bars[0]["frame"])
 
     @classmethod
     async def reset_cache(cls):
@@ -457,7 +472,13 @@ class Stock:
 
     @classmethod
     async def _get_cached_bars(
-        cls, code: str, end: Frame, n: int, frame_type: FrameType, unclosed=True
+        cls,
+        code: str,
+        end: Frame,
+        n: int,
+        frame_type: FrameType,
+        unclosed=True,
+        fq=True,
     ) -> np.ndarray:
         """从缓存中获取指定代码的行情数据
 
@@ -478,6 +499,7 @@ class Stock:
 
         raw = []
         if frame_type in cal.day_level_frames:
+            convert = cal.int2date
             if unclosed:
                 key = f"bars:{frame_type.value}:unclosed"
                 r1 = await cache.security.hget(key, code)
@@ -490,27 +512,27 @@ class Stock:
                     False
                 ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
         else:
+            convert = cal.int2time
             key = f"bars:{frame_type.value}:{code}"
-            r1 = (await cache.security.lrange(key, 0, -1)) or []
+            end_ = cal.floor(end, frame_type)
+            frames = map(str, cal.get_frames_by_count(end_, n, frame_type))
+            r1 = await cache.security.hmget(key, *frames)
             raw.extend(r1)
 
             if unclosed:
                 key = f"bars:{frame_type.value}:unclosed"
                 r2 = await cache.security.hget(key, code)
-                if r2 is not None:
+                if r2:
                     raw.append(r2)
-
-        # convert
-        frame_convertor = (
-            cal.int2time if frame_type in cal.minute_level_frames else cal.int2date
-        )
 
         recs = []
         for raw_rec in raw:
+            if raw_rec is None:
+                continue
             f, o, h, l, c, v, m, fac = raw_rec.split(",")
             recs.append(
                 (
-                    frame_convertor(f),
+                    convert(f),
                     float(o),
                     float(h),
                     float(l),
@@ -521,23 +543,31 @@ class Stock:
                 )
             )
 
-        bars = np.array(recs, dtype=stock_bars_dtype)
-        return bars[bars["frame"] <= end][-n:]
+        bars = np.array(recs, dtype=stock_bars_dtype)[-n:]
+        if bars[-1]["frame"] > end:
+            # 避免取到未来数据
+            bars = bars[:-1]
+        if fq:
+            return cls.qfq(bars)
+        else:
+            return bars
 
     @classmethod
     async def cache_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
         """将行情数据缓存"""
-        bars = bars.copy()
         today = bars[0]["frame"]
         # 转换时间为int
-        if frame_type in cal.day_level_frames:
-            bars["frame"] = [cal.date2int(x) for x in bars["frame"]]
-        else:
-            bars["frame"] = [cal.time2int(x) for x in bars["frame"]]
+        convert = (
+            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
+        )
 
+        key = f"bars:{frame_type.value}:{code}"
         pl = cache.security.pipeline()
         for bar in bars:
-            pl.rpush(f"bars:{frame_type.value}:{code}", ",".join(map(str, bar)))
+            val = [*bar]
+            val[0] = convert(bar["frame"])
+            pl.hset(key, val[0], ",".join(map(str, val)))
+
         await pl.execute()
 
         cls.set_cached(today)
@@ -548,19 +578,20 @@ class Stock:
     ):
         """将未结束的行情数据缓存"""
         today = bars[0]["frame"]
-        bars = bars.copy()
-        # 转换时间为int
-        if frame_type in cal.day_level_frames:
-            bars["frame"] = [cal.date2int(x) for x in bars["frame"]]
-        else:
-            bars["frame"] = [cal.time2int(x) for x in bars["frame"]]
+        converter = (
+            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
+        )
 
         assert len(bars) == 1, "unclosed bars should only have one record"
 
-        await cache.security.hset(
-            f"bars:{frame_type.value}:unclosed", code, ",".join(map(str, bars[0]))
-        )
+        key = f"bars:{frame_type.value}:unclosed"
+        pl = cache.security.pipeline()
+        for bar in bars:
+            val = [*bar]
+            val[0] = converter(bar["frame"])
+            pl.hset(key, code, ",".join(map(str, val)))
 
+        await pl.execute()
         cls.set_cached(today)
 
     @classmethod
