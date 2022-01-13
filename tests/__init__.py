@@ -5725,3 +5725,8 @@ def assert_bars_equal(exp, actual):
         if field == "frame":
             continue
         assert_array_almost_equal(exp[field], actual[field], decimal=2)
+
+
+def test_dir():
+    home = os.path.dirname(__file__)
+    return home
