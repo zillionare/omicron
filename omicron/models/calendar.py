@@ -4,7 +4,7 @@
 import datetime
 import itertools
 import logging
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import arrow
 import numpy as np
@@ -193,7 +193,7 @@ class Calendar:
     def week_shift(cls, start: datetime.date, offset: int) -> datetime.date:
         """对指定日期按周线帧进行前后移位操作
 
-        参考 [omicron.core.timeframe.TimeFrame.day_shift][]
+        参考 [omicron.models.calendar.Calendar.day_shift][]
         Examples:
             >>> moment = arrow.get('2020-1-21').date()
             >>> cls.week_shift(moment, 1)
@@ -277,9 +277,9 @@ class Calendar:
 
         See also:
 
-        - [day_shift][omicron.core.timeframe.TimeFrame.day_shift]
-        - [week_shift][omicron.core.timeframe.TimeFrame.week_shift]
-        - [month_shift][omicron.core.timeframe.TimeFrame.month_shift]
+        - [day_shift][omicron.models.calendar.Calendar.day_shift]
+        - [week_shift][omicron.models.calendar.Calendar.week_shift]
+        - [month_shift][omicron.models.calendar.Calendar.month_shift]
 
         Examples:
             >>> cls.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
@@ -343,13 +343,13 @@ class Calendar:
         Examples:
             >>> start = datetime.date(2019, 12, 21)
             >>> end = datetime.date(2019, 12, 21)
-            >>> cls.count_day_frames(start, end)
+            >>> Calendar.count_day_frames(start, end)
             1
 
             >>> # non-trade days are removed
             >>> start = datetime.date(2020, 1, 23)
             >>> end = datetime.date(2020, 2, 4)
-            >>> cls.count_day_frames(start, end)
+            >>> Calendar.count_day_frames(start, end)
             3
 
         args:
@@ -367,7 +367,7 @@ class Calendar:
         end will be aligned to open trade day before calculation. After that, if start
          == end, this will returns 1
 
-        for examples, please refer to [count_day_frames][omicron.core.timeframe.TimeFrame.count_day_frames]
+        for examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
         args:
             start:
             end:
@@ -382,7 +382,7 @@ class Calendar:
         Both start and end will be aligned to open trade day before calculation. After
         that, if start == end, this will returns 1.
 
-        For examples, please refer to [count_day_frames][omicron.core.timeframe.TimeFrame.count_day_frames]
+        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
 
         Args:
             start:
@@ -407,9 +407,9 @@ class Calendar:
 
         See also:
 
-        - [count_day_frames][omicron.core.timeframe.TimeFrame.count_day_frames]
-        - [count_week_frames][omicron.core.timeframe.TimeFrame.count_week_frames]
-        - [count_month_frames][omicron.core.timeframe.TimeFrame.count_month_frames]
+        - [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+        - [count_week_frames][omicron.models.calendar.Calendar.count_week_frames]
+        - [count_month_frames][omicron.models.calendar.Calendar.count_month_frames]
 
         Args:
             start : [description]
@@ -641,7 +641,7 @@ class Calendar:
             raise ValueError(f"{frame_type} not supported")
 
     @classmethod
-    def frame_len(cls, frame_type: FrameType):
+    def frame_len(cls, frame_type: FrameType) -> int:
         """返回以分钟为单位的frame长度。
 
         对日线以上级别没有意义，但会返回240
@@ -654,6 +654,7 @@ class Calendar:
             frame_type:
 
         Returns:
+            返回以分钟为单位的frame长度。
 
         """
 
@@ -881,7 +882,6 @@ class Calendar:
             datetime.datetime(2019, 1, 1, 13, 49)
 
         Args:
-            sel ([type]): [description]
             dtm (datetime.datetime): [description]
             dt (datetime.date): [description]
 
@@ -951,7 +951,7 @@ class Calendar:
             raise ValueError(f"Unsupported FrameType: {frame_type}")
 
     @classmethod
-    def minute_frames_floor(cls, ticks, moment):
+    def minute_frames_floor(cls, ticks, moment) -> Tuple[int, int]:
         """
         对于分钟级的frame,返回它们与frame刻度向下对齐后的frame及日期进位。如果需要对齐到上一个交易
         日，则进位为-1，否则为0.

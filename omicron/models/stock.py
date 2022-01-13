@@ -214,11 +214,11 @@ class Stock:
     def simplify_code(code) -> str:
         return re.sub(r"\.XSH[EG]", "", code)
 
-    def days_since_ipo(self):
-        """
-        获取上市以来经过了多少个交易日
-        Returns:
+    def days_since_ipo(self) -> int:
+        """获取上市以来经过了多少个交易日
 
+        Returns:
+            int: [description]
         """
         epoch_start = arrow.get("2005-01-04").date()
         ipo_day = self.ipo_date if self.ipo_date > epoch_start else epoch_start
@@ -302,18 +302,19 @@ class Stock:
 
         frame, open, high, low, close, volume, money, high_limit
 
-        返回数据格式为numpy strucutre array，每一行对应一个bar,可以通过下标访问，如bars['frame'][-1]
+        返回数据格式为numpy strucutre array，每一行对应一个bar,可以通过下标访问，如`bars['frame'][-1]`
 
         返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，该时段数据将被跳过，因此返回的记录可能不是交易日连续的。
 
         如果系统当前没有到指定时间`end`的数据，将尽最大努力返回数据。调用者可以通过判断最后一条数据的时间是否等于`end`来判断是否获取到了全部数据。
 
         Args:
+            code (str): 证券代码
             n (int): 记录数
+            frame_type (FrameType): 帧类型
             end (Frame): 截止时间,如果未指明，则取当前时间
-            frame_type (FrameType): [description]
             fq (bool, optional): [description]. Defaults to True.
-            closed (bool, optional): 是否包含未收盘的数据。 Defaults to True.
+            unclosed (bool, optional): 是否包含最新未收盘的数据？ Defaults to True.
         """
         end = end or arrow.now().naive
 
