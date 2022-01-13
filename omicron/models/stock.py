@@ -109,7 +109,12 @@ class Stock:
 
     @classmethod
     def choose(
-        cls, exclude_exit=True, exclude_st=True, exclude_300=False, exclude_688=True
+        cls,
+        types: List[str] = ["stock", "index"],
+        exclude_exit=True,
+        exclude_st=True,
+        exclude_300=False,
+        exclude_688=True,
     ) -> list:
         """选择证券标的
 
@@ -127,7 +132,8 @@ class Stock:
         """
         cond = np.array([False] * len(cls._stocks))
 
-        cond = cls._stocks["type"] == "stock"
+        for type_ in types:
+            cond |= cls._stocks["type"] == type_
 
         result = cls._stocks[cond]
         if exclude_exit:

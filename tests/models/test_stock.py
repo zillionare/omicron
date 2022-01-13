@@ -22,25 +22,42 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         return await super().asyncTearDown()
 
     def test_choose(self):
-        codes = Stock.choose()
-        exp = ["000001.XSHE", "300001.XSHE", "600000.XSHG"]
-        self.assertListEqual(exp, codes)
+        codes = set(Stock.choose())
+        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        self.assertSetEqual(exp, codes)
 
         # 允许ST
-        codes = Stock.choose(exclude_st=False)
-        exp = [
+        codes = set(Stock.choose(exclude_st=False))
+        exp = {
             "000001.XSHE",
             "000005.XSHE",
             "300001.XSHE",
             "600000.XSHG",
             "000007.XSHE",
-        ]
-        self.assertListEqual(exp, codes)
+            "000001.XSHG",
+        }
+        self.assertSetEqual(exp, codes)
 
         # 允许科创板
-        codes = Stock.choose(exclude_688=False)
-        exp = ["000001.XSHE", "300001.XSHE", "600000.XSHG", "688001.XSHG"]
-        self.assertListEqual(exp, codes)
+        codes = set(Stock.choose(exclude_688=False))
+        exp = {
+            "000001.XSHE",
+            "300001.XSHE",
+            "600000.XSHG",
+            "688001.XSHG",
+            "000001.XSHG",
+        }
+        self.assertSetEqual(exp, codes)
+
+        # stock only
+        codes = set(Stock.choose(types=["stock"]))
+        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG"}
+        self.assertSetEqual(exp, codes)
+
+        # index only
+        codes = set(Stock.choose(types=["index"]))
+        exp = {"000001.XSHG"}
+        self.assertSetEqual(exp, codes)
 
     async def test_choose_cyb(self):
         self.assertListEqual(["300001.XSHE"], Stock.choose_cyb())
