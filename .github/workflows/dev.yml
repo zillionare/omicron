@@ -26,6 +26,7 @@ jobs:
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
       POSTGRES_ENABLED: true
+      MAIL_PASSWORD: ${{secrets.MAIL_PASSWORD}}
     # The type of runner that the job will run on
     strategy:
       matrix:
