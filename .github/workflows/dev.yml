@@ -76,9 +76,8 @@ jobs:
         run: |
             export TZ=Asia/Shanghai
             sudo -E apt-get update
-            sudo -E apt-get install --yes --no-install-recommends postgresql-client wget
-            wget https://raw.githubusercontent.com/zillionare/omega/release/omega/config/sql/init.sql -O init.sql
-            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=init.sql
+            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=/home/runner/work/omicron/omicron/config/sql/v0.6.sql
+            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=/home/runner/work/omicron/omicron/config/sql/v1.0.sql
       - name: test with tox
         run:
           tox
