@@ -77,8 +77,8 @@ jobs:
             ls
             export TZ=Asia/Shanghai
             sudo -E apt-get update
-            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=/home/runner/work/omicron/omicron/config/sql/v0.6.sql
-            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=/home/runner/work/omicron/omicron/config/sql/v1.0.sql
+            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v0.6.sql
+            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
       - name: test with tox
         run:
           tox
