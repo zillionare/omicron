@@ -99,7 +99,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         def totime(tm: str):
             return arrow.get(tm).datetime.replace(tzinfo=None)
 
-        # fiels = ["frame", "open", "high", "low", "close", "volume", "money", "factor"]
+        # fiels = ["frame", "open", "high", "low", "close", "volume", "amount", "factor"]
         # jq.get_bars("002709.XSHE", count = 30, unit = '1m', fields=fields, fq_ref_date=None, end_dt = end, df=False)
         bars = np.array(
             [
@@ -271,7 +271,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                 ("low", "<f4"),
                 ("close", "<f4"),
                 ("volume", "<f8"),
-                ("money", "<f8"),
+                ("amount", "<f8"),
                 ("factor", "<f4"),
             ],
         )
@@ -328,11 +328,11 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                 ("low", "<f4"),
                 ("close", "<f4"),
                 ("volume", "<f8"),
-                ("money", "<f8"),
+                ("amount", "<f8"),
                 ("factor", "<f4"),
             ],
         )
-        fields = ["open", "high", "low", "close", "volume", "money", "factor"]
+        fields = ["open", "high", "low", "close", "volume", "amount", "factor"]
         np.testing.assert_array_equal(actual["frame"], exp["frame"])
         for field in fields:
             np.testing.assert_array_almost_equal(actual[field], exp[field], decimal=2)
@@ -368,7 +368,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                 ("low", "<f4"),
                 ("close", "<f4"),
                 ("volume", "<f8"),
-                ("money", "<f8"),
+                ("amount", "<f8"),
                 ("factor", "<f4"),
             ],
         )
@@ -832,7 +832,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                 ("low", "f4"),
                 ("close", "f4"),
                 ("volume", "f8"),
-                ("money", "f8"),
+                ("amount", "f8"),
                 ("factor", "f4"),
                 ("code", "O"),
             ],

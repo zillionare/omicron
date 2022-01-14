@@ -306,7 +306,7 @@ class Stock:
 
         返回的数据包含以下字段：
 
-        frame, open, high, low, close, volume, money, high_limit
+        frame, open, high, low, close, volume, amount, high_limit
 
         返回数据格式为numpy strucutre array，每一行对应一个bar,可以通过下标访问，如`bars['frame'][-1]`
 
@@ -631,7 +631,7 @@ class Stock:
     def _resample_from_min1(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
         """将`bars`从1分钟线转换为`to_frame`的行情数据
 
-        重采样后的数据只包含frame, open, high, low, close, volume, money, factor，无论传入数据是否还有别的字段，它们都将被丢弃。
+        重采样后的数据只包含frame, open, high, low, close, volume, amount, factor，无论传入数据是否还有别的字段，它们都将被丢弃。
 
         resampling 240根分钟线到5分钟大约需要100微秒。
 
@@ -667,7 +667,7 @@ class Stock:
         resampled[:bins]["low"] = np.min(part1["low"], axis=1)
 
         resampled[:bins]["volume"] = np.sum(part1["volume"], axis=1)
-        resampled[:bins]["money"] = np.sum(part1["money"], axis=1)
+        resampled[:bins]["amount"] = np.sum(part1["amount"], axis=1)
 
         if len(part2):
             resampled[-1]["open"] = part2["open"][0]
@@ -675,7 +675,7 @@ class Stock:
             resampled[-1]["low"] = np.min(part2["low"])
 
             resampled[-1]["volume"] = np.sum(part2["volume"])
-            resampled[-1]["money"] = np.sum(part2["money"])
+            resampled[-1]["amount"] = np.sum(part2["amount"])
 
         cols = ["frame", "close", "factor"]
         resampled[cols] = bars[close_pos][cols]
