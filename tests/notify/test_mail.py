@@ -89,6 +89,3 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         """
 
         await mail_notify("test mail_notify", body=body, html=True)
-
-    def test_compose(self):
-        pass
