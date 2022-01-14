@@ -74,6 +74,7 @@ jobs:
 
       - name: init POSTGRES db
         run: |
+            ls
             export TZ=Asia/Shanghai
             sudo -E apt-get update
             PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=/home/runner/work/omicron/omicron/config/sql/v0.6.sql
