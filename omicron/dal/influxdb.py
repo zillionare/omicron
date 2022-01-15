@@ -23,6 +23,10 @@ class PerssidentInfluxDb(object):
         return self._org
 
     @property
+    def bucket_name(self) -> str:
+        return self._bucket_name
+
+    @property
     def client(self) -> InfluxDBClient:
         return InfluxDBClient(self.url, self.token, self.org)
 
@@ -46,15 +50,14 @@ class PerssidentInfluxDb(object):
 
     async def write(
         self,
-        bucket: str,
         sequence: pd.DataFrame,
         data_frame_measurement_name: str = None,
         data_frame_tag_columns: List[str] = None,
     ):
-        if not bucket or sequence.empty:
+        if sequence.empty:
             return
         self.write_api.write(
-            bucket,
+            self.bucket_name,
             self.org,
             record=sequence,
             data_frame_measurement_name=data_frame_measurement_name,
@@ -66,10 +69,10 @@ class PerssidentInfluxDb(object):
         self._org = cfg.influxdb.org
         self._token = cfg.influxdb.token
         self._url = cfg.influxdb.url
+        self._bucket_name = cfg.influxdb.bucket_name
 
     async def get_stocks_in_date_range(
         self,
-        bucket: str,
         code: Union[str, List[str]],
         fields: List[str],
         begin: Frame = None,
@@ -78,7 +81,7 @@ class PerssidentInfluxDb(object):
         frame_type: FrameType = FrameType.DAY,
     ) -> pd.DataFrame:
         params = {
-            "bucket": bucket,
+            "bucket": self.bucket_name,
             "end": end.strftime("%Y-%m-%d %H:%M:%S"),
         }
         code = [code] if isinstance(code, str) else code

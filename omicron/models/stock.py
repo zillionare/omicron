@@ -306,24 +306,20 @@ class Stock:
             codes = list(cls._stocks["code"])
         result = {}
         for code in codes:
+            bars = np.empty((0,), dtype=stock_bars_dtype)
             if n:
                 part2 = await cls.get_bars(
                     code, n, end=end, frame_type=frame_type, unclosed=unclosed, fq=False
                 )
                 bars = part2
             else:
-                try:
-                    part2 = await cls._get_cached_bars(
-                        code, end, 240, frame_type, unclosed
-                    )
-                except Exception:
-                    part2 = []
+                part2 = await cls._get_cached_bars(code, end, 240, frame_type, unclosed)
                 parts = []
                 early_parts = []
-                if part2:
+                if len(part2):
                     part2 = await cls.get_bars(
                         code,
-                        n=len(part2) if parts else 0,
+                        n=len(part2) or 0,
                         end=end,
                         frame_type=frame_type,
                         unclosed=unclosed,
@@ -331,7 +327,7 @@ class Stock:
                     )
                     parts = part2[part2["frame"] >= begin]
                     early_parts: np.array = part2[part2["frame"] < begin]
-                if not early_parts:
+                if not len(early_parts):
                     bars = await cls._get_persited_bars(
                         code=code,
                         begin=begin,
@@ -339,7 +335,7 @@ class Stock:
                         frame_type=frame_type,
                         dtypes=stock_bars_dtype,
                     )
-                    bars = np.concatenate((bars, parts)) if parts else bars
+                    bars = np.concatenate((bars, parts)) if len(parts) else bars
             if fq and len(bars):
                 bars = cls.qfq(bars)
             result[code] = bars
@@ -383,7 +379,10 @@ class Stock:
         n1 = n - n2
         if n1 > 0:
             pend = cal.shift(cls.get_cached_first_frame(frame_type), -1, frame_type)
-            part1 = await cls._get_persited_bars(code, pend, n1, frame_type, unclosed)
+            part1 = await cls._get_persited_bars(
+                code, end=pend, n=n1, frame_type=frame_type
+            )
+            part1 = part1[(-n1):]
         else:
             part1 = np.empty((0,), dtype=stock_bars_dtype)
 
@@ -417,14 +416,13 @@ class Stock:
             NotImplemented: [description]
         """
         if not dtypes:
-            dtypes = bars_with_limit_dtype
+            dtypes = stock_bars_dtype
         columns = list(map(lambda x: x[0], dtypes))
         raw_columns = list(map(lambda x: x[0], dtypes))
         for _field in ["code", "frame_type"]:
             if _field not in columns:
                 columns.append(_field)
         df = await influxdb.get_stocks_in_date_range(
-            bucket="test_zillionare",
             code=code,
             fields=columns,
             limit=n,
@@ -684,9 +682,7 @@ class Stock:
         df = pd.DataFrame(data=bars, columns=bars.dtype.names)
         df["frame_type"] = frame_type.to_int()
         df.index = df["frame"]
-        await influxdb.write(
-            "test_zillionare", df, "stock", ["frame", "frame_type", "code"]
-        )
+        await influxdb.write(df, "stock", ["frame", "frame_type", "code"])
 
     @classmethod
     def resample(
@@ -793,7 +789,6 @@ class Stock:
         )
         if begin < now:
             df = await influxdb.get_stocks_in_date_range(
-                bucket="test_zillionare",
                 code=code,
                 fields=[
                     "high_limit",

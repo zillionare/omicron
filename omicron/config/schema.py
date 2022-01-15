@@ -34,6 +34,8 @@ class Config(object):
 
         org: Optional[str] = None
 
+        bucket_name: Optional[str] = None
+
     class postgres:
         dsn: Optional[str] = None
 
@@ -44,3 +46,10 @@ class Config(object):
 
         class urls:
             quotes_server: Optional[str] = None
+
+    class notify:
+        mail_from: Optional[str] = None
+
+        mail_to: Optional[str] = None
+
+        mail_server: Optional[str] = None

@@ -387,6 +387,14 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
     async def test_persist_bars(self):
+        response = influxdb.client.buckets_api().find_buckets()
+
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
+        influxdb.client.buckets_api().create_bucket(
+            bucket_name=influxdb.bucket_name, org=influxdb.org
+        )
         code = "000001.XSHE"
         bars = np.array(
             [
@@ -427,7 +435,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             code=code, end=arrow.get("2022-01-14")
         )
         data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
-        self.assertEqual(data["code"], code)
+        self.assertEqual(data["frame"], "2022-01-06 10:00:00")
 
         recs: np.array = await Stock._get_persited_bars(
             code="000002.XSHE", end=arrow.get("2022-01-14")
@@ -436,6 +444,12 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         recs: np.array = await Stock._get_persited_bars(end=arrow.get("2022-01-14"))
         self.assertTrue(len(recs))
+
+        response = influxdb.client.buckets_api().find_buckets()
+
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
 
     async def test_get_cached_bars(self):
         """cache_bars, cache_unclosed_bars are tested also"""
@@ -919,6 +933,15 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         assert_bars_equal(exp, bars)
 
     async def test_get_limits_in_range(self):
+        response = influxdb.client.buckets_api().find_buckets()
+
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
+        influxdb.client.buckets_api().create_bucket(
+            bucket_name=influxdb.bucket_name, org=influxdb.org
+        )
+
         now = datetime.datetime.now().date()
         code = "000001.XSHE"
 
@@ -962,8 +985,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             begin=arrow.get("2022-01-06").date(),
             end=arrow.get("2022-01-07").date(),
         )
-
-        self.assertEqual(len(result), 2)
+        self.assertTrue(len(result))
 
         result = await Stock.get_limits_in_range(
             code,
@@ -995,8 +1017,22 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertFalse(len(result))
 
+        response = influxdb.client.buckets_api().find_buckets()
+
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
+
     async def test_get_bars_in_range(self):
         await Stock.reset_cache()
+        response = influxdb.client.buckets_api().find_buckets()
+
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
+        influxdb.client.buckets_api().create_bucket(
+            bucket_name=influxdb.bucket_name, org=influxdb.org
+        )
 
         ft = FrameType.MIN15
         # len == 5
@@ -1163,32 +1199,32 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         # 1. end is None, 取当前时间作为end.
-        # with mock.patch.object(
-        #     arrow, "now", return_value=arrow.get("2022-01-10 10:47:02")
-        # ):
-        #     end = arrow.get("2022-01-10 10:47:02").naive
-        #     n = 1
-        #     bars = await Stock.get_bars_in_range(
-        #         codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
-        #         end=end,
-        #         n=n,
-        #         frame_type=ft,
-        #     )
-        #     self.assertEqual(
-        #         set(bars.keys()),
-        #         set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
-        #     )
+        with mock.patch.object(
+            arrow, "now", return_value=arrow.get("2022-01-10 10:47:02")
+        ):
+            end = arrow.get("2022-01-10 10:47:02").naive
+            n = 1
+            bars = await Stock.get_bars_in_range(
+                codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+                end=end,
+                n=n,
+                frame_type=ft,
+            )
+            self.assertEqual(
+                set(bars.keys()),
+                set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+            )
 
-        #     bars = await Stock.get_bars_in_range(
-        #         codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
-        #         end=end,
-        #         begin=arrow.get("2022-01-10 10:40:02").naive,
-        #         frame_type=ft,
-        #     )
-        #     self.assertEqual(
-        #         set(bars.keys()),
-        #         set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
-        #     )
+            bars = await Stock.get_bars_in_range(
+                codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+                end=end,
+                begin=arrow.get("2022-01-10 10:40:02").naive,
+                frame_type=ft,
+            )
+            self.assertEqual(
+                set(bars.keys()),
+                set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+            )
 
         # 2. end < ff，仅从persistent中取
         end = datetime.datetime(2022, 1, 7, 15, 0)
@@ -1211,35 +1247,16 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         recs = await Stock.get_bars_in_range(
             ["000001.XSHE"], n=7, frame_type=ft, end=end, unclosed=False
         )
-        print("#########################################", recs)
-        # with mock.patch.object(
-        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
-        # ):
-        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end)
-        #     assert_bars_equal(persist_bars[-2:], bars)
+        self.assertEqual(set(recs.keys()), set(["000001.XSHE"]))
+        self.assertEqual(len(recs["000001.XSHE"]), 7)
 
-        # # 3. end > ff，从persistent和cache中取,不包含unclosed
-        # end = datetime.datetime(2022, 1, 10, 10, 47)
-        # n = 7
-        # with mock.patch.object(
-        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
-        # ):
-        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=False)
-        #     assert_bars_equal(
-        #         persist_bars[-2:],
-        #         bars[:2],
-        #     )
-        #     assert_bars_equal(cache_bars[-5:], bars[2:])
+        end = arrow.get("2022-01-10 10:47:02").naive
+        recs = await Stock.get_bars_in_range(
+            ["000001.XSHE"], begin=begin, frame_type=ft, end=end, unclosed=False
+        )
 
-        # # 4. end > ff, 从persistent和cache中取,包含unclosed
-        # end = datetime.datetime(2022, 1, 10, 10, 47)
-        # with mock.patch.object(
-        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
-        # ):
-        #     n = 8
-        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=True)
-        #     assert_bars_equal(persist_bars[-2:], bars[:2])
-        #     assert_bars_equal(cache_bars[-5:], bars[2:-1])
-        #     assert_bars_equal(cache_unclosed_bars, bars[-1:])
+        response = influxdb.client.buckets_api().find_buckets()
 
-        # Stock.get_bars_in_range(codes=["000001.XSHE"])
+        for bucket in response.buckets:
+            if bucket.name == influxdb.bucket_name:
+                influxdb.client.buckets_api().delete_bucket(bucket)
