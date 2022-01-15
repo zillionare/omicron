@@ -6,7 +6,14 @@ import arrow
 import numpy as np
 
 import omicron
-from omicron.core.types import Frame, FrameType, bars_with_limit_dtype, stock_bars_dtype
+from omicron.core.types import (
+    Frame,
+    FrameType,
+    MarketType,
+    SecurityType,
+    bars_with_limit_dtype,
+    stock_bars_dtype,
+)
 from omicron.models.stock import Stock
 from tests import assert_bars_equal, init_test_env
 
@@ -57,6 +64,15 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         # index only
         codes = set(Stock.choose(types=["index"]))
         exp = {"000001.XSHG"}
+        self.assertSetEqual(exp, codes)
+
+        # 排除创业板
+        codes = set(Stock.choose(exclude_300=True))
+        exp = {
+            "000001.XSHE",
+            "000001.XSHG",
+            "600000.XSHG",
+        }
         self.assertSetEqual(exp, codes)
 
     async def test_choose_cyb(self):
@@ -332,10 +348,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                 ("factor", "<f4"),
             ],
         )
-        fields = ["open", "high", "low", "close", "volume", "amount", "factor"]
-        np.testing.assert_array_equal(actual["frame"], exp["frame"])
-        for field in fields:
-            np.testing.assert_array_almost_equal(actual[field], exp[field], decimal=2)
+        assert_bars_equal(exp, actual)
 
         # resample to 15m
         exp = np.array(
@@ -374,10 +387,37 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         actual = Stock.resample(bars, FrameType.MIN1, FrameType.MIN15)
-        np.testing.assert_array_equal(actual["frame"], exp["frame"])
-        for field in fields:
-            np.testing.assert_array_almost_equal(actual[field], exp[field], decimal=2)
+        assert_bars_equal(exp, actual)
 
+        # resample when input bars can be evenly divided
+        actual = Stock.resample(bars[:-1], FrameType.MIN1, FrameType.MIN15)
+        exp = np.array(
+            [
+                (
+                    datetime.datetime(2021, 4, 27, 9, 45),
+                    62.01,
+                    64.61,
+                    62.01,
+                    63.87,
+                    5864200.0,
+                    3.71021452e08,
+                    6.976547,
+                )
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+            ],
+        )
+        assert_bars_equal(exp, actual)
+
+        # 输入错误检查
         bars[0]["frame"] = datetime.datetime(2021, 4, 27, 9, 35)
         try:
             Stock.resample(bars, FrameType.MIN1, FrameType.MIN5)
@@ -545,6 +585,15 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         assert_bars_equal(data, bars[:-1])
         assert_bars_equal(unclosed, bars[-1:])
 
+        # 不复权的情况
+        end = datetime.datetime(2022, 1, 10, 10, 18)
+        bars = await Stock._get_cached_bars(
+            "000001.XSHE", end, 4, FrameType.MIN15, fq=False
+        )
+
+        assert_bars_equal(data, bars[:-1])
+        assert_bars_equal(unclosed, bars[-1:])
+
         # 取日线
         unclosed[0]["frame"] = datetime.date(2022, 1, 10)
         await Stock.cache_unclosed_bars("000001.XSHE", FrameType.DAY, unclosed)
@@ -555,6 +604,19 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         end = datetime.date(2022, 1, 10)
         bars = await Stock._get_cached_bars("000001.XSHE", end, 10, FrameType.DAY)
         assert_bars_equal(unclosed, bars)
+
+        # 取日线，但不存在的情况
+        bars = await Stock._get_cached_bars("100000.XSHE", end, 1, FrameType.DAY)
+        self.assertTrue(bars is None)
+
+        # 取日线，但unclosed = False，应该报告参数错误的情况
+        try:
+            bars = await Stock._get_cached_bars(
+                "000001.XSHE", end, 1, FrameType.DAY, unclosed=False
+            )
+            self.assertTrue(False, "此处应该报告调用参数错误")
+        except AssertionError:
+            pass
 
     async def test_get_bars(self):
         await Stock.reset_cache()
@@ -887,3 +949,21 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         assert_bars_equal(exp, bars)
+
+    async def test_stock_ctor(self):
+        payh = Stock("000001.XSHE")
+        self.assertEqual(payh.code, "000001.XSHE")
+        self.assertEqual(payh.name, "PAYH")
+        self.assertEqual(payh.display_name, "平安银行")
+        self.assertEqual(payh.ipo_date, datetime.date(1991, 4, 3))
+        self.assertEqual(payh.security_type, SecurityType.STOCK)
+        self.assertEqual(payh.end_date, datetime.date(2200, 1, 1))
+
+        with mock.patch.object(
+            arrow, "now", return_value=datetime.datetime(2022, 1, 15)
+        ):
+            self.assertEqual(payh.days_since_ipo(), 4141)
+
+        self.assertEqual("平安银行[000001.XSHE]", str(payh))
+        self.assertEqual("000001", payh.sim_code)
+        self.assertEqual("000001", Stock.simplify_code("000001.XSHE"))
