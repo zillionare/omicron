@@ -1,14 +1,14 @@
+import datetime
 import logging
-from random import randint
 import unittest
+from random import randint
 from unittest.mock import patch
 
 import arrow
 import numpy as np
-import datetime
 
 import omicron
-from omicron.models.funds import FundNetValue, FundShareDaily, Funds, FundPortfolioStock
+from omicron.models.funds import FundNetValue, FundPortfolioStock, Funds, FundShareDaily
 from tests import init_test_env
 
 logger = logging.getLogger(__name__)
