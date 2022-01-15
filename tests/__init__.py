@@ -5594,57 +5594,75 @@ async def set_calendar_data(redis):
         20050331,
         20050630,
         20050930,
+        20051230,
         20060331,
         20060630,
         20060929,
+        20061229,
         20070330,
         20070629,
         20070928,
+        20071228,
         20080331,
         20080630,
         20080926,
+        20081231,
         20090331,
         20090630,
         20090930,
+        20091231,
         20100331,
         20100630,
         20100930,
+        20101231,
         20110331,
         20110630,
         20110930,
+        20111230,
         20120330,
         20120629,
         20120928,
+        20121231,
         20130329,
         20130628,
         20130930,
+        20131231,
         20140331,
         20140630,
         20140930,
+        20141231,
         20150331,
         20150630,
         20150930,
+        20151231,
         20160331,
         20160630,
         20160930,
+        20161230,
         20170331,
         20170630,
         20170929,
+        20171229,
         20180330,
         20180629,
         20180928,
+        20181228,
         20190329,
         20190628,
         20190930,
+        20191231,
         20200331,
         20200630,
         20200930,
+        20201231,
         20210331,
         20210630,
         20210930,
+        20211231,
         20220331,
         20220630,
         20220930,
+        20221230,
         20230209,
     ]
 
@@ -5692,12 +5710,9 @@ async def init_test_env():
     src_dir = os.path.dirname(__file__)
     config_path = os.path.join(src_dir, "../omicron/config")
 
-    handler = logging.StreamHandler()
-    fmt = "%(asctime)s %(levelname)-1.1s %(name)s:%(funcName)s:%(lineno)s | %(message)s"
-    formatter = logging.Formatter(fmt=fmt)
-    handler.setFormatter(formatter)
-    logger = logging.getLogger()
-    logger.addHandler(handler)
+    root = logging.getLogger()
+    root.handlers.clear()
+    logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
 
     cfg = cfg4py.init(config_path, False)
 

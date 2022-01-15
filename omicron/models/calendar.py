@@ -13,7 +13,6 @@ from arrow import Arrow
 from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
 from omicron.core.types import Frame, FrameType
-from omicron.dal import cache
 
 logger = logging.getLogger(__file__)
 
@@ -74,7 +73,7 @@ class Calendar:
             if result is not None and len(result):
                 frames = [int(x) for x in result]
                 setattr(cls, name, np.array(frames))
-            else:
+            else:  # pragma: no cover
                 raise DataNotReadyError(f"calendar data is not ready: {name} missed")
 
     @classmethod
@@ -975,8 +974,9 @@ class Calendar:
             quaters = []
             last = trade_days[0]
             for cur in trade_days:
-                if cur.month > last.month and last.month % 3 == 0:
-                    quaters.append(last)
+                if last.month % 3 == 0:
+                    if cur.month > last.month or cur.year > last.year:
+                        quaters.append(last)
                 last = cur
             quaters.append(last)
 
@@ -991,7 +991,7 @@ class Calendar:
             years.append(last)
 
             return years
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"Unsupported FrameType: {frame_type}")
 
     @classmethod
@@ -1030,6 +1030,9 @@ class Calendar:
 
     @classmethod
     async def save_calendar(cls, trade_days):
+        # avoid circular import
+        from omicron import cache
+
         for ft in [FrameType.WEEK, FrameType.MONTH, FrameType.QUARTER, FrameType.YEAR]:
             days = cls.resample_frames(trade_days, ft)
             frames = [cls.date2int(x) for x in days]
@@ -1046,3 +1049,12 @@ class Calendar:
         pl.delete(key)
         pl.rpush(key, *frames)
         await pl.execute()
+
+    @classmethod
+    async def remove_calendar(cls):
+        # avoid circular import
+        from omicron import cache
+
+        for ft in cls.day_level_frames:
+            key = f"calendar:{ft.value}"
+            await cache.security.delete(key)
