@@ -81,7 +81,7 @@ class Stock:
             _stocks["end"] = [arrow.get(x).date() for x in _stocks["end"]]
 
             return _stocks
-        else:
+        else:  # pragma: no cover
             return None
 
     @classmethod
@@ -89,7 +89,7 @@ class Stock:
         secs = await cls.load_securities()
         if len(secs) != 0:
             cls._stocks = secs
-        else:
+        else:  # pragma: no cover
             raise DataNotReadyError(
                 "No securities in cache, make sure you have called omicron.init() first."
             )
@@ -211,7 +211,7 @@ class Stock:
         return re.sub(r"\.XSH[EG]", "", self.code)
 
     @property
-    def type(self) -> SecurityType:
+    def security_type(self) -> SecurityType:
         """返回证券类型
 
         Returns:
@@ -226,51 +226,14 @@ class Stock:
     def days_since_ipo(self) -> int:
         """获取上市以来经过了多少个交易日
 
+        由于受交易日历限制（2005年1月4日之前的交易日历没有），对于在之前上市的品种，都返回从2005年1月4日起的日期。
+
         Returns:
             int: [description]
         """
         epoch_start = arrow.get("2005-01-04").date()
         ipo_day = self.ipo_date if self.ipo_date > epoch_start else epoch_start
         return cal.count_day_frames(ipo_day, arrow.now().date())
-
-    @staticmethod
-    def parse_security_type(code: str) -> SecurityType:
-        """
-        通过证券代码全称，解析出A股MarketType, 证券类型SecurityType和简码
-        Args:
-            code:
-
-        Returns:
-
-        """
-        market = MarketType(code[-4:])
-        _type = SecurityType.UNKNOWN
-        s1, s2, s3 = code[0], code[0:2], code[0:3]
-        if market == MarketType.XSHG:
-            if s1 == "6":
-                _type = SecurityType.STOCK
-            elif s3 in {"000", "880", "999"}:
-                _type = SecurityType.INDEX
-            elif s2 == "51":
-                _type = SecurityType.ETF
-            elif s3 in {"129", "100", "110", "120"}:
-                _type = SecurityType.BOND
-            else:
-                _type = SecurityType.UNKNOWN
-
-        else:
-            if s2 in {"00", "30"}:
-                _type = SecurityType.STOCK
-            elif s2 == "39":
-                _type = SecurityType.INDEX
-            elif s2 == "15":
-                _type = SecurityType.ETF
-            elif s2 in {"10", "11", "12", "13"}:
-                _type = SecurityType.BOND
-            elif s2 == "20":
-                _type = SecurityType.STOCK_B
-
-        return _type
 
     @staticmethod
     def qfq(bars) -> np.ndarray:
@@ -704,9 +667,9 @@ class Stock:
         """
         if from_frame == FrameType.MIN1:
             return cls._resample_from_min1(bars, to_frame)
-        elif from_frame == FrameType.DAY:
+        elif from_frame == FrameType.DAY:  # pragma: no cover
             return cls._resample_from_day(bars, to_frame)
-        else:
+        else:  # pragma: no cover
             raise TypeError(f"unsupported from_frame: {from_frame}")
 
     @classmethod

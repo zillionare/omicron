@@ -2,14 +2,10 @@
 omit =
     */config/schema.py
     */core/events.py
-    */core/lang.py
-    */core/errors.py
     */tests/*
 [report]
 omit =
     */config/schema.py
-    */core/events.py
-    */core/lang.py
     */core/errors.py
     */tests/*
 exclude_lines =
