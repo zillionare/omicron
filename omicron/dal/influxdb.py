@@ -1,11 +1,12 @@
-from typing import List
+from copy import deepcopy
+from typing import List, Union
 
 import cfg4py
 import pandas as pd
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
 
-from omicron.core.types import Frame
+from omicron.core.types import Frame, FrameType
 
 
 class PerssidentInfluxDb(object):
@@ -52,7 +53,6 @@ class PerssidentInfluxDb(object):
     ):
         if not bucket or sequence.empty:
             return
-
         self.write_api.write(
             bucket,
             self.org,
@@ -67,30 +67,57 @@ class PerssidentInfluxDb(object):
         self._token = cfg.influxdb.token
         self._url = cfg.influxdb.url
 
-    async def get_limit_in_date_range(
-        self, bucket: str, code: str, begin: Frame, end: Frame
+    async def get_stocks_in_date_range(
+        self,
+        bucket: str,
+        code: Union[str, List[str]],
+        fields: List[str],
+        begin: Frame = None,
+        end: Frame = None,
+        limit: int = None,
+        frame_type: FrameType = FrameType.DAY,
     ) -> pd.DataFrame:
         params = {
             "bucket": bucket,
-            "begin": begin,
-            "end": end,
-            "code": code,
+            "end": end.strftime("%Y-%m-%d %H:%M:%S"),
         }
-        query = """
+        code = [code] if isinstance(code, str) else code
+        fields_query = " or ".join(
+            list(map(lambda x: f'''r["_field"] == "{x}"''', fields))
+        )
+        if code:
+            codes_query = "|> filter(fn: (r) => %s)" % (
+                " or ".join(list(map(lambda x: f'''r["code"] == "{x}"''', code)))
+            )
+        else:
+            codes_query = ""
+        columns = deepcopy(fields) or []
+        columns.extend(["_value", "_field"])
+        columns = '","'.join(columns)
+        query = f"""
         from(bucket: bucket)
             |> range(start: -200d)
             |> filter(fn: (r) => r["_measurement"] == "stock")
-            |> filter(fn: (r) => r["_field"] == "high_limit" or r["_field"] == "low_limit" or r["_field"] = "close")
-            |> filter(fn: (r) => r["code"] == code)
-            |> filter(fn: (r) => r["frame"] >= begin or r["frame"] <= end)
-            |> filter(fn: (r) => r["frame_type"] == "6")
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> keep(columns: ["_time", "code", "frame", "frame_type","high_limit", "low_limit"])
+            |> filter(fn: (r) =>  {fields_query})
+            {codes_query}
+            |> filter(fn: (r) => {('r["frame"] >= "%s" and' % begin.strftime("%Y-%m-%d %H:%M:%S")) if begin else ""} r["frame"] <= end)
+            |> filter(fn: (r) => r["frame_type"] == "{frame_type.to_int()}")
+            |> keep(columns: ["{columns}"])
+            {("|> limit(n: %d)" % limit) if limit else ""}
         """
-        data = self.client.query_api().query_data_frame(
+        df = self.client.query_api().query_data_frame(
             query, params=params, org=self.org
         )
-        return data
+        df = pd.concat(df) if isinstance(df, list) else df
+        if df.empty:
+            df = pd.DataFrame(columns=fields)
+        else:
+            df = df.pivot(
+                index=["code", "frame", "frame_type"],
+                columns=["_field"],
+                values=["_value"],
+            )["_value"].reset_index()
+        return df[fields]
 
 
 cfg = cfg4py.get_instance()

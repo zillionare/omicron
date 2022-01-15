@@ -7,8 +7,10 @@ import numpy as np
 
 import omicron
 from omicron.core.types import Frame, FrameType, bars_with_limit_dtype, stock_bars_dtype
+from omicron.dal import cache, influxdb
 from omicron.models.stock import Stock
 from tests import assert_bars_equal, init_test_env
+from omicron.extensions.np import numpy_append_fields
 
 
 class StockTest(unittest.IsolatedAsyncioTestCase):
@@ -385,6 +387,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
     async def test_persist_bars(self):
+        code = "000001.XSHE"
         bars = np.array(
             [
                 (
@@ -398,14 +401,41 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     18.83,
                     15.41,
                     1.0,
-                    "000001.XSHE",
-                )
+                    code,
+                    6,
+                ),
+                (
+                    datetime.datetime(2022, 1, 6, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.2,
+                    1.1266307e08,
+                    1.93771096e09,
+                    18.83,
+                    15.41,
+                    1.0,
+                    code,
+                    6,
+                ),
             ],
             dtype=bars_with_limit_dtype,
         )
-        await Stock.persist_bars(FrameType.MIN30, bars)
+        await Stock.persist_bars(FrameType.DAY, bars)
 
-        # todo: 一般数据写入以后，还要读出来，看看是否正确
+        recs: np.array = await Stock._get_persited_bars(
+            code=code, end=arrow.get("2022-01-14")
+        )
+        data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
+        self.assertEqual(data["code"], code)
+
+        recs: np.array = await Stock._get_persited_bars(
+            code="000002.XSHE", end=arrow.get("2022-01-14")
+        )
+        self.assertFalse(len(recs))
+
+        recs: np.array = await Stock._get_persited_bars(end=arrow.get("2022-01-14"))
+        self.assertTrue(len(recs))
 
     async def test_get_cached_bars(self):
         """cache_bars, cache_unclosed_bars are tested also"""
@@ -887,3 +917,329 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         assert_bars_equal(exp, bars)
+
+    async def test_get_limits_in_range(self):
+        now = datetime.datetime.now().date()
+        code = "000001.XSHE"
+
+        bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 7, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.8,
+                    1.1266307e08,
+                    1.93771096e09,
+                    18.83,
+                    15.41,
+                    1.0,
+                    code,
+                    6,
+                ),
+                (
+                    datetime.datetime(2022, 1, 6, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.2,
+                    1.1266307e08,
+                    1.93771096e09,
+                    18.83,
+                    15.41,
+                    1.0,
+                    code,
+                    6,
+                ),
+            ],
+            dtype=bars_with_limit_dtype,
+        )
+        await Stock.persist_bars(FrameType.DAY, bars)
+
+        result = await Stock.get_limits_in_range(
+            code,
+            begin=arrow.get("2022-01-06").date(),
+            end=arrow.get("2022-01-07").date(),
+        )
+
+        self.assertEqual(len(result), 2)
+
+        result = await Stock.get_limits_in_range(
+            code,
+            begin=arrow.get("2022-01-06").date(),
+            end=now + datetime.timedelta(days=1),
+        )
+        self.assertEqual(len(result), 3)
+        self.assertAlmostEqual(result[0][3], 19.57, delta=0.1)
+        self.assertAlmostEqual(result[0][4], 16.01, delta=0.1)
+
+        await cache._security_.hset("high_low_limit", f"{code}.high_limit", 100)
+        await cache._security_.hset("high_low_limit", f"{code}.low_limit", 80)
+
+        result = await Stock.get_limits_in_range(
+            code,
+            begin=arrow.get("2022-01-06").date(),
+            end=now + datetime.timedelta(days=1),
+        )
+        self.assertEqual(len(result), 3)
+        self.assertAlmostEqual(result[0][3], 100)
+        self.assertAlmostEqual(result[0][4], 80)
+
+        await cache._security_.delete("high_low_limit")
+
+        result = await Stock.get_limits_in_range(
+            "999999.XXXX",
+            begin=arrow.get("2022-01-06").date(),
+            end=now + datetime.timedelta(days=1),
+        )
+        self.assertFalse(len(result))
+
+    async def test_get_bars_in_range(self):
+        await Stock.reset_cache()
+
+        ft = FrameType.MIN15
+        # len == 5
+        cache_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 10, 9, 45),
+                    17.29,
+                    17.42,
+                    17.16,
+                    17.18,
+                    23069200.0,
+                    3.99426730e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 0),
+                    17.17,
+                    17.27,
+                    17.08,
+                    17.13,
+                    12219500.0,
+                    2.09659075e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 15),
+                    17.14,
+                    17.15,
+                    17.03,
+                    17.04,
+                    11106800.0,
+                    1.89643093e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 30),
+                    17.05,
+                    17.12,
+                    17.05,
+                    17.09,
+                    3352900.0,
+                    5.72981150e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 10, 10, 45),
+                    17.08,
+                    17.19,
+                    17.07,
+                    17.14,
+                    3150400.0,
+                    5.39887270e07,
+                    121.71913,
+                ),
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        cache_unclosed_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 10, 10, 47),
+                    17.14,
+                    17.17,
+                    17.14,
+                    17.15,
+                    376200.0,
+                    6.45355700e06,
+                    121.71913,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+        for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
+            await Stock.cache_bars(code, ft, cache_bars)
+            await Stock.cache_unclosed_bars(code, ft, cache_unclosed_bars)
+
+        # len == 8
+        persist_bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 7, 13, 15),
+                    17.24,
+                    17.28,
+                    17.24,
+                    17.26,
+                    7509700.0,
+                    1.29655754e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 13, 30),
+                    17.25,
+                    17.26,
+                    17.17,
+                    17.19,
+                    6348400.0,
+                    1.09249162e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 13, 45),
+                    17.18,
+                    17.22,
+                    17.16,
+                    17.2,
+                    2748100.0,
+                    4.72354460e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 0),
+                    17.19,
+                    17.2,
+                    17.17,
+                    17.2,
+                    3153700.0,
+                    5.42049370e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 15),
+                    17.19,
+                    17.23,
+                    17.19,
+                    17.22,
+                    5729200.0,
+                    9.86084270e07,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 30),
+                    17.22,
+                    17.25,
+                    17.2,
+                    17.22,
+                    6729300.0,
+                    1.15946564e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 14, 45),
+                    17.21,
+                    17.23,
+                    17.17,
+                    17.18,
+                    7203100.0,
+                    1.23899524e08,
+                    121.71913,
+                ),
+                (
+                    datetime.datetime(2022, 1, 7, 15, 0),
+                    17.16,
+                    17.2,
+                    17.15,
+                    17.2,
+                    8683800.0,
+                    1.49181676e08,
+                    121.71913,
+                ),
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        # 1. end is None, 取当前时间作为end.
+        # with mock.patch.object(
+        #     arrow, "now", return_value=arrow.get("2022-01-10 10:47:02")
+        # ):
+        #     end = arrow.get("2022-01-10 10:47:02").naive
+        #     n = 1
+        #     bars = await Stock.get_bars_in_range(
+        #         codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+        #         end=end,
+        #         n=n,
+        #         frame_type=ft,
+        #     )
+        #     self.assertEqual(
+        #         set(bars.keys()),
+        #         set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+        #     )
+
+        #     bars = await Stock.get_bars_in_range(
+        #         codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+        #         end=end,
+        #         begin=arrow.get("2022-01-10 10:40:02").naive,
+        #         frame_type=ft,
+        #     )
+        #     self.assertEqual(
+        #         set(bars.keys()),
+        #         set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+        #     )
+
+        # 2. end < ff，仅从persistent中取
+        end = datetime.datetime(2022, 1, 7, 15, 0)
+        begin = arrow.get("2022-01-07 14:45:00").naive
+        for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
+            _persist_bars = (
+                numpy_append_fields(persist_bars, "code", code, [("code", "O")]),
+            )
+            await Stock.persist_bars(ft, _persist_bars[0])
+        recs = await Stock.get_bars_in_range(
+            codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+            end=end,
+            begin=begin,
+            frame_type=ft,
+        )
+        self.assertEqual(
+            set(recs.keys()),
+            set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+        )
+        recs = await Stock.get_bars_in_range(
+            ["000001.XSHE"], n=7, frame_type=ft, end=end, unclosed=False
+        )
+        print("#########################################", recs)
+        # with mock.patch.object(
+        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+        # ):
+        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end)
+        #     assert_bars_equal(persist_bars[-2:], bars)
+
+        # # 3. end > ff，从persistent和cache中取,不包含unclosed
+        # end = datetime.datetime(2022, 1, 10, 10, 47)
+        # n = 7
+        # with mock.patch.object(
+        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+        # ):
+        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=False)
+        #     assert_bars_equal(
+        #         persist_bars[-2:],
+        #         bars[:2],
+        #     )
+        #     assert_bars_equal(cache_bars[-5:], bars[2:])
+
+        # # 4. end > ff, 从persistent和cache中取,包含unclosed
+        # end = datetime.datetime(2022, 1, 10, 10, 47)
+        # with mock.patch.object(
+        #     Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+        # ):
+        #     n = 8
+        #     bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=True)
+        #     assert_bars_equal(persist_bars[-2:], bars[:2])
+        #     assert_bars_equal(cache_bars[-5:], bars[2:-1])
+        #     assert_bars_equal(cache_unclosed_bars, bars[-1:])
+
+        # Stock.get_bars_in_range(codes=["000001.XSHE"])

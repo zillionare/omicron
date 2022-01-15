@@ -2,9 +2,9 @@ tz: Asia/Shanghai
 redis:
   dsn: redis://${REDIS_HOST}:${REDIS_PORT}
 influxdb:
-  url: http://localhost:8086
-  token: Gui_t2RaMJ44bTyPHWs1cLIuJDyyUjldvq52HzlLXcz3z5jyCdPIgrGZIJAh4gZXhny9JGveOzi1r72WgtJ-xg==
-  org: my-org
+  url: http://${INFLUXDB_HOST}:${INFLUXDB_PORT}
+  token: ${INFLUXDB_TOKEN}
+  org: ${INFLUXDB_ORG}
 postgres:
   dsn: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
   enabled: ${POSTGRES_ENABLED}
