@@ -15,9 +15,9 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         cfg4py.update_config(
             {
                 "notify": {
-                    "mail_from": "787130391@qq.com",
-                    "mail_to": "evimacs@hotmail.com",
-                    "mail_server": "smtp.qq.com",
+                    "mail_from": "aaron_yang@jieyu.ai",
+                    "mail_to": "code@jieyu.ai",
+                    "mail_server": "smtp.ym.163.com",
                 }
             }
         )
@@ -26,10 +26,10 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_mail(self):
         password = os.environ.get("MAIL_PASSWORD")
-        receiver = "evimacs@hotmail.com"
-        sender = "787130391@qq.com"
+        receiver = "code@jieyu.ai"
+        sender = "aaron_yang@jieyu.ai"
         body = "unitest for omicron/notify/mail"
-        host = "smtp.qq.com"
+        host = "smtp.ym.163.com"
         await send_mail(
             sender, receiver, password, subject="MailTest", body=body, host=host
         )
