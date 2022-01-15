@@ -861,3 +861,29 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         assert_bars_equal(exp, bars)
+
+        data["frame"] = [x.date() for x in data["frame"]]
+        await Stock.reset_cache()
+        await Stock.batch_cache_bars(FrameType.DAY, data)
+
+        bars = await Stock.get_bars(
+            "000001.XSHE", 1, FrameType.DAY, datetime.date(2022, 1, 10)
+        )
+
+        exp = np.array(
+            [
+                (
+                    datetime.date(2022, 1, 10),
+                    17.42,
+                    17.42,
+                    17.38,
+                    17.38,
+                    1597500.0,
+                    27808995.0,
+                    121.71913,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        assert_bars_equal(exp, bars)

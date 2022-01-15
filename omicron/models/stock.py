@@ -425,17 +425,17 @@ class Stock:
         key = f"bars:{frame_type.value}:unclosed"
 
         convert = (
-            cal.time2int if frame_type in cal.minute_level_frames else cal.time2date
+            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
         )
 
         for bar in bars:
             code = bar["code"]
-            val = [*bar[:-1]]  # 去掉code
+            val = [*bar][:-1]  # 去掉code
             val[0] = convert(bar["frame"])  # 时间转换
             pl.hset(key, code, ",".join(map(str, val)))
         await pl.execute()
 
-        cal.set_cached(bars[0]["frame"])
+        cls.set_cached(bars[0]["frame"])
 
     @classmethod
     async def reset_cache(cls):
