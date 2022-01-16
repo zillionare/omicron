@@ -202,9 +202,8 @@ def floor(arr, item):
 def join_by_left(key, r1, r2, mask=True):
     """左连接 `r1`, `r2` by `key`
 
-    如果`r1`中存在`r2`中没有的行，则该行对应的`r2`中的那些字段的取值将使用`fill`来填充。如果
-    same as numpy.lib.recfunctions.join_by(key, r1, r2, jointype='leftouter'), but allows
-    r1 have duplicat keys
+    如果`r1`中存在`r2`中没有的行，则该行对应的`r2`中的那些字段将被mask，或者填充随机数。
+    same as numpy.lib.recfunctions.join_by(key, r1, r2, jointype='leftouter'), but allows r1 have duplicat keys
 
     [Reference: stackoverflow](https://stackoverflow.com/a/53261882/13395693)
 
@@ -234,7 +233,6 @@ def join_by_left(key, r1, r2, mask=True):
         key : join关键字
         r1 : 数据集1
         r2 : 数据集2
-        fill : 对匹配不上的cell进行填充时使用的值
 
     Returns:
         a numpy array
