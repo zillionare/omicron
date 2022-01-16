@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 
 from omicron.extensions.np import (
+    bin_cut,
     count_between,
     dataframe_to_structured_array,
     fill_nan,
@@ -219,3 +220,16 @@ class NpTest(unittest.TestCase):
         actual = dataframe_to_structured_array(df, dtypes=dtypes)
         np.testing.assert_array_equal(data, actual[["a", "b", "c", "d", "e"]])
         np.testing.assert_array_equal(df.index.values, actual["index"])
+
+    def test_bin_cut(self):
+        arr = [1, 2, 3, 4, 5]
+
+        expected = [
+            [[1, 2, 3, 4, 5]],
+            [[1, 3, 5], [2, 4]],
+            [[1, 4], [2, 5], [3]],
+            [[1], [2], [3], [4], [5]],
+            [[1], [2], [3], [4], [5]],
+        ]
+        for i, bins in enumerate([1, 2, 3, 5, 10]):
+            self.assertListEqual(expected[i], bin_cut(arr, bins))

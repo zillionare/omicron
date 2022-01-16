@@ -431,3 +431,22 @@ def rolling(x, win, func):
         results.append(func(subarray))
 
     return np.array(results)
+
+
+def bin_cut(arr: list, n: int):
+    """将数组arr切分成n份
+
+    todo: use padding + reshape to boost performance
+    Args:
+        arr ([type]): [description]
+        n ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    result = [[] for i in range(n)]
+
+    for i, e in enumerate(arr):
+        result[i % n].append(e)
+
+    return [e for e in result if len(e)]
