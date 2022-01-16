@@ -4,11 +4,16 @@ import numpy as np
 
 from omicron.extensions.np import (
     count_between,
+    fillnan,
+    filternan,
     find_runs,
     floor,
     join_by_left,
     numpy_append_fields,
+    replace_zero,
+    rolling,
     shift,
+    top_n_argpos,
 )
 from omicron.models.calendar import Calendar as cal
 
@@ -96,3 +101,64 @@ class NpTest(unittest.TestCase):
         self.assertListEqual([1, 2, 3], value.tolist())
         self.assertListEqual([0, 2, 4], pos.tolist())
         self.assertListEqual([2, 2, 3], length.tolist())
+
+    def test_filternan(self):
+        a = np.array([1, 2, np.nan, 3, np.nan, 4, 5, 6])
+        actual = filternan(a)
+        exp = [1, 2, 3, 4, 5, 6]
+        self.assertListEqual(exp, actual.tolist())
+
+    def test_fillnan(self):
+        arr = np.arange(10) / 3.0
+        arr[0:2] = np.nan
+
+        actual = fillnan(arr)
+        exp = arr.copy()
+        exp[0:2] = 2 / 3.0
+
+        np.testing.assert_array_almost_equal(exp, actual, 3)
+
+        arr = np.arange(10) / 3.0
+        arr[2:5] = np.nan
+
+        actual = fillnan(arr)
+        exp = arr.copy()
+        exp[2:5] = 1 / 3.0
+        np.testing.assert_array_almost_equal(exp, actual, 3)
+
+        arr = np.array([np.nan] * 5)
+        try:
+            fillnan(arr)
+        except ValueError:
+            self.assertTrue(True)
+
+    def test_replace_zero(self):
+        arr = np.array([0, 1, 2, 3, 4])
+        actual = replace_zero(arr)
+        self.assertListEqual([1, 1, 2, 3, 4], actual.tolist())
+
+        arr = np.array([1, 0, 2, 3, 4])
+        self.assertListEqual([1, 1, 2, 3, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 3, 0, 4])
+        self.assertListEqual([1, 2, 3, 3, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 3, 4, 0])
+        self.assertListEqual([1, 2, 3, 4, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 0, 4, 5])
+        self.assertListEqual([1, 2, 0.001, 4, 5], replace_zero(arr, 0.001).tolist())
+
+    def test_top_n_argpos(self):
+        arr = [4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
+        actual = top_n_argpos(arr, 2)
+        exp = [2, 3]
+        self.assertListEqual(exp, actual.tolist())
+
+    def test_rolling(self):
+        arr = np.arange(10)
+        func = np.mean
+        win = 3
+        actual = rolling(arr, win, func)
+        exp = np.convolve(arr, np.ones(win) / win, mode="valid")
+        np.testing.assert_array_almost_equal(exp, actual, 3)

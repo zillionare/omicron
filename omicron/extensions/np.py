@@ -2,6 +2,7 @@
 """
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
@@ -9,6 +10,8 @@ from numpy.typing import ArrayLike
 
 if TYPE_CHECKING:
     from pandas import DataFrame
+
+from numpy.lib.stride_tricks import sliding_window_view
 
 
 def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
@@ -354,3 +357,90 @@ def ffill_na(s: np.array) -> np.array:
     idx = np.where(~mask, np.arange(len(mask)), 0)
     np.maximum.accumulate(idx, out=idx)
     return s[idx]
+
+
+def filternan(ts: np.array) -> np.array:
+    """从`ts`中去除NaN
+
+    Args:
+        ts (np.array): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    return ts[~np.isnan(ts)]
+
+
+def fillnan(ts: np.array):
+    """将ts中的NaN替换为其前值
+
+    Args:
+        ts (np.array): [description]
+    """
+    if np.all(np.isnan(ts)):
+        raise ValueError("all of ts are NaN")
+
+    if ts[0] is None or math.isnan(ts[0]):
+        idx = np.argwhere(~np.isnan(ts))[0]
+        ts[0] = ts[idx]
+
+    mask = np.isnan(ts)
+    idx = np.where(~mask, np.arange(mask.size), 0)
+    np.maximum.accumulate(idx, out=idx)
+    return ts[idx]
+
+
+def replace_zero(ts: np.array, replacement=None) -> np.array:
+    """将ts中的0替换为前值, 处理volume数据时常用用到
+
+    如果提供了replacement, 则替换为replacement
+
+    """
+    if replacement is not None:
+        return np.where(ts == 0, replacement, ts)
+
+    if np.all(ts == 0):
+        raise ValueError("all of ts are 0")
+
+    if ts[0] == 0:
+        idx = np.argwhere(ts != 0)[0]
+        ts[0] = ts[idx]
+
+    mask = ts == 0
+    idx = np.where(~mask, np.arange(mask.size), 0)
+    np.maximum.accumulate(idx, out=idx)
+    return ts[idx]
+
+
+def top_n_argpos(ts: np.array, n: int) -> np.array:
+    """get top n (max->min) elements and return argpos which its value ordered in descent
+
+    Example:
+        >>> top_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([2, 3])
+    Args:
+        ts (np.array): [description]
+        n (int): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    return np.argsort(ts)[-n:][::-1]
+
+
+def rolling(x, win, func):
+    """对序列`x`进行窗口滑动计算
+
+    Args:
+        x ([type]): [description]
+        win ([type]): [description]
+        func ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    results = []
+    for subarray in sliding_window_view(x, window_shape=win):
+        results.append(func(subarray))
+
+    return np.array(results)
