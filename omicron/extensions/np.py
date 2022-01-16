@@ -329,37 +329,7 @@ def numpy_append_fields(base, names, data, dtypes):
     return result
 
 
-def ffill_na(s: np.array) -> np.array:
-    """前向替换一维数组中的np.NaN
-
-    如果s以np.NaN起头，则起头处的np.NaN将无法被替换。
-
-    Examples:
-
-        >>> arr = np.arange(6, dtype=np.float32)
-        >>> arr[3:5] = np.NaN
-        >>> ffill_na(arr)
-        ... # doctest: +NORMALIZE_WHITESPACE
-        array([0., 1., 2., 2., 2., 5.], dtype=float32)
-
-        >>> arr[0:2] = np.nan
-        >>> ffill_na(arr)
-        ... # doctest: +NORMALIZE_WHITESPACE
-        array([nan, nan, 2., 2., 2., 5.], dtype=float32)
-
-    Args:
-        s (np.array): [description]
-
-    Returns:
-        np.array: [description]
-    """
-    mask = np.isnan(s)
-    idx = np.where(~mask, np.arange(len(mask)), 0)
-    np.maximum.accumulate(idx, out=idx)
-    return s[idx]
-
-
-def filternan(ts: np.array) -> np.array:
+def filter_nan(ts: np.array) -> np.array:
     """从`ts`中去除NaN
 
     Args:
@@ -371,8 +341,25 @@ def filternan(ts: np.array) -> np.array:
     return ts[~np.isnan(ts)]
 
 
-def fillnan(ts: np.array):
+def fill_nan(ts: np.array):
     """将ts中的NaN替换为其前值
+
+    如果ts起头的元素为NaN，则用第一个非NaN元素替换。
+
+    如果所有元素都为NaN，则无法替换。
+
+    Example:
+        >>> arr = np.arange(6, dtype=np.float32)
+        >>> arr[3:5] = np.NaN
+        >>> fill_nan(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([0., 1., 2., 2., 2., 5.], dtype=float32)
+
+        >>> arr = np.arange(6, dtype=np.float32)
+        >>> arr[0:2] = np.nan
+        >>> fill_nan(arr)
+        ... # doctest: +NORMALIZE_WHITESPACE
+        array([2., 2., 2., 3., 4., 5.], dtype=float32)
 
     Args:
         ts (np.array): [description]
