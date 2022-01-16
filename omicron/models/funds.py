@@ -99,7 +99,7 @@ class Funds(db.Model):
         )
         stocks = await q.gino.all()
         stock_symbols = [stock[0] for stock in stocks]
-        if postion_stock or position_symbol or fund_range:
+        if postion_stock or position_symbol or fund_range or position_stock_percent:
             stock_q = FundPortfolioStock.select("code")
             if fund_range == 1:
                 stock_q = stock_q.where(FundPortfolioStock.symbol.in_(stock_symbols))
@@ -148,7 +148,7 @@ class Funds(db.Model):
                 Funds.underlying_asset_type_id == underlying_asset_type
             )
 
-        for order in orders:
+        for order in orders or []:
             fund_q = fund_q.order_by(
                 getattr(sqlalchemy, order.get("order"))(
                     getattr(Funds, order.get("field"))
@@ -159,7 +159,7 @@ class Funds(db.Model):
             await fund_q.offset((page - 1) * page_size).limit(page_size).gino.all()
         )
         fund_results = []
-        for record in fund_records:
+        for record in fund_records or []:
             result = {}
             for column in columns:
                 result[column] = record[column]

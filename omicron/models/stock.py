@@ -1,7 +1,7 @@
 import datetime
 import logging
 import re
-from typing import List
+from typing import List, Union
 
 import arrow
 import numpy as np
@@ -13,6 +13,7 @@ from omicron.core.types import (
     FrameType,
     MarketType,
     SecurityType,
+    bars_with_limit_dtype,
     stock_bars_dtype,
 )
 from omicron.dal import cache, influxdb
@@ -49,6 +50,8 @@ class Stock:
 
     def __init__(self, code: str):
         self._code = code
+        stock = self._stocks[self._stocks["code"] == code]
+        assert stock, "系统中不存在该code"
         (
             _,
             self._display_name,
@@ -56,7 +59,7 @@ class Stock:
             self._start_date,
             self._end_date,
             _type,
-        ) = self._stocks[self._stocks["code"] == code][0]
+        ) = stock[0]
         self._type = SecurityType(_type)
 
     @classmethod
@@ -243,7 +246,14 @@ class Stock:
 
     @classmethod
     async def get_bars_in_range(
-        cls, begin: Frame, end: Frame, frame_type: FrameType, fq=True
+        cls,
+        codes: Union[str, List[str]] = None,
+        begin: Frame = None,
+        end: Frame = None,
+        frame_type: FrameType = FrameType.DAY,
+        fq=True,
+        n: bool = None,
+        unclosed: bool = True,
     ):
         """获取在`[start, stop]`间的行情数据。
 
@@ -253,7 +263,46 @@ class Stock:
             frame_type (FrameType): [description]
             fq (bool, optional): [description]. Defaults to True.
         """
-        raise NotImplementedError
+        codes = [codes] if isinstance(codes, str) else codes
+        parts = []
+        if not codes:
+            codes = list(cls._stocks["code"])
+        result = {}
+        for code in codes:
+            bars = np.empty((0,), dtype=stock_bars_dtype)
+            if n:
+                part2 = await cls.get_bars(
+                    code, n, end=end, frame_type=frame_type, unclosed=unclosed, fq=False
+                )
+                bars = part2
+            else:
+                part2 = await cls._get_cached_bars(code, end, 240, frame_type, unclosed)
+                parts = []
+                early_parts = []
+                if len(part2):
+                    part2 = await cls.get_bars(
+                        code,
+                        n=len(part2) or 0,
+                        end=end,
+                        frame_type=frame_type,
+                        unclosed=unclosed,
+                        fq=False,
+                    )
+                    parts = part2[part2["frame"] >= begin]
+                    early_parts: np.array = part2[part2["frame"] < begin]
+                if not len(early_parts):
+                    bars = await cls._get_persited_bars(
+                        code=code,
+                        begin=begin,
+                        end=end,
+                        frame_type=frame_type,
+                        dtypes=stock_bars_dtype,
+                    )
+                    bars = np.concatenate((bars, parts)) if len(parts) else bars
+            if fq and len(bars):
+                bars = cls.qfq(bars)
+            result[code] = bars
+        return result
 
     @classmethod
     async def get_bars(
@@ -293,7 +342,10 @@ class Stock:
         n1 = n - n2
         if n1 > 0:
             pend = cal.shift(cls.get_cached_first_frame(frame_type), -1, frame_type)
-            part1 = await cls._get_persited_bars(code, pend, n1, frame_type, unclosed)
+            part1 = await cls._get_persited_bars(
+                code, end=pend, n=n1, frame_type=frame_type
+            )
+            part1 = part1[(-n1):]
         else:
             part1 = np.empty((0,), dtype=stock_bars_dtype)
 
@@ -307,8 +359,14 @@ class Stock:
 
     @classmethod
     async def _get_persited_bars(
-        cls, code: str, n: int, frame_type: FrameType, end: Frame
-    ):
+        cls,
+        code: Union[str, List[str]] = None,
+        n: int = None,
+        frame_type: FrameType = FrameType.DAY,
+        end: Frame = None,
+        begin: Frame = None,
+        dtypes: List[str] = None,
+    ) -> np.array:
         """从influxdb中获取数据
 
         Args:
@@ -320,7 +378,23 @@ class Stock:
         Raises:
             NotImplemented: [description]
         """
-        raise NotImplementedError
+        if not dtypes:
+            dtypes = stock_bars_dtype
+        columns = list(map(lambda x: x[0], dtypes))
+        raw_columns = list(map(lambda x: x[0], dtypes))
+        for _field in ["code", "frame_type"]:
+            if _field not in columns:
+                columns.append(_field)
+        df = await influxdb.get_stocks_in_date_range(
+            code=code,
+            fields=columns,
+            limit=n,
+            end=end,
+            frame_type=frame_type,
+            begin=begin,
+        )
+        df = df[raw_columns]
+        return np.array(np.rec.fromrecords(df.values), dtype=dtypes)
 
     @classmethod
     async def batch_get_bars(
@@ -329,9 +403,9 @@ class Stock:
         n: int,
         frame_type: FrameType,
         end: Frame = None,
-        fq=True,
-        closed=True,
-        skip_paused=True,
+        fq: bool = True,
+        unclosed: bool = False,
+        skip_paused: bool = True,
     ) -> dict:
         """获取多支股票（指数）的最近的`n`个行情数据。
 
@@ -350,7 +424,15 @@ class Stock:
         Raises:
             NotImplementedError: [description]
         """
-        raise NotImplementedError
+        bars = cls.get_bars_in_range(
+            code=codes,
+            fq=fq,
+            n=n,
+            unclosed=unclosed,
+            frame_type=frame_type,
+            end=end,
+        )
+        return bars
 
     @classmethod
     async def batch_cache_bars(cls, frame_type: FrameType, bars: np.ndarray):
@@ -563,7 +645,7 @@ class Stock:
         df = pd.DataFrame(data=bars, columns=bars.dtype.names)
         df["frame_type"] = frame_type.to_int()
         df.index = df["frame"]
-        await influxdb.write("zillionare", df, "stock", ["frame", "frame_type", "code"])
+        await influxdb.write(df, "stock", ["frame", "frame_type", "code"])
 
     @classmethod
     def resample(
@@ -661,15 +743,26 @@ class Stock:
     @classmethod
     async def get_limits_in_range(cls, code: str, begin: Frame, end: Frame) -> np.array:
         """获取股票的涨跌停价"""
-        now = datetime.datetime.now()
-        assert begin > now, "begin time can't gt now()"
-        assert begin > end, "begin time can't gt end time"
+        now = datetime.datetime.now().date()
+        end = min(now, end)
+        assert begin < now, "begin time can't gt now()"
+        assert begin < end, "begin time can't gt end time"
         df = pd.DataFrame(
             columns=["code", "frame", "frame_type", "high_limit", "low_limit", "close"],
         )
         if begin < now:
-            df = await influxdb.get_limit_in_date_range(
-                bucket="zillionare", code=code, begin=begin, end=end
+            df = await influxdb.get_stocks_in_date_range(
+                code=code,
+                fields=[
+                    "high_limit",
+                    "low_limit",
+                    "close",
+                    "code",
+                    "frame",
+                    "frame_type",
+                ],
+                begin=begin,
+                end=end,
             )
             df = df.sort_values(
                 by=[
@@ -683,25 +776,38 @@ class Stock:
             columns=["code", "frame", "frame_type", "high_limit", "low_limit"],
         )
         if end == now:
-            high_limit = cache._security_.hget("high_low_limit", f"{code}.high_limit")
-            low_limit = cache._security_.hget("high_low_limit", f"{code}.low_limit")
-            items = [
-                {
-                    "code": code,
-                    "frame": now,
-                    "frame_type": FrameType.DAY.to_int(),
-                    "high_limit": high_limit,
-                    "low_limit": low_limit,
-                }
-            ]
-            df1 = pd.DataFrame(
-                items,
-                columns=["code", "frame", "frame_type", "high_limit", "low_limit"],
+            high_limit = await cache._security_.hget(
+                "high_low_limit", f"{code}.high_limit"
             )
+            low_limit = await cache._security_.hget(
+                "high_low_limit", f"{code}.low_limit"
+            )
+            if high_limit or low_limit:
+                items = [
+                    {
+                        "code": code,
+                        "frame": now,
+                        "frame_type": FrameType.DAY.to_int(),
+                        "high_limit": high_limit,
+                        "low_limit": low_limit,
+                    }
+                ]
+                df1 = pd.DataFrame(
+                    items,
+                    columns=["code", "frame", "frame_type", "high_limit", "low_limit"],
+                )
+
+        dtypes = [
+            ("code", "O"),
+            ("frame", "O"),
+            ("frame_type", "O"),
+            ("high_limit", "f4"),
+            ("low_limit", "f4"),
+        ]
         if df1.empty:
             if df.empty:
-                return df.to_numpy()
-            else:
+                return df.to_numpy(dtype=dtypes)
+            elif end == now:
                 stock = Stock(code)
                 if code.startswith("300"):
                     if stock.display_name.startswith("ST"):
@@ -713,27 +819,26 @@ class Stock:
                         percent = 0.05
                     else:
                         percent = 0.1
-                close = df.iloc[1, 5]
+                close = df.iloc[0, 2]
                 high_limit = close + close * percent
                 low_limit = close - close * percent
-                s = pd.Series(
-                    {
-                        "code": code,
-                        "frame": now,
-                        "frame_type": FrameType.DAY.to_int(),
-                        "high_limit": high_limit,
-                        "low_limit": low_limit,
-                    }
+                s = pd.DataFrame(
+                    [
+                        {
+                            "code": code,
+                            "frame": now.strftime("%Y-%m-%d"),
+                            "frame_type": FrameType.DAY.to_int(),
+                            "high_limit": high_limit,
+                            "low_limit": low_limit,
+                            "close": None,
+                        }
+                    ]
                 )
-                df.append(s)
+                df = pd.concat([s, df])
         else:
-            df = pd.concat(df, df1)
+            df = pd.concat([df1, df])
         df = df[["code", "frame", "frame_type", "high_limit", "low_limit"]]
-        dtypes = [
-            ("code", "O"),
-            ("frame", "O"),
-            ("frame_type", "O"),
-            ("high_limit", "f4"),
-            ("low_limit", "f4"),
-        ]
+        df["frame"] = df["frame"].map(
+            lambda x: arrow.get(x).date() if isinstance(x, str) else x
+        )
         return np.array(np.rec.fromrecords(df.values), dtype=dtypes)

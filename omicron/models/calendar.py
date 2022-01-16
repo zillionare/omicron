@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 import datetime
 import itertools
 import logging
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
 
 import arrow
+
+if TYPE_CHECKING:
+    from arrow import Arrow
+
 import numpy as np
-from arrow import Arrow
 
 from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
@@ -669,7 +673,7 @@ class Calendar:
         """
         if isinstance(day, str):
             day = cls.date2int(arrow.get(day).date())
-        elif isinstance(day, Arrow) or isinstance(day, datetime.datetime):
+        elif isinstance(day, arrow.Arrow) or isinstance(day, datetime.datetime):
             day = cls.date2int(day.date())
         elif isinstance(day, datetime.date):
             day = cls.date2int(day)
@@ -731,7 +735,6 @@ class Calendar:
         Returns:
 
         """
-
         day = cls.date2int(arrow.get(day).date())
 
         if frame_type == FrameType.MIN1:

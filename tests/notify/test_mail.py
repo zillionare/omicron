@@ -26,8 +26,8 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_mail(self):
         password = os.environ.get("MAIL_PASSWORD")
-        sender = "aaron_yang@jieyu.ai"
         receiver = "code@jieyu.ai"
+        sender = "aaron_yang@jieyu.ai"
         body = "unitest for omicron/notify/mail"
         host = "smtp.ym.163.com"
         await send_mail(

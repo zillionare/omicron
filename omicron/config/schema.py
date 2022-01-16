@@ -34,6 +34,8 @@ class Config(object):
 
         org: Optional[str] = None
 
+        bucket_name: Optional[str] = None
+
     class postgres:
         dsn: Optional[str] = None
 
