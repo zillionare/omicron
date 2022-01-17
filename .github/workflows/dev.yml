@@ -27,6 +27,11 @@ jobs:
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
       POSTGRES_ENABLED: true
       MAIL_PASSWORD: ${{secrets.MAIL_PASSWORD}}
+      INFLUXDB_HOST: 127.0.0.1
+      INFLUXDB_PORT: 8086
+      INFLUXDB_TOKEN: my-token
+      INFLUXDB_ORG: my-org
+      INFLUXDB_BUCKET_NAME: my-bucket
     # The type of runner that the job will run on
     strategy:
       matrix:
@@ -79,6 +84,13 @@ jobs:
             sudo -E apt-get update
             PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v0.6.sql
             PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
+      
+      - name: init influxdb
+        run: |
+          docker run -d -p 8086:8086 --name my_influxdb influxdb
+          sleep 3
+          docker exec -i my_influxdb bash -c 'influx setup --username my-user --password my-password --org my-org --bucket my-bucket --retention 168d --token my-token --force'
+      
       - name: test with tox
         run:
           tox
