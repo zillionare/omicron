@@ -3,12 +3,19 @@ import unittest
 import numpy as np
 
 from omicron.extensions.np import (
+    bin_cut,
     count_between,
+    dataframe_to_structured_array,
+    fill_nan,
+    filter_nan,
     find_runs,
     floor,
     join_by_left,
     numpy_append_fields,
+    replace_zero,
+    rolling,
     shift,
+    top_n_argpos,
 )
 from omicron.models.calendar import Calendar as cal
 
@@ -19,7 +26,18 @@ class NpTest(unittest.TestCase):
          20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = cal.day_frames
+        arr = [
+            20050104,
+            20050105,
+            20050106,
+            20050107,
+            20050110,
+            20050111,
+            20050112,
+            20050113,
+            20050114,
+            20050117,
+        ]
 
         actual = count_between(arr, start=20050104, end=20050111)
         self.assertEqual(6, actual)
@@ -38,7 +56,18 @@ class NpTest(unittest.TestCase):
         20050104, 20050105, 20050106, 20050107, 20050110, 20050111,
         20050112, 20050113, 20050114, 20050117
         """
-        arr = cal.day_frames
+        arr = [
+            20050104,
+            20050105,
+            20050106,
+            20050107,
+            20050110,
+            20050111,
+            20050112,
+            20050113,
+            20050114,
+            20050117,
+        ]
 
         self.assertEqual(20050105, shift(arr, 20050104, 1))
         self.assertEqual(20050104, shift(arr, 20050105, -1))
@@ -96,3 +125,111 @@ class NpTest(unittest.TestCase):
         self.assertListEqual([1, 2, 3], value.tolist())
         self.assertListEqual([0, 2, 4], pos.tolist())
         self.assertListEqual([2, 2, 3], length.tolist())
+
+    def test_filter_nan(self):
+        a = np.array([1, 2, np.nan, 3, np.nan, 4, 5, 6])
+        actual = filter_nan(a)
+        exp = [1, 2, 3, 4, 5, 6]
+        self.assertListEqual(exp, actual.tolist())
+
+    def test_fill_nan(self):
+        arr = np.arange(10) / 3.0
+        arr[0:2] = np.nan
+
+        actual = fill_nan(arr)
+        exp = arr.copy()
+        exp[0:2] = 2 / 3.0
+
+        np.testing.assert_array_almost_equal(exp, actual, 3)
+
+        arr = np.arange(10) / 3.0
+        arr[2:5] = np.nan
+
+        actual = fill_nan(arr)
+        exp = arr.copy()
+        exp[2:5] = 1 / 3.0
+        np.testing.assert_array_almost_equal(exp, actual, 3)
+
+        arr = np.array([np.nan] * 5)
+        try:
+            fill_nan(arr)
+        except ValueError:
+            self.assertTrue(True)
+
+    def test_replace_zero(self):
+        arr = np.array([0, 1, 2, 3, 4])
+        actual = replace_zero(arr)
+        self.assertListEqual([1, 1, 2, 3, 4], actual.tolist())
+
+        arr = np.array([1, 0, 2, 3, 4])
+        self.assertListEqual([1, 1, 2, 3, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 3, 0, 4])
+        self.assertListEqual([1, 2, 3, 3, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 3, 4, 0])
+        self.assertListEqual([1, 2, 3, 4, 4], replace_zero(arr).tolist())
+
+        arr = np.array([1, 2, 0, 4, 5])
+        self.assertListEqual([1, 2, 0.001, 4, 5], replace_zero(arr, 0.001).tolist())
+
+    def test_top_n_argpos(self):
+        arr = [4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
+        actual = top_n_argpos(arr, 2)
+        exp = [2, 3]
+        self.assertListEqual(exp, actual.tolist())
+
+    def test_rolling(self):
+        arr = np.arange(10)
+        func = np.mean
+        win = 3
+        actual = rolling(arr, win, func)
+        exp = np.convolve(arr, np.ones(win) / win, mode="valid")
+        np.testing.assert_array_almost_equal(exp, actual, 3)
+
+    def test_dataframe_to_structured_array(self):
+        import pandas as pd
+
+        data = np.ones(
+            (3,),
+            dtype=[("a", "f4"), ("b", "f4"), ("c", "f4"), ("d", "f4"), ("e", "f4")],
+        )
+        df = pd.DataFrame(data.tolist(), columns=["a", "b", "c", "d", "e"])
+
+        # 不提供dtype，默认为dataframe的dtype
+        actual = dataframe_to_structured_array(df)
+
+        np.testing.assert_array_equal(data.tolist(), actual.tolist())
+        self.assertEqual([("", "|O")], actual.dtype.descr)
+
+        # 提供了dtype
+        actual = dataframe_to_structured_array(
+            df, dtypes=[("a", "f4"), ("b", "f4"), ("c", "f4"), ("d", "f4"), ("e", "f4")]
+        )
+        np.testing.assert_array_equal(data, actual)
+
+        # 如果需要将index也转换成structured array
+        dtypes = [
+            ("a", "f4"),
+            ("b", "f4"),
+            ("c", "f4"),
+            ("d", "f4"),
+            ("e", "f4"),
+            ("index", "i4"),
+        ]
+        actual = dataframe_to_structured_array(df, dtypes=dtypes)
+        np.testing.assert_array_equal(data, actual[["a", "b", "c", "d", "e"]])
+        np.testing.assert_array_equal(df.index.values, actual["index"])
+
+    def test_bin_cut(self):
+        arr = [1, 2, 3, 4, 5]
+
+        expected = [
+            [[1, 2, 3, 4, 5]],
+            [[1, 3, 5], [2, 4]],
+            [[1, 4], [2, 5], [3]],
+            [[1], [2], [3], [4], [5]],
+            [[1], [2], [3], [4], [5]],
+        ]
+        for i, bins in enumerate([1, 2, 3, 5, 10]):
+            self.assertListEqual(expected[i], bin_cut(arr, bins))

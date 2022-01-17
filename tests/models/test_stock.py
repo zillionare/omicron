@@ -6,7 +6,13 @@ import arrow
 import numpy as np
 
 import omicron
-from omicron.core.types import Frame, FrameType, bars_with_limit_dtype, stock_bars_dtype
+from omicron.core.types import (
+    Frame,
+    FrameType,
+    SecurityType,
+    bars_with_limit_dtype,
+    stock_bars_dtype,
+)
 from omicron.dal import cache, influxdb
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock
@@ -1315,3 +1321,21 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         for bucket in response.buckets:
             if bucket.name == influxdb.bucket_name:
                 influxdb.client.buckets_api().delete_bucket(bucket)
+
+    async def test_stock_ctor(self):
+        payh = Stock("000001.XSHE")
+        self.assertEqual(payh.code, "000001.XSHE")
+        self.assertEqual(payh.name, "PAYH")
+        self.assertEqual(payh.display_name, "平安银行")
+        self.assertEqual(payh.ipo_date, datetime.date(1991, 4, 3))
+        self.assertEqual(payh.security_type, SecurityType.STOCK)
+        self.assertEqual(payh.end_date, datetime.date(2200, 1, 1))
+
+        with mock.patch.object(
+            arrow, "now", return_value=datetime.datetime(2022, 1, 15)
+        ):
+            self.assertEqual(payh.days_since_ipo(), 4141)
+
+        self.assertEqual("平安银行[000001.XSHE]", str(payh))
+        self.assertEqual("000001", payh.sim_code)
+        self.assertEqual("000001", Stock.simplify_code("000001.XSHE"))
