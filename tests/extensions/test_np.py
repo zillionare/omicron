@@ -17,7 +17,7 @@ from omicron.extensions.np import (
     shift,
     top_n_argpos,
 )
-from omicron.models.calendar import Calendar as cal
+from omicron.models.timeframe import TimeFrame
 
 
 class NpTest(unittest.TestCase):

@@ -6,10 +6,10 @@ import sqlalchemy
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.types import BigInteger, Date, Float, Integer, String
+from zillionare_core_types.core.types import FrameType
 
 from omicron import db
-from omicron.core.types import FrameType
-from omicron.models.calendar import Calendar as cal
+from omicron.models.timeframe import TimeFrame
 
 
 class Funds(db.Model):
@@ -196,10 +196,10 @@ class FundNetValue(db.Model):
         result = []
 
         today = day or datetime.date.today()
-        last_week_trade_day = cal.floor(
+        last_week_trade_day = TimeFrame.floor(
             today - datetime.timedelta(today.weekday() + 1), frame_type=FrameType.DAY
         )
-        last_month_trade_day = cal.floor(
+        last_month_trade_day = TimeFrame.floor(
             datetime.date(today.year, today.month, 1) - datetime.timedelta(1),
             frame_type=FrameType.DAY,
         )

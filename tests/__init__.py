@@ -6,8 +6,9 @@ import aioredis
 import cfg4py
 import numpy as np
 from numpy.testing import assert_array_almost_equal, assert_array_equal
+from zillionare_core_types.core.types import FrameType
 
-from omicron.core.types import FrameType, stock_bars_dtype
+from omicron.core.types import stock_bars_dtype
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)

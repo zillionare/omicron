@@ -13,15 +13,15 @@ if TYPE_CHECKING:
     from arrow import Arrow
 
 import numpy as np
+from zillionare_core_types.core.types import Frame, FrameType
 
 from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
-from omicron.core.types import Frame, FrameType
 
 logger = logging.getLogger(__file__)
 
 
-class Calendar:
+class TimeFrame:
     minute_level_frames = [
         FrameType.MIN1,
         FrameType.MIN5,

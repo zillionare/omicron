@@ -7,8 +7,8 @@ import arrow
 import numpy as np
 
 import omicron
-from omicron.core.types import FrameType
-from omicron.models.calendar import Calendar as cal
+from zillionare_core_types.core.types import FrameType
+from omicron.models.timeframe import TimeFrame
 from tests import init_test_env
 
 logger = logging.getLogger(__name__)
@@ -98,9 +98,9 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         )
 
         # test week frames
-        week_frames = cal.resample_frames(trade_days, FrameType.WEEK)
+        week_frames = TimeFrame.resample_frames(trade_days, FrameType.WEEK)
         exp = [
-            cal.int2date(x)
+            TimeFrame.int2date(x)
             for x in [
                 20210903,
                 20210910,
@@ -123,10 +123,11 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertListEqual(exp, week_frames)
 
-        # test month frames
-        month_frames = cal.resample_frames(trade_days, FrameType.MONTH)
+        # test month framesP
+        month_frames = TimeFrame.resample_frames(trade_days, FrameType.MONTH)
         exp = [
-            cal.int2date(x) for x in [20210831, 20210930, 20211029, 20211130, 20211215]
+            TimeFrame.int2date(x)
+            for x in [20210831, 20210930, 20211029, 20211130, 20211215]
         ]
 
         print(month_frames)
@@ -134,8 +135,8 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(exp, month_frames)
 
         # test quarter frames
-        quarter_frames = cal.resample_frames(trade_days, FrameType.QUARTER)
-        exp = [cal.int2date(x) for x in [20210930, 20211215]]
+        quarter_frames = TimeFrame.resample_frames(trade_days, FrameType.QUARTER)
+        exp = [TimeFrame.int2date(x) for x in [20210930, 20211215]]
 
         print(quarter_frames)
 
@@ -157,8 +158,8 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             ],
             dtype=object,
         )
-        year_frames = cal.resample_frames(trade_days, FrameType.YEAR)
-        exp = [cal.int2date(x) for x in [20211231, 20220106]]
+        year_frames = TimeFrame.resample_frames(trade_days, FrameType.YEAR)
+        exp = [TimeFrame.int2date(x) for x in [20211231, 20220106]]
 
         print(year_frames)
 
@@ -177,7 +178,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.shift(arrow.get(start).naive, offset, FrameType.MIN1)
+            actual = TimeFrame.shift(arrow.get(start).naive, offset, FrameType.MIN1)
             self.assertEqual(arrow.get(expected).naive, actual)
 
     def test_count_frames_min1(self):
@@ -193,7 +194,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.count_frames(
+            actual = TimeFrame.count_frames(
                 arrow.get(start).naive,
                 arrow.get(end).naive,
                 FrameType.MIN1,
@@ -214,7 +215,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.shift(arrow.get(start).naive, offset, FrameType.MIN5)
+            actual = TimeFrame.shift(arrow.get(start).naive, offset, FrameType.MIN5)
             self.assertEqual(arrow.get(expected).naive, actual)
 
     def test_shift_min15(self):
@@ -232,7 +233,9 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.shift(arrow.get(start, fmt).naive, offset, FrameType.MIN15)
+            actual = TimeFrame.shift(
+                arrow.get(start, fmt).naive, offset, FrameType.MIN15
+            )
             self.assertEqual(arrow.get(expected, fmt).naive, actual)
 
     def test_count_frames_min15(self):
@@ -246,7 +249,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             logger.debug("testing %s", X[i])
             start = arrow.get(start)
             end = arrow.get(end)
-            actual = cal.count_frames(start, end, FrameType.MIN15)
+            actual = TimeFrame.count_frames(start, end, FrameType.MIN15)
             self.assertEqual(expected, actual)
 
     def test_shift_frame_min30(self):
@@ -255,9 +258,15 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
     def test_shift(self):
         mom = arrow.get("2020-1-20")
 
-        self.assertEqual(cal.shift(mom, 1, FrameType.DAY), cal.day_shift(mom, 1))
-        self.assertEqual(cal.shift(mom, 1, FrameType.WEEK), cal.week_shift(mom, 1))
-        self.assertEqual(cal.shift(mom, 1, FrameType.MONTH), cal.month_shift(mom, 1))
+        self.assertEqual(
+            TimeFrame.shift(mom, 1, FrameType.DAY), TimeFrame.day_shift(mom, 1)
+        )
+        self.assertEqual(
+            TimeFrame.shift(mom, 1, FrameType.WEEK), TimeFrame.week_shift(mom, 1)
+        )
+        self.assertEqual(
+            TimeFrame.shift(mom, 1, FrameType.MONTH), TimeFrame.month_shift(mom, 1)
+        )
 
     def test_count_frames_min30(self):
         pass
@@ -284,7 +293,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         for i, (s, expected, e) in enumerate(X):
             logger.debug("testing %s", X[i])
             # cause 130 ± 3.34 µs, 130e-6 seconds
-            actual = cal.count_day_frames(
+            actual = TimeFrame.count_day_frames(
                 arrow.get(s, "YYYY-MM-DD").date(), arrow.get(e, "YYYY-MM-DD").date()
             )
             self.assertEqual(expected, actual)
@@ -300,7 +309,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (x, n, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.week_shift(arrow.get(x).date(), n)
+            actual = TimeFrame.week_shift(arrow.get(x).date(), n)
             self.assertEqual(actual, arrow.get(expected).date())
 
     def test_day_shift(self):
@@ -314,7 +323,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, offset, expected) in enumerate(X):
             logger.debug("testing of %s", X[i])
-            actual = cal.day_shift(arrow.get(start).date(), offset)
+            actual = TimeFrame.day_shift(arrow.get(start).date(), offset)
             self.assertEqual(arrow.get(expected).date(), actual)
 
     def test_count_frames_week(self):
@@ -327,7 +336,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.count_frames(
+            actual = TimeFrame.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.WEEK
             )
             self.assertEqual(actual, expected)
@@ -344,7 +353,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
-            actual = cal.count_frames(
+            actual = TimeFrame.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.MONTH
             )
             self.assertEqual(expected, actual)
@@ -361,7 +370,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.info("testing %s", X[i])
-            actual = cal.count_frames(
+            actual = TimeFrame.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.QUARTER
             )
             self.assertEqual(expected, actual)
@@ -376,7 +385,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
 
         for i, (start, expected, end) in enumerate(X):
             logger.info("testing %s", X[i])
-            actual = cal.count_frames(
+            actual = TimeFrame.count_frames(
                 arrow.get(start).date(), arrow.get(end).date(), FrameType.YEAR
             )
             self.assertEqual(expected, actual)
@@ -394,7 +403,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         for i, (start, n, expected) in enumerate(X):
             logger.debug("testing %s", X[i])
 
-            actual = cal.month_shift(arrow.get(start).date(), n)
+            actual = TimeFrame.month_shift(arrow.get(start).date(), n)
             self.assertEqual(arrow.get(expected).date(), actual)
 
     def test_floor(self):
@@ -428,12 +437,12 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             logger.debug("testing %s", X[i])
 
             frame = arrow.get(moment).naive
-            if frame_type in cal.day_level_frames and frame.hour == 0:
+            if frame_type in TimeFrame.day_level_frames and frame.hour == 0:
                 frame = frame.date()
 
-            actual = cal.floor(frame, frame_type)
+            actual = TimeFrame.floor(frame, frame_type)
             expected = arrow.get(expected).naive
-            if frame_type in cal.day_level_frames:
+            if frame_type in TimeFrame.day_level_frames:
                 expected = arrow.get(expected).date()
             else:
                 expected = arrow.get(expected).naive
@@ -463,12 +472,12 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             logger.debug("testing %s: %s", i, X[i])
 
             moment, frame_type, expected = X[i]
-            if frame_type in cal.day_level_frames:
-                actual = cal.ceiling(arrow.get(moment).date(), frame_type)
+            if frame_type in TimeFrame.day_level_frames:
+                actual = TimeFrame.ceiling(arrow.get(moment).date(), frame_type)
                 expected = arrow.get(expected).date()
             else:
                 moment = arrow.get(moment).naive
-                actual = cal.ceiling(moment, frame_type)
+                actual = TimeFrame.ceiling(moment, frame_type)
                 expected = arrow.get(expected).naive
 
             self.assertEqual(expected, actual)
@@ -490,9 +499,9 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
 
         for i in range(len(days)):
-            end, n = cal.int2date(days[i]), i + 1
+            end, n = TimeFrame.int2date(days[i]), i + 1
             expected = days[:n]
-            actual = cal.get_frames_by_count(end, n, FrameType.DAY)
+            actual = TimeFrame.get_frames_by_count(end, n, FrameType.DAY)
             logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
@@ -597,17 +606,21 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             ),
         ]
         for i, (end, n, expected) in enumerate(X):
-            end = cal.int2time(end)
-            actual = cal.get_frames_by_count(end, n, FrameType.MIN30)
+            end = TimeFrame.int2time(end)
+            actual = TimeFrame.get_frames_by_count(end, n, FrameType.MIN30)
             logger.debug(
                 "get_frames_by_count(%s, %s, %s)->%s", end, n, FrameType.DAY, actual
             )
             self.assertListEqual(expected, actual)
 
-        actual = cal.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.MONTH)
+        actual = TimeFrame.get_frames_by_count(
+            datetime.date(2020, 2, 12), 3, FrameType.MONTH
+        )
         self.assertListEqual([20191129, 20191231, 20200123], actual.tolist())
 
-        actual = cal.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.WEEK)
+        actual = TimeFrame.get_frames_by_count(
+            datetime.date(2020, 2, 12), 3, FrameType.WEEK
+        )
         self.assertListEqual([20200117, 20200123, 20200207], actual.tolist())
 
     def test_get_frames(self):
@@ -627,10 +640,10 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
 
         for i in range(len(days)):
-            start = cal.int2date(days[0])
-            end = cal.int2date(days[i])
+            start = TimeFrame.int2date(days[0])
+            end = TimeFrame.int2date(days[i])
 
-            actual = cal.get_frames(start, end, FrameType.DAY)
+            actual = TimeFrame.get_frames(start, end, FrameType.DAY)
             logger.debug(
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.DAY, actual
             )
@@ -736,9 +749,9 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
 
         for i, (end, n, expected) in enumerate(X):
-            start = cal.int2time(expected[0])
-            end = cal.int2time(end)
-            actual = cal.get_frames(start, end, FrameType.MIN30)
+            start = TimeFrame.int2time(expected[0])
+            end = TimeFrame.int2time(end)
+            actual = TimeFrame.get_frames(start, end, FrameType.MIN30)
             logger.debug(
                 "get_frames(%s, %s, %s)->%s", start, end, FrameType.MIN30, actual
             )
@@ -755,7 +768,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
 
         for moment in moments:
-            actual = cal.first_min_frame(moment, FrameType.MIN5)
+            actual = TimeFrame.first_min_frame(moment, FrameType.MIN5)
             self.assertEqual(arrow.get("2019-12-31 09:35").naive, actual)
 
         moment = arrow.get("2019-12-31").date()
@@ -769,46 +782,46 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         for i, ft in enumerate(
             [FrameType.MIN1, FrameType.MIN15, FrameType.MIN30, FrameType.MIN60]
         ):
-            actual = cal.first_min_frame(moment, ft)
+            actual = TimeFrame.first_min_frame(moment, ft)
             self.assertEqual(expected[i], actual)
 
     def test_last_min_frame(self):
         try:
-            cal.last_min_frame(datetime.datetime.now(), FrameType.DAY)
+            TimeFrame.last_min_frame(datetime.datetime.now(), FrameType.DAY)
             self.assertTrue(False)
         except ValueError as e:
             self.assertEqual("FrameType.DAY not supported", str(e))
 
         try:
-            cal.last_min_frame(10, FrameType.DAY)
+            TimeFrame.last_min_frame(10, FrameType.DAY)
             self.assertTrue(False)
         except TypeError:
             self.assertTrue(True)
 
-        actual = cal.last_min_frame(arrow.get("2020-1-24"), FrameType.MIN15)
+        actual = TimeFrame.last_min_frame(arrow.get("2020-1-24"), FrameType.MIN15)
         self.assertEqual(arrow.get("2020-1-23 15:00").naive, actual)
 
-        actual = cal.last_min_frame("2020-1-24", FrameType.MIN15)
+        actual = TimeFrame.last_min_frame("2020-1-24", FrameType.MIN15)
         self.assertEqual(arrow.get("2020-1-23 15:00").naive, actual)
 
     def test_frame_len(self):
-        self.assertEqual(1, cal.frame_len(FrameType.MIN1))
-        self.assertEqual(5, cal.frame_len(FrameType.MIN5))
-        self.assertEqual(15, cal.frame_len(FrameType.MIN15))
-        self.assertEqual(30, cal.frame_len(FrameType.MIN30))
-        self.assertEqual(60, cal.frame_len(FrameType.MIN60))
-        self.assertEqual(240, cal.frame_len(FrameType.DAY))
+        self.assertEqual(1, TimeFrame.frame_len(FrameType.MIN1))
+        self.assertEqual(5, TimeFrame.frame_len(FrameType.MIN5))
+        self.assertEqual(15, TimeFrame.frame_len(FrameType.MIN15))
+        self.assertEqual(30, TimeFrame.frame_len(FrameType.MIN30))
+        self.assertEqual(60, TimeFrame.frame_len(FrameType.MIN60))
+        self.assertEqual(240, TimeFrame.frame_len(FrameType.DAY))
 
     def test_get_ticks(self):
         expected = [
-            cal.ticks[FrameType.MIN1],
-            cal.ticks[FrameType.MIN5],
-            cal.ticks[FrameType.MIN15],
-            cal.ticks[FrameType.MIN30],
-            cal.ticks[FrameType.MIN60],
-            cal.day_frames,
-            cal.week_frames,
-            cal.month_frames,
+            TimeFrame.ticks[FrameType.MIN1],
+            TimeFrame.ticks[FrameType.MIN5],
+            TimeFrame.ticks[FrameType.MIN15],
+            TimeFrame.ticks[FrameType.MIN30],
+            TimeFrame.ticks[FrameType.MIN60],
+            TimeFrame.day_frames,
+            TimeFrame.week_frames,
+            TimeFrame.month_frames,
         ]
 
         for i, ft in enumerate(
@@ -823,56 +836,60 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
                 FrameType.MONTH,
             ]
         ):
-            self.assertListEqual(list(expected[i]), list(cal.get_ticks(ft)))
+            self.assertListEqual(list(expected[i]), list(TimeFrame.get_ticks(ft)))
 
     def test_replace_date(self):
         dtm = datetime.datetime(2020, 1, 1, 15, 35)
         dt = datetime.date(2021, 1, 1)
         self.assertEqual(
-            datetime.datetime(2021, 1, 1, 15, 35), cal.replace_date(dtm, dt)
+            datetime.datetime(2021, 1, 1, 15, 35), TimeFrame.replace_date(dtm, dt)
         )
 
     def test_is_closing_call_auction_time(self):
         for moment in ["2020-1-7 14:57", "2020-1-7 14:58", "2020-1-7 14:59"]:
             moment = arrow.get(moment).naive
-            self.assertTrue(cal.is_closing_call_auction_time(moment))
+            self.assertTrue(TimeFrame.is_closing_call_auction_time(moment))
 
         for moment in ["2020-1-7 14:56", "2020-1-7 15:00"]:
             moment = arrow.get(moment).naive
-            self.assertEqual(False, cal.is_closing_call_auction_time(moment))
+            self.assertEqual(False, TimeFrame.is_closing_call_auction_time(moment))
 
         # not in trade day
-        self.assertTrue(not cal.is_closing_call_auction_time(arrow.get("2020-1-4")))
+        self.assertTrue(
+            not TimeFrame.is_closing_call_auction_time(arrow.get("2020-1-4"))
+        )
 
     def test_is_opening_call_auction_time(self):
         for moment in ["2020-1-7 09:16", "2020-1-7 09:25"]:
             moment = arrow.get(moment).naive
-            self.assertTrue(cal.is_opening_call_auction_time(moment))
+            self.assertTrue(TimeFrame.is_opening_call_auction_time(moment))
 
-        self.assertTrue(not cal.is_opening_call_auction_time(arrow.get("2020-1-4")))
+        self.assertTrue(
+            not TimeFrame.is_opening_call_auction_time(arrow.get("2020-1-4"))
+        )
 
     def test_is_open_time(self):
-        self.assertTrue(cal.is_open_time(arrow.get("2020-1-7 09:35").naive))
+        self.assertTrue(TimeFrame.is_open_time(arrow.get("2020-1-7 09:35").naive))
 
         with mock.patch("arrow.now", return_value=arrow.get("2020-1-7 09:35").naive):
-            self.assertTrue(cal.is_open_time())
+            self.assertTrue(TimeFrame.is_open_time())
 
     def test_combine_time(self):
         moment = arrow.get("2020-1-1").date()
         expect = arrow.get("2020-1-1 14:30").naive
 
-        self.assertEqual(expect, cal.combine_time(moment, 14, 30))
+        self.assertEqual(expect, TimeFrame.combine_time(moment, 14, 30))
 
     async def test_save_calendar(self):
-        day_frames = cal.day_frames[-200:].copy()
+        day_frames = TimeFrame.day_frames[-200:].copy()
 
-        trade_days = [cal.int2date(x) for x in day_frames]
+        trade_days = [TimeFrame.int2date(x) for x in day_frames]
 
-        await cal.remove_calendar()
-        await cal.save_calendar(trade_days)
-        await cal.init()
+        await TimeFrame.remove_calendar()
+        await TimeFrame.save_calendar(trade_days)
+        await TimeFrame.init()
 
-        self.assertListEqual(day_frames.tolist(), cal.day_frames.tolist())
+        self.assertListEqual(day_frames.tolist(), TimeFrame.day_frames.tolist())
 
         week_frames = [
             20220422,
@@ -917,7 +934,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             20230203,
             20230209,
         ]
-        self.assertListEqual(week_frames, cal.week_frames.tolist())
+        self.assertListEqual(week_frames, TimeFrame.week_frames.tolist())
 
         month_frames = [
             20220429,
@@ -932,10 +949,10 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             20230131,
             20230209,
         ]
-        self.assertListEqual(month_frames, cal.month_frames.tolist())
+        self.assertListEqual(month_frames, TimeFrame.month_frames.tolist())
 
         quater_frames = [20220630, 20220930, 20221230, 20230209]
-        self.assertListEqual(quater_frames, cal.quater_frames.tolist())
+        self.assertListEqual(quater_frames, TimeFrame.quater_frames.tolist())
 
         year_frames = [20221230, 20230209]
-        self.assertListEqual(year_frames, cal.year_frames.tolist())
+        self.assertListEqual(year_frames, TimeFrame.year_frames.tolist())

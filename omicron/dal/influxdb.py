@@ -5,8 +5,7 @@ import cfg4py
 import pandas as pd
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
-
-from omicron.core.types import Frame, FrameType
+from zillionare_core_types.core.types import Frame, FrameType
 
 
 class PerssidentInfluxDb(object):
