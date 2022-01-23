@@ -7,11 +7,11 @@ from omicron.extensions.np import (
     count_between,
     dataframe_to_structured_array,
     fill_nan,
-    filter_nan,
     find_runs,
     floor,
     join_by_left,
     numpy_append_fields,
+    remove_nan,
     replace_zero,
     rolling,
     shift,
@@ -128,7 +128,7 @@ class NpTest(unittest.TestCase):
 
     def test_filter_nan(self):
         a = np.array([1, 2, np.nan, 3, np.nan, 4, 5, 6])
-        actual = filter_nan(a)
+        actual = remove_nan(a)
         exp = [1, 2, 3, 4, 5, 6]
         self.assertListEqual(exp, actual.tolist())
 

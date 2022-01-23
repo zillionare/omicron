@@ -327,7 +327,7 @@ def numpy_append_fields(base, names, data, dtypes):
     return result
 
 
-def filter_nan(ts: np.array) -> np.array:
+def remove_nan(ts: np.array) -> np.array:
     """从`ts`中去除NaN
 
     Args:
@@ -336,7 +336,7 @@ def filter_nan(ts: np.array) -> np.array:
     Returns:
         np.array: [description]
     """
-    return ts[~np.isnan(ts)]
+    return ts[~np.isnan(ts.astype(float))]
 
 
 def fill_nan(ts: np.array):
