@@ -56,7 +56,7 @@ class Calendar:
     day_frames = None
     week_frames = None
     month_frames = None
-    quater_frames = None
+    quarter_frames = None
     year_frames = None
 
     @classmethod
@@ -68,7 +68,7 @@ class Calendar:
             "day_frames",
             "week_frames",
             "month_frames",
-            "quater_frames",
+            "quarter_frames",
             "year_frames",
         ]
         for name, frame_type in zip(names, cls.day_level_frames):
@@ -417,7 +417,7 @@ class Calendar:
         start = cls.date2int(start)
         end = cls.date2int(end)
 
-        return int(ext.count_between(cls.quater_frames, start, end))
+        return int(ext.count_between(cls.quarter_frames, start, end))
 
     @classmethod
     def count_year_frames(cls, start: datetime.date, end: datetime.date) -> int:
@@ -455,12 +455,12 @@ class Calendar:
         - [count_month_frames][omicron.models.calendar.Calendar.count_month_frames]
 
         Args:
-            start : [description]
-            end : [description]
-            frame_type : [description]
+            start : start frame
+            end : end frame
+            frame_type : the type of frame
 
         Raises:
-            ValueError: 如果frame_type不支持(季线、年线），则会抛出此异常。
+            ValueError: 如果frame_type不支持，则会抛出此异常。
 
         Returns:
             从start到end的帧数

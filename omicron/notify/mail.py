@@ -88,7 +88,7 @@ async def send_mail(
         bcc (List[str], optional): [description]. Defaults to None.
         subject (str, optional): [description]. Defaults to None.
         plain (str, optional): [description]. Defaults to None.
-        username (str, optional): the username used to logon to mail server. if not provied, then `sender` is used.
+        username (str, optional): the username used to logon to mail server. if not provided, then `sender` is used.
     """
     if all([msg is not None, subject is not None or body is not None]):
         raise TypeError("msg参数与subject/body只能提供其中之一")

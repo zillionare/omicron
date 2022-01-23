@@ -116,7 +116,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         def totime(tm: str):
             return arrow.get(tm).datetime.replace(tzinfo=None)
 
-        # fiels = ["frame", "open", "high", "low", "close", "volume", "amount", "factor"]
+        # fields = ["frame", "open", "high", "low", "close", "volume", "amount", "factor"]
         # jq.get_bars("002709.XSHE", count = 30, unit = '1m', fields=fields, fq_ref_date=None, end_dt = end, df=False)
         bars = np.array(
             [
@@ -470,18 +470,18 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         await Stock.persist_bars(FrameType.DAY, bars)
 
-        recs: np.array = await Stock._get_persited_bars(
+        recs: np.array = await Stock._get_persisted_bars(
             code=code, end=arrow.get("2022-01-14")
         )
         data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
         self.assertEqual(data["frame"], "2022-01-06 10:00:00")
 
-        recs: np.array = await Stock._get_persited_bars(
+        recs: np.array = await Stock._get_persisted_bars(
             code="000002.XSHE", end=arrow.get("2022-01-14")
         )
         self.assertFalse(len(recs))
 
-        recs: np.array = await Stock._get_persited_bars(end=arrow.get("2022-01-14"))
+        recs: np.array = await Stock._get_persisted_bars(end=arrow.get("2022-01-14"))
         self.assertTrue(len(recs))
 
         response = influxdb.client.buckets_api().find_buckets()
@@ -842,7 +842,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         end = datetime.datetime(2022, 1, 7, 15, 0)
         n = 2
         with mock.patch.object(
-            Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+            Stock, "_get_persisted_bars", return_value=persist_bars[-2:]
         ):
             bars = await Stock.get_bars("000001.XSHE", n, ft, end)
             assert_bars_equal(persist_bars[-2:], bars)
@@ -851,7 +851,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         end = datetime.datetime(2022, 1, 10, 10, 47)
         n = 7
         with mock.patch.object(
-            Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+            Stock, "_get_persisted_bars", return_value=persist_bars[-2:]
         ):
             bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=False)
             assert_bars_equal(
@@ -863,7 +863,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         # 4. end > ff, 从persistent和cache中取,包含unclosed
         end = datetime.datetime(2022, 1, 10, 10, 47)
         with mock.patch.object(
-            Stock, "_get_persited_bars", return_value=persist_bars[-2:]
+            Stock, "_get_persisted_bars", return_value=persist_bars[-2:]
         ):
             n = 8
             bars = await Stock.get_bars("000001.XSHE", n, ft, end, unclosed=True)

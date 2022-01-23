@@ -226,8 +226,8 @@ class FundsTest(unittest.IsolatedAsyncioTestCase):
         result = await FundPortfolioStock.save(fund_portfolio_stocks)
         self.assertEqual(len(result), len(fund_portfolio_stocks))
 
-        postion_stock = "平安银行"
-        recs = await Funds.get(postion_stock=postion_stock)
+        position_stock = "平安银行"
+        recs = await Funds.get(position_stock=position_stock)
         self.assertEqual(recs["count"], 1)
 
         position_symbol = "000001"

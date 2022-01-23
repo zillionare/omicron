@@ -349,7 +349,7 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(expected, actual)
 
-    def test_count_frames_quater(self):
+    def test_count_frames_quarter(self):
         X = [
             ["2021-12-31", 1, "2021-12-31"],
             ["2021-12-30", 2, "2021-12-31"],  # 12-30 belongs 09-30
@@ -934,8 +934,8 @@ class CalendarTest(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertListEqual(month_frames, cal.month_frames.tolist())
 
-        quater_frames = [20220630, 20220930, 20221230, 20230209]
-        self.assertListEqual(quater_frames, cal.quater_frames.tolist())
+        quarter_frames = [20220630, 20220930, 20221230, 20230209]
+        self.assertListEqual(quarter_frames, cal.quarter_frames.tolist())
 
         year_frames = [20221230, 20230209]
         self.assertListEqual(year_frames, cal.year_frames.tolist())

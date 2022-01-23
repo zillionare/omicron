@@ -28,7 +28,7 @@ class Stock:
     """
 
     _stocks = None
-    fileds_type = [
+    fields_type = [
         ("code", "O"),
         ("display_name", "O"),
         ("name", "O"),
@@ -70,7 +70,7 @@ class Stock:
         secs = await cache.security.lrange("security:stock", 0, -1, encoding="utf-8")
         if len(secs) != 0:
             _stocks = np.array(
-                [tuple(x.split(",")) for x in secs], dtype=cls.fileds_type
+                [tuple(x.split(",")) for x in secs], dtype=cls.fields_type
             )
 
             _stocks = _stocks[
@@ -147,7 +147,7 @@ class Stock:
             result = [rec for rec in result if not rec["code"].startswith("688")]
         if exclude_st:
             result = [rec for rec in result if rec["display_name"].find("ST") == -1]
-        result = np.array(result, dtype=cls.fileds_type)
+        result = np.array(result, dtype=cls.fields_type)
         return result["code"].tolist()
 
     @classmethod
@@ -291,7 +291,7 @@ class Stock:
                     parts = part2[part2["frame"] >= begin]
                     early_parts: np.array = part2[part2["frame"] < begin]
                 if not len(early_parts):
-                    bars = await cls._get_persited_bars(
+                    bars = await cls._get_persisted_bars(
                         code=code,
                         begin=begin,
                         end=end,
@@ -320,7 +320,7 @@ class Stock:
 
         frame, open, high, low, close, volume, amount, high_limit
 
-        返回数据格式为numpy strucutre array，每一行对应一个bar,可以通过下标访问，如`bars['frame'][-1]`
+        返回数据格式为numpy structure array，每一行对应一个bar,可以通过下标访问，如`bars['frame'][-1]`
 
         返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，该时段数据将被跳过，因此返回的记录可能不是交易日连续的。
 
@@ -342,7 +342,7 @@ class Stock:
         n1 = n - n2
         if n1 > 0:
             pend = cal.shift(cls.get_cached_first_frame(frame_type), -1, frame_type)
-            part1 = await cls._get_persited_bars(
+            part1 = await cls._get_persisted_bars(
                 code, end=pend, n=n1, frame_type=frame_type
             )
             part1 = part1[(-n1):]
@@ -358,7 +358,7 @@ class Stock:
         return bars
 
     @classmethod
-    async def _get_persited_bars(
+    async def _get_persisted_bars(
         cls,
         code: Union[str, List[str]] = None,
         n: int = None,

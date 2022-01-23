@@ -59,7 +59,7 @@ class Funds(db.Model):
         operate_mode_ids: List[int] = None,
         total_tna_min: Union[int, float] = None,
         total_tna_max: Union[int, float] = None,
-        postion_stock: str = None,
+        position_stock: str = None,
         underlying_asset_type: str = None,
         position_symbol: List[str] = None,
         fund_range: int = None,
@@ -99,7 +99,7 @@ class Funds(db.Model):
         )
         stocks = await q.gino.all()
         stock_symbols = [stock[0] for stock in stocks]
-        if postion_stock or position_symbol or fund_range or position_stock_percent:
+        if position_stock or position_symbol or fund_range or position_stock_percent:
             stock_q = FundPortfolioStock.select("code")
             if fund_range == 1:
                 stock_q = stock_q.where(FundPortfolioStock.symbol.in_(stock_symbols))
@@ -121,9 +121,9 @@ class Funds(db.Model):
                 stocks = await q.gino.all()
                 fund_codes = [stock[0] for stock in stocks]
                 stock_q = stock_q.where(FundPortfolioStock.code.in_(fund_codes))
-            if postion_stock:
+            if position_stock:
                 stock_q = stock_q.where(
-                    FundPortfolioStock.name.like(f"%{postion_stock}%")
+                    FundPortfolioStock.name.like(f"%{position_stock}%")
                 )
             if position_symbol:
                 stock_q = stock_q.where(FundPortfolioStock.symbol.in_(position_symbol))

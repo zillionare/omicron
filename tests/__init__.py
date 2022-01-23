@@ -5590,7 +5590,7 @@ async def set_calendar_data(redis):
         20230209,
     ]
 
-    quater_frames = [
+    quarter_frames = [
         20050331,
         20050630,
         20050930,
@@ -5696,7 +5696,7 @@ async def set_calendar_data(redis):
             FrameType.QUARTER,
             FrameType.YEAR,
         ],
-        [day_frames, week_frames, month_frames, quater_frames, year_frames],
+        [day_frames, week_frames, month_frames, quarter_frames, year_frames],
     ):
         key = f"calendar:{ft.value}"
         pl = redis.pipeline()
