@@ -13,6 +13,7 @@ nav:
     - fund: api/fund.md
     - triggers: api/triggers.md
     - types: api/types.md
+    - metrics: api/metrics.md
 
 theme:
   name: material
