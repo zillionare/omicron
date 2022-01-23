@@ -312,6 +312,17 @@ ssh = ["bcrypt (>=3.1.5)"]
 test = ["pytest (>=6.2.0)", "pytest-cov", "pytest-subtests", "pytest-xdist", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,!=3.79.2)"]
 
 [[package]]
+name = "deprecation"
+version = "2.1.0"
+description = "A library to handle automated deprecations"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+packaging = "*"
+
+[[package]]
 name = "distlib"
 version = "0.3.4"
 description = "Distribution utilities"
@@ -675,7 +686,7 @@ name = "mkdocs-material-extensions"
 version = "1.0.3"
 description = "Extension pack for Python Markdown."
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.6"
 
 [[package]]
@@ -732,7 +743,7 @@ name = "packaging"
 version = "21.3"
 description = "Core utilities for Python packages"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
@@ -891,7 +902,7 @@ name = "pyparsing"
 version = "3.0.6"
 description = "Python parsing module"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.6"
 
 [package.extras]
@@ -1397,6 +1408,24 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [[package]]
+name = "zillionare-core-types"
+version = "0.2.0"
+description = "core types definition shared by zillionare."
+category = "main"
+optional = false
+python-versions = ">=3.8,<4.0"
+
+[package.dependencies]
+deprecation = ">=2.1.0,<3.0.0"
+mkdocs-material-extensions = ">=1.0.1,<2.0.0"
+numpy = ">=1.20,<2.0"
+
+[package.extras]
+test = ["black (==20.8b1)", "isort (==5.6.4)", "flake8 (==3.8.4)", "flake8-docstrings (>=1.6.0,<2.0.0)", "pytest (==6.1.2)", "pytest-cov (==2.10.1)"]
+dev = ["tox (>=3.20.1,<4.0.0)", "virtualenv (>=20.2.2,<21.0.0)", "pip (>=20.3.1,<21.0.0)", "twine (>=3.3.0,<4.0.0)", "pre-commit (>=2.12.0,<3.0.0)", "toml (>=0.10.2,<0.11.0)"]
+doc = ["mkdocs (>=1.1.2,<2.0.0)", "mkdocs-include-markdown-plugin (>=1.0.0,<2.0.0)", "mkdocs-material (>=6.1.7,<7.0.0)", "mkdocstrings (>=0.13.6,<0.14.0)", "mkdocs-autorefs (==0.1.1)"]
+
+[[package]]
 name = "zipp"
 version = "3.7.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -1416,7 +1445,7 @@ test = ["pytest", "black", "isort", "doc8", "flake8", "pytest-cov", "psutil"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "53d3079e73a9c00fe9a449da83d8fa873af0e2f34a53d615dfcad9575a2a6402"
+content-hash = "bed9e6351802c9ca3822968c81a9bc596bcf4e7a765fce925c1a7929884682fe"
 
 [metadata.files]
 aiohttp = [
@@ -1735,6 +1764,10 @@ cryptography = [
     {file = "cryptography-36.0.1-pp38-pypy38_pp73-manylinux_2_24_x86_64.whl", hash = "sha256:ca28641954f767f9822c24e927ad894d45d5a1e501767599647259cbf030b903"},
     {file = "cryptography-36.0.1-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:39bdf8e70eee6b1c7b289ec6e5d84d49a6bfa11f8b8646b5b3dfe41219153316"},
     {file = "cryptography-36.0.1.tar.gz", hash = "sha256:53e5c1dc3d7a953de055d77bef2ff607ceef7a2aac0353b5d630ab67f7423638"},
+]
+deprecation = [
+    {file = "deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a"},
+    {file = "deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
@@ -2770,6 +2803,10 @@ yarl = [
     {file = "yarl-1.7.2-cp39-cp39-win32.whl", hash = "sha256:1edc172dcca3f11b38a9d5c7505c83c1913c0addc99cd28e993efeaafdfaa18d"},
     {file = "yarl-1.7.2-cp39-cp39-win_amd64.whl", hash = "sha256:797c2c412b04403d2da075fb93c123df35239cd7b4cc4e0cd9e5839b73f52c58"},
     {file = "yarl-1.7.2.tar.gz", hash = "sha256:45399b46d60c253327a460e99856752009fcee5f5d3c80b2f7c0cae1c38d56dd"},
+]
+zillionare-core-types = [
+    {file = "zillionare_core_types-0.2.0-py3-none-any.whl", hash = "sha256:5c94be767fab7f6c1b6ee8815101f7d53a6ad9353cec80fd0e651c0283a4cfd7"},
+    {file = "zillionare_core_types-0.2.0.tar.gz", hash = "sha256:2fe9b36309cf0f802ae8658c66a63f2506fd63c9e00f6b1a79a7a888f1896c12"},
 ]
 zipp = [
     {file = "zipp-3.7.0-py3-none-any.whl", hash = "sha256:b47250dd24f92b7dd6a0a8fc5244da14608f3ca90a5efcd37a3b1642fac9a375"},

@@ -5,9 +5,8 @@ import os
 import aioredis
 import cfg4py
 import numpy as np
+from coretypes import FrameType, stock_bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
-
-from omicron.core.types import FrameType, stock_bars_dtype
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)

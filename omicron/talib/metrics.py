@@ -106,7 +106,6 @@ def downside_risk(adjust_returns: np.array, annual_factor: int = 252) -> float:
 
     Args:
         adjust_returns: 已减去无风险利率的收益率。
-        rf: [description]. Defaults to 0.0.
         annual_factor: 年化因子
 
     Returns:
@@ -180,7 +179,7 @@ def alpha_beta(
         returns: 日收益率，非累进
         market: 作为参照物的收益率。
         rf: risk-free利率
-        annual_factor： 年化因子
+        annual_factor: 年化因子
 
     Returns:
         alpha
@@ -263,14 +262,14 @@ def omega_ratio(
     copied from [quantopian/empyrical](https://github.com/quantopian/empyrical/blob/40f61b4f22/empyrical/stats.py)
 
     Examples:
-        >>>
+        >>> returns = np.array([np.nan, 1.0, 10.0, -4.0, 2.0, 3.0, 2.0, 1.0, -10.0]) / 100
+        >>> round(omega_ratio(returns, 0.0, 0, annual_factor=1), 2)
+        1.36
+
     Args:
         returns: 日收益率，非累进
         rf: risk-free利率
-        required_return: Minimum acceptance return of the investor. Threshold over which to consider positive vs negative returns. It will be converted to a
-        value appropriate for the period of the returns. E.g. An annual minimum
-        acceptable return of 100 will translate to a minimum acceptable
-        return of 0.018.
+        required_return: Minimum acceptance return of the investor. Threshold over which to consider positive vs negative returns. It will be converted to a value appropriate for the period of the returns. E.g. An annual minimum acceptable return of 100 will translate to a minimum acceptable return of 0.018.
 
     Returns:
         omega比率

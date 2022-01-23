@@ -6,18 +6,11 @@ from typing import List, Union
 import arrow
 import numpy as np
 import pandas as pd
+from coretypes import Frame, FrameType, SecurityType, stock_bars_dtype
 
 from omicron.core.errors import DataNotReadyError
-from omicron.core.types import (
-    Frame,
-    FrameType,
-    MarketType,
-    SecurityType,
-    bars_with_limit_dtype,
-    stock_bars_dtype,
-)
 from omicron.dal import cache, influxdb
-from omicron.models.calendar import Calendar as cal
+from omicron.models.timeframe import TimeFrame
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +226,7 @@ class Stock:
         """
         epoch_start = arrow.get("2005-01-04").date()
         ipo_day = self.ipo_date if self.ipo_date > epoch_start else epoch_start
-        return cal.count_day_frames(ipo_day, arrow.now().date())
+        return TimeFrame.count_day_frames(ipo_day, arrow.now().date())
 
     @staticmethod
     def qfq(bars) -> np.ndarray:
@@ -341,7 +334,9 @@ class Stock:
         n2 = len(part2)
         n1 = n - n2
         if n1 > 0:
-            pend = cal.shift(cls.get_cached_first_frame(frame_type), -1, frame_type)
+            pend = TimeFrame.shift(
+                cls.get_cached_first_frame(frame_type), -1, frame_type
+            )
             part1 = await cls._get_persisted_bars(
                 code, end=pend, n=n1, frame_type=frame_type
             )
@@ -452,7 +447,7 @@ class Stock:
         pl = cache.security.pipeline()
         for bar in bars:
             code = bar["code"]
-            frame = cal.time2int(bar["frame"])
+            frame = TimeFrame.time2int(bar["frame"])
             val = [*bar][:-1]
             val[0] = frame
             pl.hset(f"bars:{frame_type.value}:{code}", frame, ",".join(map(str, val)))
@@ -470,7 +465,9 @@ class Stock:
         key = f"bars:{frame_type.value}:unclosed"
 
         convert = (
-            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
+            TimeFrame.time2int
+            if frame_type in TimeFrame.minute_level_frames
+            else TimeFrame.date2int
         )
 
         for bar in bars:
@@ -486,7 +483,7 @@ class Stock:
     async def reset_cache(cls):
         """清除缓存"""
         try:
-            for ft in cal.minute_level_frames:
+            for ft in TimeFrame.minute_level_frames:
                 await cache.security.delete(f"bars:{ft.value}:unclosed")
                 keys = await cache.security.keys(f"bars:{ft.value}:*")
                 if keys:
@@ -506,8 +503,8 @@ class Stock:
         if cls._is_cache_empty:
             dt = arrow.get(frame).date()
 
-            for ft in cal.minute_level_frames:
-                frame = cal.first_min_frame(dt, ft)
+            for ft in TimeFrame.minute_level_frames:
+                frame = TimeFrame.first_min_frame(dt, ft)
                 cls._cached_frames_start[ft] = frame
             cls._cached_frames_start[FrameType.DAY] = dt
 
@@ -543,8 +540,8 @@ class Stock:
             return np.empty((0,), dtype=stock_bars_dtype)
 
         raw = []
-        if frame_type in cal.day_level_frames:
-            convert = cal.int2date
+        if frame_type in TimeFrame.day_level_frames:
+            convert = TimeFrame.int2date
             if unclosed:
                 key = f"bars:{frame_type.value}:unclosed"
                 r1 = await cache.security.hget(key, code)
@@ -557,10 +554,10 @@ class Stock:
                     False
                 ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
         else:
-            convert = cal.int2time
+            convert = TimeFrame.int2time
             key = f"bars:{frame_type.value}:{code}"
-            end_ = cal.floor(end, frame_type)
-            frames = map(str, cal.get_frames_by_count(end_, n, frame_type))
+            end_ = TimeFrame.floor(end, frame_type)
+            frames = map(str, TimeFrame.get_frames_by_count(end_, n, frame_type))
             r1 = await cache.security.hmget(key, *frames)
             raw.extend(r1)
 
@@ -603,7 +600,9 @@ class Stock:
         today = bars[0]["frame"]
         # 转换时间为int
         convert = (
-            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
+            TimeFrame.time2int
+            if frame_type in TimeFrame.minute_level_frames
+            else TimeFrame.date2int
         )
 
         key = f"bars:{frame_type.value}:{code}"
@@ -624,7 +623,9 @@ class Stock:
         """将未结束的行情数据缓存"""
         today = bars[0]["frame"]
         converter = (
-            cal.time2int if frame_type in cal.minute_level_frames else cal.date2int
+            TimeFrame.time2int
+            if frame_type in TimeFrame.minute_level_frames
+            else TimeFrame.date2int
         )
 
         assert len(bars) == 1, "unclosed bars should only have one record"

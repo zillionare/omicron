@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 import itertools
 import logging
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, List, Tuple, Union
 
 import arrow
 
@@ -13,15 +13,15 @@ if TYPE_CHECKING:
     from arrow import Arrow
 
 import numpy as np
+from coretypes import Frame, FrameType
 
 from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
-from omicron.core.types import Frame, FrameType
 
 logger = logging.getLogger(__file__)
 
 
-class Calendar:
+class TimeFrame:
     minute_level_frames = [
         FrameType.MIN1,
         FrameType.MIN5,
@@ -90,7 +90,7 @@ class Calendar:
         """将整数表示的时间转换为`datetime`类型表示
 
         examples:
-            >>> cls.int2time(202005011500)
+            >>> TimeFrame.int2time(202005011500)
             datetime.datetime(2020, 5, 1, 15, 0)
 
         Args:
@@ -112,7 +112,7 @@ class Calendar:
         tm可以是Arrow类型，也可以是datetime.datetime或者任何其它类型，只要它有year,month...等
         属性
         Examples:
-            >>> cls.time2int(datetime.datetime(2020, 5, 1, 15))
+            >>> TimeFrame.time2int(datetime.datetime(2020, 5, 1, 15))
             202005011500
 
         Args:
@@ -130,7 +130,7 @@ class Calendar:
         在zillionare中，如果要对时间和日期进行持久化操作，我们一般将其转换为int类型
 
         Examples:
-            >>> cls.date2int(datetime.date(2020,5,1))
+            >>> TimeFrame.date2int(datetime.date(2020,5,1))
             20200501
 
         Args:
@@ -146,7 +146,7 @@ class Calendar:
         """将数字表示的日期转换成为日期格式
 
         Examples:
-            >>> cls.int2date(20200501)
+            >>> TimeFrame.int2date(20200501)
             datetime.date(2020, 5, 1)
 
         Args:
@@ -168,16 +168,17 @@ class Calendar:
         如果 n < 0，则返回d对应的交易日前第 n 个交易日
 
         Examples:
-            >>> cls.day_shift(datetime.date(2019,12,13), 0)
+            >>> TimeFrame.day_frames = [20191212, 20191213, 20191216, 20191217,20191218, 20191219]
+            >>> TimeFrame.day_shift(datetime.date(2019,12,13), 0)
             datetime.date(2019, 12, 13)
 
-            >>> cls.day_shift(datetime.date(2019, 12, 15), 0)
+            >>> TimeFrame.day_shift(datetime.date(2019, 12, 15), 0)
             datetime.date(2019, 12, 13)
 
-            >>> cls.day_shift(datetime.date(2019, 12, 15), 1)
+            >>> TimeFrame.day_shift(datetime.date(2019, 12, 15), 1)
             datetime.date(2019, 12, 16)
 
-            >>> cls.day_shift(datetime.date(2019, 12, 13), 1)
+            >>> TimeFrame.day_shift(datetime.date(2019, 12, 13), 1)
             datetime.date(2019, 12, 16)
 
         Args:
@@ -196,16 +197,17 @@ class Calendar:
     def week_shift(cls, start: datetime.date, offset: int) -> datetime.date:
         """对指定日期按周线帧进行前后移位操作
 
-        参考 [omicron.models.calendar.Calendar.day_shift][]
+        参考 [omicron.models.timeframe.TimeFrame.day_shift][]
         Examples:
+            >>> TimeFrame.week_frames = np.array([20200103, 20200110, 20200117, 20200123,20200207, 20200214])
             >>> moment = arrow.get('2020-1-21').date()
-            >>> cls.week_shift(moment, 1)
+            >>> TimeFrame.week_shift(moment, 1)
             datetime.date(2020, 1, 23)
 
-            >>> cls.week_shift(moment, 0)
+            >>> TimeFrame.week_shift(moment, 0)
             datetime.date(2020, 1, 17)
 
-            >>> cls.week_shift(moment, -1)
+            >>> TimeFrame.week_shift(moment, -1)
             datetime.date(2020, 1, 10)
         """
         start = cls.date2int(start)
@@ -217,16 +219,17 @@ class Calendar:
 
         本函数首先将`start`对齐，然后进行移位。
         Examples:
-            >>> cls.month_shift(arrow.get('2015-2-26').date(), 0)
+            >>> TimeFrame.month_frames = np.array([20150130, 20150227, 20150331, 20150430])
+            >>> TimeFrame.month_shift(arrow.get('2015-2-26').date(), 0)
             datetime.date(2015, 1, 30)
 
-            >>> cls.month_shift(arrow.get('2015-2-27').date(), 0)
+            >>> TimeFrame.month_shift(arrow.get('2015-2-27').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> cls.month_shift(arrow.get('2015-3-1').date(), 0)
+            >>> TimeFrame.month_shift(arrow.get('2015-3-1').date(), 0)
             datetime.date(2015, 2, 27)
 
-            >>> cls.month_shift(arrow.get('2015-3-1').date(), 1)
+            >>> TimeFrame.month_shift(arrow.get('2015-3-1').date(), 1)
             datetime.date(2015, 3, 31)
 
         """
@@ -240,7 +243,8 @@ class Calendar:
         对分钟线，返回值仅包含时间，不包含日期（均为整数表示）
 
         Examples:
-            >>> cls.get_ticks(FrameType.MONTH)[:3]
+            >>> TimeFrame.month_frames = np.array([20050131, 20050228, 20050331])
+            >>> TimeFrame.get_ticks(FrameType.MONTH)[:3]
             array([20050131, 20050228, 20050331])
 
         Args:
@@ -280,15 +284,15 @@ class Calendar:
 
         See also:
 
-        - [day_shift][omicron.models.calendar.Calendar.day_shift]
-        - [week_shift][omicron.models.calendar.Calendar.week_shift]
-        - [month_shift][omicron.models.calendar.Calendar.month_shift]
+        - [day_shift][omicron.models.timeframe.TimeFrame.day_shift]
+        - [week_shift][omicron.models.timeframe.TimeFrame.week_shift]
+        - [month_shift][omicron.models.timeframe.TimeFrame.month_shift]
 
         Examples:
-            >>> cls.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
+            >>> TimeFrame.shift(datetime.date(2020, 1, 3), 1, FrameType.DAY)
             datetime.date(2020, 1, 6)
 
-            >>> cls.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
+            >>> TimeFrame.shift(datetime.datetime(2020, 1, 6, 11), 1, FrameType.MIN30)
             datetime.datetime(2020, 1, 6, 11, 30)
 
 
@@ -346,13 +350,15 @@ class Calendar:
         Examples:
             >>> start = datetime.date(2019, 12, 21)
             >>> end = datetime.date(2019, 12, 21)
-            >>> Calendar.count_day_frames(start, end)
+            >>> TimeFrame.day_frames = [20191219, 20191220, 20191223, 20191224, 20191225]
+            >>> TimeFrame.count_day_frames(start, end)
             1
 
             >>> # non-trade days are removed
+            >>> TimeFrame.day_frames = [20200121, 20200122, 20200123, 20200203, 20200204, 20200205]
             >>> start = datetime.date(2020, 1, 23)
             >>> end = datetime.date(2020, 2, 4)
-            >>> Calendar.count_day_frames(start, end)
+            >>> TimeFrame.count_day_frames(start, end)
             3
 
         args:
@@ -370,7 +376,7 @@ class Calendar:
         end will be aligned to open trade day before calculation. After that, if start
          == end, this will returns 1
 
-        for examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+        for examples, please refer to [count_day_frames][omicron.models.timeframe.TimeFrame.count_day_frames]
         args:
             start:
             end:
@@ -385,7 +391,7 @@ class Calendar:
         Both start and end will be aligned to open trade day before calculation. After
         that, if start == end, this will returns 1.
 
-        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+        For examples, please refer to [count_day_frames][omicron.models.timeframe.TimeFrame.count_day_frames]
 
         Args:
             start:
@@ -400,12 +406,12 @@ class Calendar:
         return int(ext.count_between(cls.month_frames, start, end))
 
     @classmethod
-    def count_quater_frames(cls, start: datetime.date, end: datetime.date) -> int:
-        """calc trade quaters between start and end date in close-to-close way
+    def count_quarter_frames(cls, start: datetime.date, end: datetime.date) -> int:
+        """calc trade quarters between start and end date in close-to-close way
         Both start and end will be aligned to open trade day before calculation. After
         that, if start == end, this will returns 1.
 
-        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+        For examples, please refer to [count_day_frames][omicron.models.timeframe.TimeFrame.count_day_frames]
 
         Args:
             start (datetime.date): [description]
@@ -425,7 +431,7 @@ class Calendar:
         Both start and end will be aligned to open trade day before calculation. After
         that, if start == end, this will returns 1.
 
-        For examples, please refer to [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
+        For examples, please refer to [count_day_frames][omicron.models.timeframe.TimeFrame.count_day_frames]
 
         Args:
             start (datetime.date): [description]
@@ -450,9 +456,9 @@ class Calendar:
 
         See also:
 
-        - [count_day_frames][omicron.models.calendar.Calendar.count_day_frames]
-        - [count_week_frames][omicron.models.calendar.Calendar.count_week_frames]
-        - [count_month_frames][omicron.models.calendar.Calendar.count_month_frames]
+        - [count_day_frames][omicron.models.timeframe.TimeFrame.count_day_frames]
+        - [count_week_frames][omicron.models.timeframe.TimeFrame.count_week_frames]
+        - [count_month_frames][omicron.models.timeframe.TimeFrame.count_month_frames]
 
         Args:
             start : start frame
@@ -472,7 +478,7 @@ class Calendar:
         elif frame_type == FrameType.MONTH:
             return cls.count_month_frames(start, end)
         elif frame_type == FrameType.QUARTER:
-            return cls.count_quater_frames(start, end)
+            return cls.count_quarter_frames(start, end)
         elif frame_type == FrameType.YEAR:
             return cls.count_year_frames(start, end)
         elif frame_type in [
@@ -500,7 +506,7 @@ class Calendar:
         """判断`dt`是否为交易日
 
         Examples:
-            >>> cls.is_trade_day(arrow.get('2020-1-1'))
+            >>> TimeFrame.is_trade_day(arrow.get('2020-1-1'))
             False
 
         Args:
@@ -518,9 +524,10 @@ class Calendar:
         交易时间段是指集合竞价时间段之外的开盘时间
 
         Examples:
-            >>> cls.is_open_time(arrow.get('2020-1-1 14:59')
+            >>> TimeFrame.day_frames = np.array([20200102, 20200103, 20200106, 20200107, 20200108])
+            >>> TimeFrame.is_open_time(arrow.get('2020-1-1 14:59').naive)
             False
-            >>> cls.is_open_time(arrow.get('2020-1-3 14:59')
+            >>> TimeFrame.is_open_time(arrow.get('2020-1-3 14:59').naive)
             True
 
         Args:
@@ -589,26 +596,27 @@ class Calendar:
 
         Examples:
             >>> # 如果moment为日期，则当成已收盘处理
-            >>> cls.floor(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> TimeFrame.day_frames = np.array([20050104, 20050105, 20050106, 20050107, 20050110, 20050111])
+            >>> TimeFrame.floor(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
             >>> # moment指定的时间还未收盘，floor到上一个交易日
-            >>> cls.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
+            >>> TimeFrame.floor(datetime.datetime(2005, 1, 7, 14, 59), FrameType.DAY)
             datetime.date(2005, 1, 6)
 
-            >>> cls.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
+            >>> TimeFrame.floor(datetime.date(2005, 1, 13), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cls.floor(datetime.date(2005,2, 27), FrameType.MONTH)
+            >>> TimeFrame.floor(datetime.date(2005,2, 27), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> cls.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> TimeFrame.floor(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 14, 30)
 
-            >>> cls.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> TimeFrame.floor(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> cls.floor(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
+            >>> TimeFrame.floor(arrow.get('2005-1-5 14:59').naive, FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
         Args:
@@ -661,7 +669,7 @@ class Calendar:
         """获取`day`日周期为`frame_type`的结束frame。
 
         Example:
-            >>> cls.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
+            >>> TimeFrame.last_min_frame(arrow.get('2020-1-5').date(), FrameType.MIN30)
             datetime.datetime(2020, 1, 3, 15, 0)
 
         Args:
@@ -694,7 +702,7 @@ class Calendar:
         对日线以上级别没有意义，但会返回240
 
         Examples:
-            >>> cls.frame_len(FrameType.MIN5)
+            >>> TimeFrame.frame_len(FrameType.MIN5)
             5
 
         Args:
@@ -725,7 +733,8 @@ class Calendar:
         """获取指定日期类型为`frame_type`的`frame`。
 
         Examples:
-            >>> cls.first_min_frame('2019-12-31', FrameType.MIN1)
+            >>> TimeFrame.day_frames = np.array([20191227, 20191230, 20191231, 20200102, 20200103])
+            >>> TimeFrame.first_min_frame('2019-12-31', FrameType.MIN1)
             datetime.datetime(2019, 12, 31, 9, 31)
 
         Args:
@@ -767,9 +776,10 @@ class Calendar:
         调用本函数前，请先通过`floor`或者`ceiling`将时间帧对齐到`frame_type`的边界值
 
         Example:
-            >>> start = arrow.get('2020-1-13 10:00'
-            >>> end = arrow.get('2020-1-13 13:30'
-            >>> cls.get_frames(start, end, FrameType.MIN30)
+            >>> start = arrow.get('2020-1-13 10:00').naive
+            >>> end = arrow.get('2020-1-13 13:30').naive
+            >>> TimeFrame.day_frames = np.array([20200109, 20200110, 20200113,20200114, 20200115, 20200116])
+            >>> TimeFrame.get_frames(start, end, FrameType.MIN30)
             [202001131000, 202001131030, 202001131100, 202001131130, 202001131330]
 
         Args:
@@ -792,8 +802,9 @@ class Calendar:
         调用前请将`end`对齐到`frame_type`的边界
 
         Examples:
-            >>> end = arrow.get('2020-1-6 14:30'
-            >>> cls.get_frames_by_count(end, 2, FrameType.MIN30)
+            >>> end = arrow.get('2020-1-6 14:30').naive
+            >>> TimeFrame.day_frames = np.array([20200102, 20200103,20200106, 20200107, 20200108, 20200109])
+            >>> TimeFrame.get_frames_by_count(end, 2, FrameType.MIN30)
             [202001061400, 202001061430]
 
         Args:
@@ -849,26 +860,29 @@ class Calendar:
         比如`moment`为14:59分，如果`frame_type`为30分钟，则它的上界应该为15:00
 
         Example:
-            >>> cls.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
+            >>> TimeFrame.day_frames = [20050104, 20050105, 20050106, 20050107]
+            >>> TimeFrame.ceiling(datetime.date(2005, 1, 7), FrameType.DAY)
             datetime.date(2005, 1, 7)
 
-            >>> cls.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
+            >>> TimeFrame.week_frames = [20050107, 20050114, 20050121, 20050128]
+            >>> TimeFrame.ceiling(datetime.date(2005, 1, 4), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cls.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
+            >>> TimeFrame.ceiling(datetime.date(2005,1,7), FrameType.WEEK)
             datetime.date(2005, 1, 7)
 
-            >>> cls.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
+            >>> TimeFrame.month_frames = [20050131, 20050228]
+            >>> TimeFrame.ceiling(datetime.date(2005,1 ,1), FrameType.MONTH)
             datetime.date(2005, 1, 31)
 
-            >>> cls.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
+            >>> TimeFrame.ceiling(datetime.datetime(2005,1,5,14,59), FrameType.MIN30)
             datetime.datetime(2005, 1, 5, 15, 0)
 
-            >>> cls.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
+            >>> TimeFrame.ceiling(datetime.datetime(2005, 1, 5, 14, 59), FrameType.MIN1)
             datetime.datetime(2005, 1, 5, 14, 59)
 
-            >>> cls.ceiling(arrow.get('2005-1-5 14:59'.datetime, FrameType.MIN1)
-            datetime.datetime(2005, 1, 5, 14, 59))
+            >>> TimeFrame.ceiling(arrow.get('2005-1-5 14:59').naive, FrameType.MIN1)
+            datetime.datetime(2005, 1, 5, 14, 59)
 
         Args:
             moment (datetime.datetime): [description]
@@ -900,7 +914,7 @@ class Calendar:
         """用`date`指定的日期与`hour`, `minute`, `second`等参数一起合成新的时间
 
         Examples:
-            >>> cls.combine_time(datetime.date(2020, 1, 1), 14, 30)
+            >>> TimeFrame.combine_time(datetime.date(2020, 1, 1), 14, 30)
             datetime.datetime(2020, 1, 1, 14, 30)
 
         Args:
@@ -924,7 +938,7 @@ class Calendar:
         """将`dtm`变量的日期更换为`dt`指定的日期
 
         Example:
-            >>> cls.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
+            >>> TimeFrame.replace_date(arrow.get('2020-1-1 13:49').datetime, datetime.date(2019, 1,1))
             datetime.datetime(2019, 1, 1, 13, 49)
 
         Args:
@@ -974,16 +988,16 @@ class Calendar:
 
             return months
         elif frame_type == FrameType.QUARTER:
-            quaters = []
+            quarters = []
             last = trade_days[0]
             for cur in trade_days:
                 if last.month % 3 == 0:
                     if cur.month > last.month or cur.year > last.year:
-                        quaters.append(last)
+                        quarters.append(last)
                 last = cur
-            quaters.append(last)
+            quarters.append(last)
 
-            return quaters
+            return quarters
         elif frame_type == FrameType.YEAR:
             years = []
             last = trade_days[0]
@@ -1005,17 +1019,17 @@ class Calendar:
 
         Examples:
             >>> ticks = [600, 630, 660, 690, 810, 840, 870, 900]
-            >>> minute_frames_floor(ticks, 545)
+            >>> TimeFrame.minute_frames_floor(ticks, 545)
             (900, -1)
-            >>> minute_frames_floor(ticks, 600)
+            >>> TimeFrame.minute_frames_floor(ticks, 600)
             (600, 0)
-            >>> minute_frames_floor(ticks, 605)
+            >>> TimeFrame.minute_frames_floor(ticks, 605)
             (600, 0)
-            >>> minute_frames_floor(ticks, 899)
+            >>> TimeFrame.minute_frames_floor(ticks, 899)
             (870, 0)
-            >>> minute_frames_floor(ticks, 900)
+            >>> TimeFrame.minute_frames_floor(ticks, 900)
             (900, 0)
-            >>> minute_frames_floor(ticks, 905)
+            >>> TimeFrame.minute_frames_floor(ticks, 905)
             (900, 0)
 
         Args:

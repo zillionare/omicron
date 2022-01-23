@@ -3,10 +3,9 @@ from typing import List, Union
 
 import cfg4py
 import pandas as pd
+from coretypes import Frame, FrameType
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
-
-from omicron.core.types import Frame, FrameType
 
 
 class PerssidentInfluxDb(object):

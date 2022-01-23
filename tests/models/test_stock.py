@@ -4,15 +4,9 @@ from unittest import mock
 
 import arrow
 import numpy as np
+from coretypes import FrameType, SecurityType, bars_with_limit_dtype, stock_bars_dtype
 
 import omicron
-from omicron.core.types import (
-    Frame,
-    FrameType,
-    SecurityType,
-    bars_with_limit_dtype,
-    stock_bars_dtype,
-)
 from omicron.dal import cache, influxdb
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock

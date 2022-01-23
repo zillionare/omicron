@@ -9,10 +9,9 @@ nav:
   - API文档:
     - omicron: api/omicron.md
     - stock: api/stock.md
-    - calendar: api/calendar.md
-    - fund: api/fund.md
+    - timeframe: api/timeframe.md
+    - fund: api/funds.md
     - triggers: api/triggers.md
-    - types: api/types.md
     - metrics: api/metrics.md
 
 theme:

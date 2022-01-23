@@ -3,10 +3,10 @@ import unittest
 
 import arrow
 import tzlocal
+from coretypes import FrameType
 
 import omicron
 from omicron.core.triggers import FrameTrigger, TradeTimeIntervalTrigger
-from omicron.core.types import FrameType
 from tests import init_test_env
 
 logging.basicConfig(level=logging.INFO)

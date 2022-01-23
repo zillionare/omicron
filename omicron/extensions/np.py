@@ -403,6 +403,7 @@ def top_n_argpos(ts: np.array, n: int) -> np.array:
     Example:
         >>> top_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
         array([2, 3])
+
     Args:
         ts (np.array): [description]
         n (int): [description]

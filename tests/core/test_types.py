@@ -2,7 +2,7 @@ import logging
 import unittest
 from unittest.mock import patch
 
-from omicron.core.types import FrameType
+from coretypes import FrameType
 
 logger = logging.getLogger(__name__)
 
