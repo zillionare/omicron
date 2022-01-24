@@ -41,9 +41,8 @@ Omicron 的最基础的作用，就是访问行情数据。我们通过下面的
 import arrow
 import cfg4py
 import omicron
-from omicron.models.securities import Securities
-from omicron.models.security import Security
-from omicron.models import calendar as cal
+from omicron.models.stock import Stock
+from omicron.models.timeframe import TimeFrame as tf
 from coretypes import FrameType
 
 asynd def main():
@@ -52,7 +51,7 @@ asynd def main():
     # 初始化omicron, 建立与 redis, postgres及omega server的连接
     await omicron.init()
 
-    s = Securities()
+    s = Stock()
 
     # 加载全市场证券列表
     await s.load()
@@ -62,16 +61,16 @@ asynd def main():
     # 加载行情数据
     start = arrow.get('2020-10-10').date()
     end = arrow.get('2020-10-20').date()
-    sec = Security('000001.XSHE')
+    sec = Stock('000001.XSHE')
 
     assert sec.display_name == '平安银行'
     frame_type = FrameType.DAY
-    bars = await sec.load_bars(start, stop, frame_type)
+    bars = await Stock.get_bars('000001.XSHE', 5, frame_type, stop)
     print(bars)
 
     # 日期转换
-    n = cal.count_day_frames(start, end)
-    start = cal.day_shift(end, -n)
-    bars = await sec.load_bars(start, stop, frame_type)
+    n = tf.count_day_frames(start, end)
+    start = tf.day_shift(end, -n)
+    bars = await Stock.get_bars_in_range(['000001.XSHE', start, stop, frame_type)
     print(bars)
 ```
