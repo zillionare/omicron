@@ -8,6 +8,9 @@ on:
   push:
     branches:
       - '*'
+  pull_request:
+    branches:
+      - '*'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -16,22 +19,10 @@ jobs:
   # This workflow contains a single job called "build"
   test:
     env:
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      POSTGRES_DB: zillionare
-      POSTGRES_HOST: localhost
-      POSTGRES_USER: zillionare
-      POSTGRES_PASSWORD: zillionare
-      POSTGRES_PORT: 5432
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
-      POSTGRES_ENABLED: true
       MAIL_PASSWORD: ${{secrets.MAIL_PASSWORD}}
-      INFLUXDB_HOST: 127.0.0.1
-      INFLUXDB_PORT: 8086
-      INFLUXDB_TOKEN: my-token
-      INFLUXDB_ORG: my-org
-      INFLUXDB_BUCKET_NAME: my-bucket
+      IS_GITHUB: 1
     # The type of runner that the job will run on
     strategy:
       matrix:
@@ -53,7 +44,7 @@ jobs:
       postgres:
         image: postgres
         env: # this is defined by image postgres
-          POSTGRES_PASSWORD: zillionare
+          POSTGRES_PASSWORD: 123456
           POSTGRES_USER: zillionare
           POSTGRES_DB: zillionare
         options: >-
@@ -82,8 +73,8 @@ jobs:
             ls
             export TZ=Asia/Shanghai
             sudo -E apt-get update
-            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v0.6.sql
-            PGPASSWORD=zillionare psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
+            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v0.6.sql
+            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
 
       - name: init influxdb
         run: |
