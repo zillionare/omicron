@@ -10,7 +10,7 @@ from omicron.dal.cache import cache
 from omicron.dal.influxdb import influxdb
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
-from omicron.models.timeframe import TimeFrame
+from omicron.models.timeframe import TimeFrame as tf
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ async def init():
     global cache
 
     await cache.init()
-    await TimeFrame.init()
+    await tf.init()
     await influxdb.init()
     from omicron.models.stock import Stock
 
@@ -55,4 +55,4 @@ async def close():
         pass
 
 
-__all__ = ["cache", "db"]
+__all__ = ["tf", "cache", "influxdb", "db"]
