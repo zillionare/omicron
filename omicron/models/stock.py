@@ -6,7 +6,13 @@ from typing import List, Union
 import arrow
 import numpy as np
 import pandas as pd
-from coretypes import Frame, FrameType, SecurityType, stock_bars_dtype
+from coretypes import (
+    Frame,
+    FrameType,
+    SecurityType,
+    stock_bars_dtype,
+    bars_with_limit_dtype,
+)
 
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache, influxdb
@@ -641,10 +647,9 @@ class Stock:
     @classmethod
     async def persist_bars(cls, frame_type: FrameType, bars: np.ndarray):
         """将行情数据持久化"""
-        df = pd.DataFrame(data=bars, columns=bars.dtype.names)
-        df["frame_type"] = frame_type.to_int()
-        df.index = df["frame"]
-        await influxdb.write(df, "stock", ["frame", "frame_type", "code"])
+        fields = list(map(lambda x: x[0], bars_with_limit_dtype))
+        data_frame_measurement_name = f"""stock_{frame_type.name.lower()}"""
+        await influxdb.write(bars, fields, data_frame_measurement_name)
 
     @classmethod
     def resample(

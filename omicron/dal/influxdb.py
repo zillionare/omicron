@@ -2,9 +2,12 @@ from copy import deepcopy
 from typing import List, Union
 
 import cfg4py
+import arrow
+import numpy as np
 import pandas as pd
 from coretypes import Frame, FrameType
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.domain.write_precision import WritePrecision
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
 
 
@@ -33,7 +36,7 @@ class PerssidentInfluxDb(object):
     def write_api(self) -> WriteApi:
         return self.client.write_api(
             write_options=WriteOptions(
-                batch_size=500,
+                batch_size=5000,
                 flush_interval=10_000,
                 jitter_interval=2_000,
                 retry_interval=5_000,
@@ -49,19 +52,42 @@ class PerssidentInfluxDb(object):
 
     async def write(
         self,
-        sequence: pd.DataFrame,
+        sequence: np.array,
+        fields: List[str] = None,
         data_frame_measurement_name: str = None,
-        data_frame_tag_columns: List[str] = None,
     ):
-        if sequence.empty:
+        if not data_frame_measurement_name or not len(sequence):
             return
-        self.write_api.write(
-            self.bucket_name,
-            self.org,
-            record=sequence,
-            data_frame_measurement_name=data_frame_measurement_name,
-            data_frame_tag_columns=data_frame_tag_columns,
-        )
+        fields = set(fields) - set(["code", "frame", "frame_type"])
+        points = []
+        for recs in sequence:
+            data = {}
+            item = dict(zip(sequence.dtype.names, recs))
+            field_values = {}
+            for field in fields:
+                value = item.get(field)
+                if value is not None:
+                    field_values[field] = value
+            data["fields"] = ",".join(
+                map(
+                    lambda x: "{field}={value}".format(field=x, value=field_values[x]),
+                    field_values,
+                )
+            )
+            data["frame"] = arrow.get(item["frame"]).timestamp
+            data["code"] = item["code"]
+            data["data_frame_measurement_name"] = data_frame_measurement_name
+            line = "{data_frame_measurement_name},code={code} {fields} {frame}".format(
+                **data
+            )
+            points.append(line)
+        for i in range(0, len(points), 100000):
+            self.write_api.write(
+                self.bucket_name,
+                self.org,
+                points[i : i + 100000],
+                write_precision=WritePrecision.S,
+            )
 
     async def init(self):
         cfg = cfg4py.get_instance()
@@ -81,8 +107,9 @@ class PerssidentInfluxDb(object):
     ) -> pd.DataFrame:
         params = {
             "bucket": self.bucket_name,
-            "end": end.strftime("%Y-%m-%d %H:%M:%S"),
         }
+        end = (end.strftime("%Y-%m-%d %H:%M:%S"),)
+
         code = [code] if isinstance(code, str) else code
         fields_query = " or ".join(
             list(map(lambda x: f'''r["_field"] == "{x}"''', fields))
@@ -98,12 +125,10 @@ class PerssidentInfluxDb(object):
         columns = '","'.join(columns)
         query = f"""
         from(bucket: bucket)
-            |> range(start: -200d)
-            |> filter(fn: (r) => r["_measurement"] == "stock")
+            |> range(start: -200d, stop: "{end}")
+            |> filter(fn: (r) => r["_measurement"] == "stock_{frame_type.name.lower()}")
             |> filter(fn: (r) =>  {fields_query})
             {codes_query}
-            |> filter(fn: (r) => {('r["frame"] >= "%s" and' % begin.strftime("%Y-%m-%d %H:%M:%S")) if begin else ""} r["frame"] <= end)
-            |> filter(fn: (r) => r["frame_type"] == "{frame_type.to_int()}")
             |> keep(columns: ["{columns}"])
             {("|> limit(n: %d)" % limit) if limit else ""}
         """
