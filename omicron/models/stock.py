@@ -57,9 +57,7 @@ class Stock:
 
     @classmethod
     async def load_securities(cls):
-        """
-        加载所有证券的信息，并缓存到内存中。
-        """
+        """加载所有证券的信息，并缓存到内存中。"""
         secs = await cache.security.lrange("security:stock", 0, -1, encoding="utf-8")
         if len(secs) != 0:
             _stocks = np.array(
@@ -89,8 +87,8 @@ class Stock:
 
     @classmethod
     async def save_securities(cls, securities: List[str]):
-        """
-        保存指定的证券到缓存中。
+        """保存指定的证券到缓存中。
+
         Args:
             securities: 证券代码列表。
         """
@@ -401,20 +399,17 @@ class Stock:
     ) -> dict:
         """获取多支股票（指数）的最近的`n`个行情数据。
 
-        停牌数据处理请见 `get_bars`
+        停牌数据处理请见[get_bars][omicron.models.stock.Stock.get_bars]。
 
         结果以dict方式返回，key为传入的股票代码，value为对应的行情数据。
 
         Args:
-            codes (List[str]): [description]
-            n (int): [description]
-            frame_type (FrameType): [description]
+            codes (List[str]): 代码列表
+            n (int): 返回记录数
+            frame_type (FrameType): 帧类型
             end (Frame, optional): 结束时间。如果未指明，则取当前时间。 Defaults to None.
-            fq (bool, optional): [description]. Defaults to True.
-            closed (bool, optional): [description]. Defaults to True.
-
-        Raises:
-            NotImplementedError: [description]
+            fq (bool, optional): 是否进行复权，如果是，则进行前复权。Defaults to True.
+            unclosed (bool, optional): 是否包含最新一期未收盘数据. Defaults to True.
         """
         bars = cls.get_bars_in_range(
             code=codes,
@@ -456,7 +451,7 @@ class Stock:
     async def batch_cache_unclosed_bars(cls, frame_type: FrameType, bars: np.ndarray):
         """缓存未收盘的5、15、30、60分钟线及日线
 
-        `bars`数据结构同`batch_cache_bars`方法。 `bars`中不应该存在同一code的多条数据。
+        `bars`数据结构同[`batch_cache_bars`][omicron.models.stock.Stock.batch_cache_bars]方法。 `bars`中不应该存在同一code的多条数据。
         """
         pl = cache.security.pipeline()
         key = f"bars:{frame_type.value}:unclosed"
@@ -740,8 +735,9 @@ class Stock:
             to_frame (FrameType): [description]
 
         Returns:
-            np.ndarray: [description]
+            转换后的行情数据
         """
+        # 改为直接从上游服务器获取，不再从日线合成。
         raise NotImplementedError
 
     @classmethod

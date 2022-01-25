@@ -65,7 +65,7 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
             next_tick = trigger.get_next_fire_time(None, _datetime(X[i][3]))
 
             tz = tzlocal.get_localzone()
-            self.assertEqual(_datetime(Y[i]).astimezone(tz), next_tick)
+            self.assertEqual(_datetime(Y[i]).replace(tzinfo=tz), next_tick)
 
     async def test_interval_triggers(self):
         for i, (interval, prev, now, exp) in enumerate(
