@@ -334,11 +334,8 @@ class Stock:
         n2 = len(part2)
         n1 = n - n2
         if n1 > 0:
-            pend = TimeFrame.shift(
-                cls.get_cached_first_frame(frame_type), -1, frame_type
-            )
             part1 = await cls._get_persisted_bars(
-                code, end=pend, n=n1, frame_type=frame_type
+                code, end=end, n=n1, frame_type=frame_type
             )
             part1 = part1[(-n1):]
         else:
@@ -539,6 +536,7 @@ class Stock:
         if ff is None or end < ff:
             return np.empty((0,), dtype=stock_bars_dtype)
 
+        _n = n if frame_type in TimeFrame.day_level_frames else 240
         raw = []
         if frame_type in TimeFrame.day_level_frames:
             convert = TimeFrame.int2date
@@ -555,14 +553,14 @@ class Stock:
                 ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
         else:
             convert = TimeFrame.int2time
-            key = f"bars:{frame_type.value}:{code}"
-            end_ = TimeFrame.floor(end, frame_type)
-            frames = map(str, TimeFrame.get_frames_by_count(end_, n, frame_type))
+            key = f"bars:{FrameType.MIN1.value}:{code}"
+            end_ = TimeFrame.floor(end, FrameType.MIN1)
+            frames = map(str, TimeFrame.get_frames_by_count(end_, _n, FrameType.MIN1))
             r1 = await cache.security.hmget(key, *frames)
             raw.extend(r1)
 
             if unclosed:
-                key = f"bars:{frame_type.value}:unclosed"
+                key = f"bars:{FrameType.MIN1.value}:unclosed"
                 r2 = await cache.security.hget(key, code)
                 if r2:
                     raw.append(r2)
@@ -585,7 +583,12 @@ class Stock:
                 )
             )
 
-        bars = np.array(recs, dtype=stock_bars_dtype)[-n:]
+        bars = np.array(recs, dtype=stock_bars_dtype)
+        if frame_type in TimeFrame.minute_level_frames and frame_type != FrameType.MIN1:
+            bars = cls.resample(bars, from_frame=FrameType.MIN1, to_frame=frame_type)[
+                -n:
+            ]
+        bars = bars[-n:]
         if bars[-1]["frame"] > end:
             # 避免取到未来数据
             bars = bars[:-1]

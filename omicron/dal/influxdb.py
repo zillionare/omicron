@@ -27,7 +27,7 @@ class PerssidentInfluxDb(object):
 
     @property
     def client(self) -> InfluxDBClient:
-        return InfluxDBClient(self.url, self.token, self.org)
+        return InfluxDBClient(self.url, self.token, org=self.org)
 
     @property
     def write_api(self) -> WriteApi:
