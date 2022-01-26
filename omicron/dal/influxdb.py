@@ -1,14 +1,15 @@
+import datetime
 from copy import deepcopy
 from typing import List, Union
 
-import cfg4py
 import arrow
+import cfg4py
 import numpy as np
 import pandas as pd
 from coretypes import Frame, FrameType
 from influxdb_client import InfluxDBClient, Point
-from influxdb_client.domain.write_precision import WritePrecision
 from influxdb_client.client.write_api import WriteApi, WriteOptions, WriteType
+from influxdb_client.domain.write_precision import WritePrecision
 
 
 class PerssidentInfluxDb(object):
@@ -108,7 +109,8 @@ class PerssidentInfluxDb(object):
         params = {
             "bucket": self.bucket_name,
         }
-        end = (end.strftime("%Y-%m-%d %H:%M:%S"),)
+        end = (end + datetime.timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%S")
+        begin = begin.strftime("%Y-%m-%dT%H:%M:%S") if begin else "2001-01-01T00:00:00"
 
         code = [code] if isinstance(code, str) else code
         fields_query = " or ".join(
@@ -121,11 +123,12 @@ class PerssidentInfluxDb(object):
         else:
             codes_query = ""
         columns = deepcopy(fields) or []
-        columns.extend(["_value", "_field"])
+        columns.extend(["_value", "_field", "_time"])
         columns = '","'.join(columns)
+
         query = f"""
         from(bucket: bucket)
-            |> range(start: -200d, stop: "{end}")
+            |> range(start: {begin}Z, stop: {end}Z)
             |> filter(fn: (r) => r["_measurement"] == "stock_{frame_type.name.lower()}")
             |> filter(fn: (r) =>  {fields_query})
             {codes_query}
@@ -139,6 +142,8 @@ class PerssidentInfluxDb(object):
         if df.empty:
             df = pd.DataFrame(columns=fields)
         else:
+            df["frame"] = df["_time"]
+            df["frame_type"] = frame_type
             df = df.pivot(
                 index=["code", "frame", "frame_type"],
                 columns=["_field"],

@@ -465,10 +465,12 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         await Stock.persist_bars(FrameType.DAY, bars)
 
         recs: np.array = await Stock._get_persisted_bars(
-            code=code, end=arrow.get("2022-01-06")
+            code=code, end=arrow.get("2022-01-06 10:00:00")
         )
         data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
-        self.assertEqual(data["frame"], "2022-01-06 10:00:00")
+        self.assertEqual(
+            data["frame"].strftime("%Y-%m-%d %H:%M:%S"), "2022-01-06 10:00:00"
+        )
 
         recs: np.array = await Stock._get_persisted_bars(
             code="000002.XSHE", end=arrow.get("2022-01-14")
