@@ -23,3 +23,21 @@ class DataNotReadyError(Error):
     """数据未就绪错误，比如依赖的数据还未下载到本地，或者未加载到内存中"""
 
     pass
+
+
+class InfluxDBWriteError(Error):
+    """写influx db错误"""
+
+    pass
+
+
+class InfluxDBQueryError(Error):
+    """查询influx db错误"""
+
+    pass
+
+
+class DuplicateOperationError(Error):
+    """重复key错误"""
+
+    pass
