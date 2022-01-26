@@ -10,8 +10,8 @@ from coretypes import (
     Frame,
     FrameType,
     SecurityType,
-    stock_bars_dtype,
     bars_with_limit_dtype,
+    stock_bars_dtype,
 )
 
 from omicron.core.errors import DataNotReadyError
