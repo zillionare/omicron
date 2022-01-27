@@ -12,6 +12,7 @@ class Flux(object):
     """Helper functions for building flux query expression"""
 
     def __init__(self):
+        self._cols = None
         self.expressions = defaultdict(list)
 
     def __str__(self):
@@ -19,6 +20,15 @@ class Flux(object):
 
     def _compose(self):
         """将所有表达式合并为一个表达式"""
+        if not all(
+            [
+                "bucket" in self.expressions,
+                "measurement" in self.expressions,
+                "range" in self.expressions,
+            ]
+        ):
+            raise AssertionError("bucket, measurement and range must be set")
+
         expr = [self.expressions[k] for k in ("bucket", "range", "measurement")]
 
         if self.expressions.get("tags"):
@@ -26,6 +36,12 @@ class Flux(object):
 
         if self.expressions.get("fields"):
             expr.append(self.expressions["fields"])
+
+        if self.expressions.get("pivot"):
+            expr.append(self.expressions["pivot"])
+
+        if self.expressions.get("keep"):
+            expr.append(self.expressions["keep"])
 
         if self.expressions.get("limit"):
             expr.append(self.expressions["limit"])
@@ -70,6 +86,8 @@ class Flux(object):
         self, start: Frame, end: Frame, right_close=True, precision="s"
     ) -> "Flux":
         """添加时间范围过滤
+
+        必须指定的查询条件，否则influxdb会报unbound查询错，因为这种情况下，返回的数据量将非常大。
 
         在格式化时间时，需要根据`precision`生成时间字符串。在向Influxdb发送请求时，应该注意查询参数中指定的时间精度与这里使用的保持一致。
 
@@ -117,6 +135,25 @@ class Flux(object):
         return self
 
     @classmethod
+    def to_timestamp(cls, tm: Frame, precision: str = "s") -> int:
+        """将时间根据精度转换为unix时间戳
+
+        在往influxdb写入数据时，line-protocol要求的时间戳为unix timestamp，并且与其精度对应。
+
+        Args:
+            tm: 时间
+            precision: 时间精度，默认为秒。
+
+        Returns:
+            时间戳
+        """
+        if precision not in ["s", "ms", "us"]:
+            raise AssertionError("precision must be 's', 'ms' or 'us'")
+
+        tm = arrow.get(tm).timestamp
+        return int(tm * 10 ** ({"s": 0, "ms": 3, "us": 6}[precision]))
+
+    @classmethod
     def format_time(cls, tm: Frame, precision: str = "s", shift_forward=False) -> str:
         """将时间转换成客户端对应的精度，并以 RFC3339 timestamps格式串（即influxdb要求的格式）返回。
 
@@ -162,6 +199,8 @@ class Flux(object):
     def tags(self, tags: DefaultDict[str, List[str]]) -> "Flux":
         """给查询添加tags过滤条件
 
+        此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。
+
         由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`。
 
         Raises:
@@ -185,7 +224,10 @@ class Flux(object):
         filters = []
         for tag, values in tags.items():
             assert values, f"tag {tag} bind with no value"
-            filters.extend([f'r["{tag}"] == "{v}"' for v in values])
+            if isinstance(values, str):
+                filters.append(f'r["{tag}"] == "{values}"')
+            else:
+                filters.extend([f'r["{tag}"] == "{v}"' for v in values])
 
         op_expression = " or ".join(filters)
 
@@ -195,6 +237,8 @@ class Flux(object):
 
     def fields(self, fields: List) -> "Flux":
         """给查询添加field过滤条件
+
+        此查询条件为过滤条件，用以指定哪些field会出现在查询结果中，并非必须。如果查询中没有指定tags，则会返回所有记录。
 
         由于一条记录只能属于一个_field，所以，当指定多个_field进行查询时，它们之间的关系应该为`or`。
 
@@ -209,8 +253,79 @@ class Flux(object):
         if "fields" in self.expressions:
             raise DuplicateOperationError("fields has been set")
 
+        self._cols = fields
+
         filters = [f'r["_field"] == "{name}"' for name in fields]
 
         self.expressions["fields"] = f"  |> filter(fn: (r) => {' or '.join(filters)})"
 
         return self
+
+    def pivot(
+        self,
+        row_keys: List[str] = ["_time"],
+        column_keys=["_field"],
+        value_column: str = "_value",
+    ) -> "Flux":
+        """pivot用来将以列为单位的数据转换为以行为单位的数据
+
+        Flux查询返回的结果通常都是以列为单位的数据，增加本pivot条件后，结果将被转换成为以行为单位的数据再返回。
+
+        这里实现的是measurement内的转换，请参考 [pivot](https://docs.influxdata.com/flux/v0.x/stdlib/universe/pivot/#align-fields-within-each-measurement-that-have-the-same-timestamp)
+
+
+        Args:
+            row_keys: 惟一确定输出中一行数据的列名字。
+            cols: 待转换的列名称列表, 默认为["_time"]
+            column_keys: 列名称列表，默认为["_field"]
+
+        Returns:
+            Flux对象，以便进行管道操作
+        """
+        if "pivot" in self.expressions:
+            raise DuplicateOperationError("pivot has been set")
+
+        columns = ",".join([f'"{name}"' for name in column_keys])
+        rowkeys = ",".join([f'"{name}"' for name in row_keys])
+
+        self.expressions[
+            "pivot"
+        ] = f'  |> pivot(columnKey: [{columns}], rowKey: [{rowkeys}], valueColumn: "{value_column}")'
+
+        return self
+
+    def keep(
+        self, columns: List[str] = None, reserve_time_stamp: bool = True
+    ) -> "Flux":
+        """指定查询中的哪些列被保留（即被传回客户端）
+
+        如果columns为None,则使用之前传入的fields,如果fields也为空，则raise Error.
+
+        如果reserve_time_stamp为True,则会在columns之上，再加上_time字段（此字段为缺省字段）。
+
+        Args:
+            columns: 待保留的列名称列表
+            reserve_time_stamp: 是否保留_time字段，默认为True
+
+        Returns:
+            Flux对象，以便进行管道操作
+        """
+        if "keep" in self.expressions:
+            raise DuplicateOperationError("keep has been set")
+
+        self._cols = columns or self._cols
+        if self._cols is None:
+            raise ValueError("columns和fields必须至少提供一个。")
+
+        if reserve_time_stamp and "_time" not in self._cols:
+            self._cols.append("_time")
+
+        columns = ",".join([f'"{name}"' for name in self.cols])
+
+        self.expressions["keep"] = f"  |> keep(columns: [{columns}])"
+
+        return self
+
+    @property
+    def cols(self):
+        return sorted(self._cols)

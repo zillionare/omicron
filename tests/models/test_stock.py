@@ -1,4 +1,5 @@
 import datetime
+import time
 import unittest
 from unittest import mock
 
@@ -1627,3 +1628,38 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("平安银行[000001.XSHE]", str(payh))
         self.assertEqual("000001", payh.sim_code)
         self.assertEqual("000001", Stock.simplify_code("000001.XSHE"))
+
+    async def test_deserialize_bars_flux_query(self):
+        headers = (
+            ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
+        )
+
+        ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
+
+        with open("tests/data/stock_bars_flux_query.txt", "w") as f:
+            f.write(headers)
+            for i in range(2000):
+                code = f"00000{i%2 + 1}.XSHE"
+                tm = (
+                    arrow.get("2019-01-01T00:00:00Z")
+                    .shift(days=i)
+                    .naive.isoformat(timespec="seconds")
+                    + "Z"
+                )
+
+                f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
+
+        with open("tests/data/stock_bars_flux_query.txt", "rb") as f:
+            data = f.read()
+
+        t0 = time.time()
+        # 0.76 seconds
+        for i in range(10):
+            Stock._deserialize_bars_flux_query_df(data, True)
+        print("time cost", time.time() - t0)
+
+        # t0 = time.time()
+        # # 9.2 seconds
+        # for i in range(10):
+        #     recs = Stock._deserialize_bars_flux_query(data, True)
+        # print("time cost", time.time() - t0)
