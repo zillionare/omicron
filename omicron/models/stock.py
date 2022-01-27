@@ -418,7 +418,7 @@ class Stock:
             unclosed (bool, optional): 是否包含最新一期未收盘数据. Defaults to True.
         """
         bars = cls.get_bars_in_range(
-            code=codes,
+            codes=codes,
             fq=fq,
             n=n,
             unclosed=unclosed,
