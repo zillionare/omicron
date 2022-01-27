@@ -405,7 +405,7 @@ class Stock:
                 value[0].minute,
                 value[0].second,
             )
-        return np.array(np.rec.fromrecords(df.values), dtype=dtypes)
+        return np.array(np.rec.fromrecords(values), dtype=dtypes)
 
     @classmethod
     async def batch_get_bars(
