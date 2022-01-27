@@ -390,6 +390,21 @@ class Stock:
             begin=begin,
         )
         df = df[raw_columns]
+        df["frame"] = df["frame"].map(
+            lambda x: datetime.datetime(
+                x.year, x.month, x.day, x.hour, x.minute, x.second
+            )
+        )
+        values = df.values
+        for value in values:
+            value[0] = datetime.datetime(
+                value[0].year,
+                value[0].month,
+                value[0].day,
+                value[0].hour,
+                value[0].minute,
+                value[0].second,
+            )
         return np.array(np.rec.fromrecords(df.values), dtype=dtypes)
 
     @classmethod
@@ -417,7 +432,7 @@ class Stock:
             fq (bool, optional): 是否进行复权，如果是，则进行前复权。Defaults to True.
             unclosed (bool, optional): 是否包含最新一期未收盘数据. Defaults to True.
         """
-        bars = cls.get_bars_in_range(
+        bars = await cls.get_bars_in_range(
             codes=codes,
             fq=fq,
             n=n,
