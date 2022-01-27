@@ -1655,7 +1655,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         t0 = time.time()
         # 0.76 seconds
         for i in range(10):
-            Stock._deserialize_bars_flux_query_df(data, True)
+            Stock._deserialize_bars_flux_query(data, True)
         print("time cost", time.time() - t0)
 
         # t0 = time.time()

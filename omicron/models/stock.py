@@ -852,9 +852,7 @@ class Stock:
         return np.array(np.rec.fromrecords(df.values), dtype=dtypes)
 
     @classmethod
-    def _deserialize_bars_flux_query_df(
-        cls, result: bytes, is_date: bool
-    ) -> np.ndarray:
+    def _deserialize_bars_flux_query(cls, result: bytes, is_date: bool) -> np.ndarray:
         """将从influxdb中查询到的股票数据转换成numpy structured array数据，其类型为[coretypes.stock_bars_dtype][]
 
         `result`数据格式示例，请参考[query][omicron.dal.influxdb.InfluxDB.query]
@@ -887,40 +885,3 @@ class Stock:
             recs[code] = df_for_code.to_records(index=False)
 
         return recs
-
-    @classmethod
-    def _deserialize_bars_flux_query(cls, result: bytes, is_date: bool) -> np.ndarray:
-        """将从influxdb中查询到的股票数据转换成numpy structured array数据，其类型为[coretypes.stock_bars_dtype][]
-
-        Args:
-            result : 从flux查询返回的byte数据
-            is_date (bool): frame列数据是否处理为日期（否则处理为datetime)
-
-        Returns:
-            查询返回的行情数据
-        """
-        result = result.decode("utf-8")
-
-        reader = csv.DictReader(io.StringIO(result))
-
-        recs = DefaultDict(list)
-
-        # _time is frame column in influxdb
-        cols = list(
-            map(lambda x: x[0] if x[0] != "frame" else "_time", stock_bars_dtype)
-        )
-
-        for d in reader:
-            code = d["code"]
-            recs[code].append(tuple(d[k] for k in cols))
-
-        recs_ = {}
-        for code, value in recs.items():
-            arr = np.array(value, dtype=stock_bars_dtype)
-            if is_date:
-                arr["frame"] = [arrow.get(x).date() for x in arr["frame"]]
-            else:
-                arr["frame"] = [arrow.get(x).datetime for x in arr["frame"]]
-
-            recs_[code] = arr
-        return recs_
