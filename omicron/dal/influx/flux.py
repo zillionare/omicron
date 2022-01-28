@@ -14,9 +14,15 @@ class Flux(object):
 
     EPOCH_START = datetime.datetime(1970, 1, 1, 0, 0, 0)
 
-    def __init__(self):
+    def __init__(self, enable_pivot=True):
+        """初始化Flux对象
+
+        Args:
+            enable_pivot : 是否自动将查询列字段组装成行. Defaults to True.
+        """
         self._cols = None
         self.expressions = defaultdict(list)
+        self._enable_pivot = enable_pivot
 
     def __str__(self):
         return self._compose()
@@ -39,6 +45,9 @@ class Flux(object):
 
         if self.expressions.get("fields"):
             expr.append(self.expressions["fields"])
+
+        if self._enable_pivot and "pivot" not in self.expressions:
+            self.pivot()
 
         if self.expressions.get("pivot"):
             expr.append(self.expressions["pivot"])
