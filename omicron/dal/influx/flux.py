@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import DefaultDict, List
 
 import arrow
+import numpy as np
 from coretypes import Frame
 
 from omicron.core.errors import DuplicateOperationError
@@ -10,6 +11,8 @@ from omicron.core.errors import DuplicateOperationError
 
 class Flux(object):
     """Helper functions for building flux query expression"""
+
+    EPOCH_START = datetime.datetime(1970, 1, 1, 0, 0, 0)
 
     def __init__(self):
         self._cols = None
@@ -150,7 +153,14 @@ class Flux(object):
         if precision not in ["s", "ms", "us"]:
             raise AssertionError("precision must be 's', 'ms' or 'us'")
 
-        tm = arrow.get(tm).timestamp
+        # get int repr of tm, in seconds unit
+        if isinstance(tm, np.datetime64):
+            tm = tm.astype("datetime64[s]").astype("int")
+        elif getattr(tm, "timestamp", None):
+            tm = tm.timestamp
+        else:
+            tm = arrow.get(tm).timestamp
+
         return int(tm * 10 ** ({"s": 0, "ms": 3, "us": 6}[precision]))
 
     @classmethod
@@ -201,7 +211,7 @@ class Flux(object):
 
         此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。
 
-        由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`。
+        在实现上，既可以使用`contains`语法，也可以使用`or`语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`)。出于性能考虑，我们使用`contains`语法，这样在查询多个tag时，构建的flux语句会更短，从而节省语句构建时间、传输时间和服务器查询时间（possibly)。
 
         Raises:
             DuplicateOperationError: 一个查询中只允许执行一次，如果tag filter表达式已经存在，则抛出异常
@@ -227,7 +237,8 @@ class Flux(object):
             if isinstance(values, str):
                 filters.append(f'r["{tag}"] == "{values}"')
             else:
-                filters.extend([f'r["{tag}"] == "{v}"' for v in values])
+                set_values = ",".join([f'"{v}"' for v in values])
+                filters.append(f'contains(value: r["{tag}"], set: [{set_values}])')
 
         op_expression = " or ".join(filters)
 

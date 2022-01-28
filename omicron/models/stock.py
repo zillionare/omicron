@@ -18,7 +18,7 @@ from coretypes import (
 
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache, influxdb
-from omicron.extensions.np import dict_to_numpy_array
+from omicron.dal.influx.serialize import unserialize
 from omicron.models.timeframe import TimeFrame
 
 logger = logging.getLogger(__name__)
@@ -852,8 +852,10 @@ class Stock:
         return np.array(np.rec.fromrecords(df.values), dtype=dtypes)
 
     @classmethod
-    def _deserialize_bars_flux_query(cls, result: bytes, is_date: bool) -> np.ndarray:
-        """将从influxdb中查询到的股票数据转换成numpy structured array数据，其类型为[coretypes.stock_bars_dtype][]
+    def _deserialize_bars_flux_batch_query(cls, result: bytes) -> np.ndarray:
+        """用于反序列化批量查询的行情(bars)数据
+
+        批量查询是指返回结果包含多支股票的情况。经反序列化后，返回一个字典，key为股票代码，value为股票的行情数据（np.ndarray）
 
         `result`数据格式示例，请参考[query][omicron.dal.influxdb.InfluxDB.query]
 
@@ -885,3 +887,24 @@ class Stock:
             recs[code] = df_for_code.to_records(index=False)
 
         return recs
+
+    @classmethod
+    def _deserialize_bars_flux_query(cls, result: bytes) -> np.ndarray:
+        """反序化flux查询的个股数据
+
+        flux查询返回的数据应该包含_time, code, amount, close, factore, high, low, open, volume（及influxdb塞进来的result,table字段）。
+
+        性能： 反序列化2000条数据，耗时21ms。
+
+        Args:
+            result : 从flux查询返回的byte数据
+            is_date: frame数据是否处理成日期格式
+
+        Returns:
+            查询返回的行情数据
+        """
+        cols = [dtype[0] for dtype in stock_bars_dtype]
+
+        return unserialize(result, "frame", cols, sort_by="frame").to_records(
+            index=False
+        )

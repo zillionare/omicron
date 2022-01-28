@@ -1629,37 +1629,72 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("000001", payh.sim_code)
         self.assertEqual("000001", Stock.simplify_code("000001.XSHE"))
 
+    async def test_deserialize_bars_flux_batch_query(self):
+        # uncomment the following once you need more data
+        # headers = (
+        #     ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
+        # )
+
+        # ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
+
+        # with open("tests/data/stock_bars_flux_batch_query.txt", "w") as f:
+        #     f.write(headers)
+        #     for i in range(2000):
+        #         code = f"00000{i%2 + 1}.XSHE"
+        #         tm = (
+        #             arrow.get("2019-01-01T00:00:00Z")
+        #             .shift(days=i)
+        #             .naive.isoformat(timespec="seconds")
+        #             + "Z"
+        #         )
+
+        #         f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
+
+        with open("tests/data/stock_bars_flux_batch_query.txt", "rb") as f:
+            data = f.read()
+
+        recs = Stock._deserialize_bars_flux_batch_query(data)
+
+        self.assertEqual(len(recs), 2)
+        self.assertTrue("000002.XSHE" in recs)
+
+        exp = "('2019-01-01T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
+        self.assertEqual(exp, str(recs["000001.XSHE"][0]))
+
+        exp = "('2024-06-22T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
+        self.assertEqual(exp, str(recs["000002.XSHE"][-1]))
+
     async def test_deserialize_bars_flux_query(self):
-        headers = (
-            ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
-        )
+        # uncomment the following once you need more data
+        # headers = (
+        #     ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
+        # )
 
-        ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
+        # ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
 
-        with open("tests/data/stock_bars_flux_query.txt", "w") as f:
-            f.write(headers)
-            for i in range(2000):
-                code = f"00000{i%2 + 1}.XSHE"
-                tm = (
-                    arrow.get("2019-01-01T00:00:00Z")
-                    .shift(days=i)
-                    .naive.isoformat(timespec="seconds")
-                    + "Z"
-                )
+        # with open("tests/data/stock_bars_flux_query.txt", "w") as f:
+        #     f.write(headers)
+        #     for i in range(2000):
+        #         code = f"000001.XSHE"
+        #         tm = (
+        #             arrow.get("2019-01-01T00:00:00Z")
+        #             .shift(days=i)
+        #             .naive.isoformat(timespec="seconds")
+        #             + "Z"
+        #         )
 
-                f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
+        #         f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
 
         with open("tests/data/stock_bars_flux_query.txt", "rb") as f:
             data = f.read()
 
         t0 = time.time()
-        # 0.76 seconds
         for i in range(10):
-            Stock._deserialize_bars_flux_query(data, True)
+            recs = Stock._deserialize_bars_flux_query(data)
         print("time cost", time.time() - t0)
 
-        # t0 = time.time()
-        # # 9.2 seconds
-        # for i in range(10):
-        #     recs = Stock._deserialize_bars_flux_query(data, True)
-        # print("time cost", time.time() - t0)
+        exp = "('2019-01-01T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
+        self.assertEqual(exp, str(recs[0]))
+
+        exp = "('2024-06-22T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
+        self.assertEqual(exp, str(recs[-1]))

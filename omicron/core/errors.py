@@ -37,6 +37,12 @@ class InfluxDBQueryError(Error):
     pass
 
 
+class InfluxDeleteError(Error):
+    """删除influx db错误"""
+
+    pass
+
+
 class DuplicateOperationError(Error):
     """重复key错误"""
 

@@ -1,5 +1,6 @@
 import datetime
 import gzip
+import json
 import logging
 from itertools import chain
 from typing import (
@@ -21,9 +22,14 @@ from aiohttp import ClientSession
 from attr import field
 from coretypes import Frame
 from influxdb_client import InfluxDBClient
+from setuptools import Command
 
-from omicron.core.errors import InfluxDBQueryError, InfluxDBWriteError
-from omicron.dal.flux import Flux
+from omicron.core.errors import (
+    InfluxDBQueryError,
+    InfluxDBWriteError,
+    InfluxDeleteError,
+)
+from omicron.dal.influx.flux import Flux
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +66,9 @@ class InfluxClient(InfluxDBClient):
 
         self._batch_write_size = kwargs.get("batch_write_size", 5000)
 
+        # write
+        self._write_url = f"{self.url}/api/v2/write?org={self.org}&bucket={self._bucket}&precision={self._precision}"
+
         self._write_headers = {
             "Content-Type": "text/plain; charset=utf-8",
             "Authorization": f"Token {token}",
@@ -69,18 +78,24 @@ class InfluxClient(InfluxDBClient):
         if self._enable_compress:
             self._write_headers["Content-Encoding"] = "gzip"
 
-        # influx查询结果，在2.1中始终是csv格式
+        self._query_url = f"{self.url}/api/v2/query?org={self.org}"
         self._query_headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/vnd.flux",
+            # influx查询结果格式，无论如何指定（或者不指定），在2.1中始终是csv格式
+            "Accept": "text/csv",
         }
 
         if self._enable_compress:
             self._query_headers["Accept-Encoding"] = "gzip"
 
-        self._write_url = f"{self.url}/api/v2/write?org={self.org}&bucket={self._bucket}&precision={self._precision}"
-
-        self._query_url = f"{self.url}/api/v2/query?org={self.org}"
+        self._delete_url = (
+            f"{self.url}/api/v2/delete?org={self.org}&bucket={self._bucket}"
+        )
+        self._delete_headers = {
+            "Authorization": f"Token {token}",
+            "Content-Type": "application/json",
+        }
 
     def nparray_to_line_protocol(
         self,
@@ -97,6 +112,10 @@ class InfluxClient(InfluxDBClient):
 
         formatters为一个字典，其中的键为data中的列名，其值为将列值转换为字符串的格式化串。
 
+        Notice:
+            我们约定field_keys与tags_key必须互斥。不确定influxdb中是否有这一要求，但一个值既定义为tags,又定义为field，实际上只增加了存储空间，似乎没有必要。
+
+            本函数在处理field时，只能处理其值为数值类型的情况。
         Args:
             measurement: measurement(即table/collection)名称
             data: 待存储的数据
@@ -108,13 +127,19 @@ class InfluxClient(InfluxDBClient):
         Returns:
             line-protocol数据, str
         """
-        field_keys = list(field_keys or data.dtype.names)
+        field_keys = set(field_keys or data.dtype.names)
+        if isinstance(tags, set):
+            field_keys = field_keys - tags
+
         if tm_key:
             assert tm_key in data.dtype.names, f"{tm_key} not exist in data"
             if tm_key in field_keys:
                 field_keys.remove(tm_key)
 
+        field_keys = sorted(list(field_keys))
         lps = []
+
+        # todo: if we process the array by columns first, then we can boost performance exetremly and allow handling more data types
         for row in data:
             fields = []
             tm = Flux.to_timestamp(row[tm_key], self._precision) if tm_key else ""
@@ -207,3 +232,32 @@ class InfluxClient(InfluxDBClient):
                         return unserializer(body)
                     else:
                         return body
+
+    async def drop_measurement(self, measurement: str):
+        """从influxdb中删除一个measurement
+
+        # todo: `stop`为必选参数，但如果使用$(date +"%Y-%m-%dT%H:%M:%SZ") 方法来指定，则会报告非RFC3339格式的时间。但这里由客户端来指定时间，有一定概率无法完全删除measurement中的数据。
+
+        调用此方法后，实际上该measurement仍然存在，只是没有数据。
+
+        """
+        async with ClientSession() as session:
+            command = {
+                "start": "1970-01-01T00:00:00Z",
+                "stop": f"{arrow.now().naive.isoformat()}Z",
+                "predicate": f'_measurement="{measurement}"',
+            }
+
+            async with session.post(
+                self._delete_url, data=json.dumps(command), headers=self._delete_headers
+            ) as resp:
+                if resp.status != 204:
+                    err = await resp.json()
+                    logger.warning(
+                        "influxdb query error: %s when processin command %s",
+                        err,
+                        Command,
+                    )
+                    raise InfluxDeleteError(
+                        f"influxdb delete failed, status code: {resp.status}"
+                    )

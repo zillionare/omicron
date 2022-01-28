@@ -3,7 +3,7 @@ import unittest
 from ctypes.wintypes import tagSIZE
 
 from omicron.core.errors import DuplicateOperationError
-from omicron.dal.flux import Flux
+from omicron.dal.influx.flux import Flux
 
 
 class FluxTest(unittest.TestCase):
@@ -31,7 +31,7 @@ class FluxTest(unittest.TestCase):
         flux = Flux()
 
         # default
-        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE")'
+        expected = '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))'
 
         actual = flux.tags({"code": ["000001.XSHE", "000002.XSHE"]}).expressions["tags"]
         self.assertEqual(expected, actual)
@@ -40,23 +40,26 @@ class FluxTest(unittest.TestCase):
         with self.assertRaises(DuplicateOperationError):
             flux.tags({"code": ["000001", "000002"]})
 
-        # with only one values
+        # with only one value
         actual = Flux().tags({"code": ["000001.XSHE"]}).expressions["tags"]
 
-        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE")'
+        expected = (
+            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE"]))'
+        )
         self.assertEqual(expected, actual)
 
         # with only one value, represented in str
+        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE")'
         actual = Flux().tags({"code": "000001.XSHE"}).expressions["tags"]
         self.assertEqual(expected, actual)
 
         # with two tags
         actual = (
             Flux()
-            .tags({"code": ["000001", "000002"], "name": ["浦发银行"]})
+            .tags({"code": ["000001.XSHE", "000002.XSHE"], "name": "浦发银行"})
             .expressions["tags"]
         )
-        expected = '  |> filter(fn: (r) => r["code"] == "000001" or r["code"] == "000002" or r["name"] == "浦发银行")'
+        expected = '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]) or r["name"] == "浦发银行")'
 
         self.assertEqual(expected, actual)
 
