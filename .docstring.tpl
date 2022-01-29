@@ -9,7 +9,7 @@ Args:
     {{var}} : {{descriptionPlaceholder}}
 {{/args}}
 {{#kwargs}}
-    {{var}} : {{descriptionPlaceholder}}. Defaults to {{&default}}.
+    {{var}} : {{descriptionPlaceholder}}.
 {{/kwargs}}
 {{/parametersExist}}
 
