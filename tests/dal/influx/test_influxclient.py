@@ -7,6 +7,7 @@ import arrow
 import cfg4py
 import numpy as np
 from coretypes import stock_bars_dtype
+from sklearn.metrics import mean_squared_error
 
 import omicron
 from omicron.dal.influx.flux import Flux
@@ -15,6 +16,44 @@ from omicron.dal.influx.serialize import unserialize
 from tests import init_test_env
 
 cfg = cfg4py.get_instance()
+
+
+async def mock_data(measurement: str, client, n=100):
+    mock_data = []
+    start = arrow.get("2019-01-01 09:30:00")
+    names = ["平安银行", "国联证券", "上海银行", "中国银行", "中国平安"]
+    for i in range(n):
+        mock_data.append(
+            (
+                start.shift(minutes=i).datetime,
+                0.1,
+                0.2,
+                f"00000{i%5+1}.XSHE",
+                names[i % 5],
+            )
+        )
+
+    mock_data = np.array(
+        mock_data,
+        dtype=[
+            ("frame", "datetime64[ns]"),
+            ("open", "float32"),
+            ("close", "float32"),
+            ("code", "O"),
+            ("name", "O"),
+        ],
+    )
+
+    lp = client.nparray_to_line_protocol(
+        measurement,
+        mock_data,
+        tags={"name", "code"},
+        tm_key="frame",
+        formatters={"open": "{:.02f}", "close": "{:.02f}"},
+    )
+
+    # unitest_test_query,code=000001.XSHE,name=平安银行 close=0.20,open=0.10 1546335000
+    await client.write(lp)
 
 
 class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
@@ -35,7 +74,17 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             debug=True,
         )
 
+        await mock_data("unitest_test_query", self.client, 10)
+
         return await super().asyncSetUp()
+
+    async def asyncTearDown(self) -> None:
+        try:
+            await self.client.drop_measurement("unitest_test_query")
+        except Exception:
+            pass
+
+        return await super().asyncTearDown()
 
     async def test_to_line_protocol(self):
         measurement = "stock_bars_1d"
@@ -80,7 +129,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        exp = "stock_bars_1d,code=000001.XSHE open=5.10,high=5.20,low=5.00,close=5.15,volume=1000000.00,amount=100000000.00,factor=1.2300 1546300800"
+        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546300800"
         self.assertEqual(exp, actual)
 
         bars = np.array(
@@ -125,8 +174,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        exp = "stock_bars_1d,code=000001.XSHE open=5.10,high=5.20,low=5.00,close=5.15,volume=1000000.00,amount=100000000.00,factor=1.2300 1546300800\n"
-        exp += "stock_bars_1d,code=000001.XSHE open=5.10,high=5.20,low=5.00,close=5.15,volume=1000000.00,amount=100000000.00,factor=1.2300 1546387200"
+        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546300800\n"
+        exp += "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546387200"
 
         self.assertEqual(exp, actual)
 
@@ -146,7 +195,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        exp = "stock_bars_1d,code=000001.XSHE frame=2019-01-01,open=5.10,high=5.20,low=5.00,close=5.15,volume=1000000.00,amount=100000000.00,factor=1.2300 \nstock_bars_1d,code=000001.XSHE frame=2019-01-02,open=5.10,high=5.20,low=5.00,close=5.15,volume=1000000.00,amount=100000000.00,factor=1.2300 "
+        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,frame=2019-01-01,high=5.20,low=5.00,open=5.10,volume=1000000.00 \nstock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,frame=2019-01-02,high=5.20,low=5.00,open=5.10,volume=1000000.00 "
         self.assertEqual(exp, actual)
 
     async def test_write(self):
@@ -154,9 +203,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         this also test drop_measurement, query
         """
         measurement = "stock_bars_1d"
-
-        await self.client.drop_measurement("stock_bars_1d")
-
         bars = np.array(
             [
                 (
@@ -248,43 +294,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_query(self):
         measurement = "unitest_test_query"
-
-        mock_data = []
-        start = arrow.get("2019-01-01 09:30:00")
-        names = ["平安银行", "国联证券", "上海银行", "中国银行", "中国平安"]
-        for i in range(10000):
-            mock_data.append(
-                (
-                    start.shift(minutes=i).datetime,
-                    0.1,
-                    0.2,
-                    f"00000{i%5+1}.XSHE",
-                    names[i % 5],
-                )
-            )
-
-        mock_data = np.array(
-            mock_data,
-            dtype=[
-                ("frame", "datetime64[ns]"),
-                ("open", "float32"),
-                ("close", "float32"),
-                ("code", "O"),
-                ("name", "O"),
-            ],
-        )
-
-        lp = self.client.nparray_to_line_protocol(
-            measurement,
-            mock_data,
-            tags={"name", "code"},
-            tm_key="frame",
-            formatters={"open": "{:.02f}", "close": "{:.02f}"},
-        )
-
-        # unitest_test_query,code=000001.XSHE,name=平安银行 close=0.20,open=0.10 1546335000
-        await self.client.write(lp)
-
         # query all from measurement
         flux = (
             Flux()
@@ -308,7 +317,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             actual.loc[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30, 0)
         )
 
-        # query by code
+        # query by code, and test right close range
         flux = (
             Flux()
             .measurement(measurement)
@@ -319,10 +328,67 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
+        # given unserializer
         partial = functools.partial(
             unserialize,
             keep_cols=["frame", "open", "code", "name"],
-            sort_by="_time",
+            sort_by="frame",
             rename_time_field="frame",
         )
         actual = await self.client.query(flux, partial)
+        self.assertEqual(actual.loc[0]["name"], "平安银行")
+        self.assertEqual(1, len(actual))
+        self.assertEqual(actual.loc[0]["open"], 0.1)
+
+        # query by two different tags and involve contains operator
+        flux = (
+            Flux()
+            .measurement(measurement)
+            .tags({"code": "000001.XSHE", "name": ["平安银行", "中国银行"]})
+            .range(Flux.EPOCH_START, datetime.datetime(2019, 1, 1, 9, 35))
+            .bucket(self.client._bucket)
+            .pivot()
+            .keep(["open", "close", "code", "name"])
+        )
+
+        actual = await self.client.query(flux, partial)
+        self.assertSetEqual(set(["平安银行", "中国银行"]), set(actual["name"]))
+        self.assertEqual(3, len(actual))
+
+        # query tags with with array which contains only one value
+        flux = (
+            Flux()
+            .measurement(measurement)
+            .tags({"code": ["000001.XSHE"]})
+            .bucket(self.client._bucket)
+            .range(Flux.EPOCH_START, datetime.datetime(2019, 1, 1, 9, 30))
+            .pivot()
+            .keep(["open", "close", "code", "name"])
+        )
+
+        actual = await self.client.query(flux, unserialize)
+        self.assertEqual(1, len(actual))
+        self.assertEqual(actual.loc[0]["name"], "平安银行")
+        self.assertEqual(actual.loc[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30))
+
+    async def test_delete(self):
+        cols = ["open", "close", "code", "name"]
+        q = (
+            Flux()
+            .bucket(self.client._bucket)
+            .measurement("unitest_test_query")
+            .range(Flux.EPOCH_START, arrow.now().datetime)
+            .keep(cols)
+        )
+        recs = await self.client.query(q, unserialize)
+
+        self.assertEqual(len(recs), 10)
+        self.assertEqual(recs.loc[0]["name"], "平安银行")
+
+        # delete by tags
+        await self.client.delete(
+            "unitest_test_query", arrow.now().naive, {"code": "000001.XSHE"}
+        )
+
+        recs = await self.client.query(q, unserialize)
+        self.assertEqual(len(recs), 8)

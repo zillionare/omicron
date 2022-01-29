@@ -1,6 +1,6 @@
 import datetime
 from collections import defaultdict
-from typing import DefaultDict, List
+from typing import DefaultDict, List, Union
 
 import arrow
 import numpy as np
@@ -349,3 +349,49 @@ class Flux(object):
     @property
     def cols(self):
         return sorted(self._cols)
+
+    def delete(
+        self,
+        measurement: str,
+        stop: datetime.datetime,
+        tags: dict = {},
+        start: datetime.datetime = None,
+        precision: str = "s",
+    ) -> dict:
+        """构建删除语句。
+
+        according to [delete-predicate](https://docs.influxdata.com/influxdb/v2.1/reference/syntax/delete-predicate/), delete只支持AND逻辑操作，只支持“=”操作，不支持“！=”操作，可以使用任何字段或者tag，但不包括_time和_value字段。
+
+        由于influxdb这一段文档不是很清楚，根据试验结果，目前仅支持按时间范围和tags进行删除较好。如果某个column的值类型是字符串，则也可以通过`tags`参数传入，匹配后删除。但如果传入了非字符串类型的column，则将得到无法预料的结果。
+
+        Args:
+            measurement : [description]
+            stop : [description]
+            tags : 按tags和匹配的值进行删除。传入的tags中，key为tag名称，value为tag要匹配的取值，可以为str或者List[str]。
+            start : 起始时间。如果省略，则使用EPOCH_START.
+            timespec: 时间精度，应该与创建记录时保持一致, 取值为["s", "ms", "us"]。默认为秒。
+
+        Returns:
+            删除语句
+        """
+        timespec = {"s": "seconds", "ms": "milliseconds", "us": "microseconds"}.get(
+            precision
+        )
+
+        if start is None:
+            start = self.EPOCH_START.isoformat(timespec=timespec) + "Z"
+
+        predicate = [f'_measurement="{measurement}"']
+        for key, value in tags.items():
+            if isinstance(value, list):
+                predicate.extend([f'{key} = "{v}"' for v in value])
+            else:
+                predicate.append(f'{key} = "{value}"')
+
+        command = {
+            "start": start,
+            "stop": f"{stop.isoformat(timespec=timespec)}Z",
+            "predicate": " AND ".join(predicate),
+        }
+
+        return command

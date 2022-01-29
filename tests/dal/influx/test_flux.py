@@ -137,7 +137,7 @@ class FluxTest(unittest.TestCase):
             'from(bucket: "my-bucket")',
             "  |> range(start: 2019-01-01T00:00:00Z, stop: 2019-01-02T00:00:01Z)",
             '  |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")',
-            '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE")',
+            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))',
             '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
             '  |> keep(columns: ["_time","close","high","low","open"])',
@@ -177,3 +177,20 @@ class FluxTest(unittest.TestCase):
         flux.fields(["open", "close", "high", "low"]).keep()
         exp = ["_time", "close", "high", "low", "open"]
         self.assertListEqual(exp, flux.cols)
+
+    def test_delete(self):
+        cmd = Flux().delete(
+            "unittest",
+            datetime.datetime(2019, 1, 1),
+            {
+                "code": "000001.XSHE",
+                "name": ["平安", "平安银行"],
+            },
+        )
+
+        expected = {
+            "start": "1970-01-01T00:00:00Z",
+            "stop": "2019-01-01T00:00:00Z",
+            "predicate": '_measurement="unittest" AND code = "000001.XSHE" AND name = "平安" AND name = "平安银行"',
+        }
+        self.assertDictEqual(expected, cmd)

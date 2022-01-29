@@ -221,7 +221,7 @@ class InfluxClient(InfluxDBClient):
                     )
                     logger.debug("data caused error:%s", flux)
                     raise InfluxDBQueryError(
-                        f"influxdb query failed, status code: {resp.status}"
+                        f"influxdb query failed, status code: {err['message']}"
                     )
                 else:
                     body = await resp.read()
@@ -241,23 +241,45 @@ class InfluxClient(InfluxDBClient):
         调用此方法后，实际上该measurement仍然存在，只是没有数据。
 
         """
-        async with ClientSession() as session:
-            command = {
-                "start": "1970-01-01T00:00:00Z",
-                "stop": f"{arrow.now().naive.isoformat()}Z",
-                "predicate": f'_measurement="{measurement}"',
-            }
+        await self.delete(measurement, arrow.now().naive, start=None)
 
+    async def delete(
+        self,
+        measurement: str,
+        stop: datetime.datetime,
+        predicates: Union[str, List[str]] = [],
+        start: datetime.datetime = None,
+        precision: str = "s",
+    ):
+        """删除influxdb中指定时间段内的数据
+
+        关于参数，请参见[Flux.delete][omicron.dal.flux.Flux.delete]。
+
+        Args:
+            start: 开始时间
+            stop: 结束时间
+            measurement: 指定measurement
+            tag: 指定tag
+        """
+        command = Flux().delete(
+            measurement,
+            stop,
+            predicates,
+            start=start,
+            precision=precision,
+        )
+
+        async with ClientSession() as session:
             async with session.post(
                 self._delete_url, data=json.dumps(command), headers=self._delete_headers
             ) as resp:
                 if resp.status != 204:
                     err = await resp.json()
                     logger.warning(
-                        "influxdb query error: %s when processin command %s",
+                        "influxdb delete error: %s when processin command %s",
                         err,
                         Command,
                     )
                     raise InfluxDeleteError(
-                        f"influxdb delete failed, status code: {resp.status}"
+                        f"influxdb delete failed, status code: {err['message']}"
                     )
