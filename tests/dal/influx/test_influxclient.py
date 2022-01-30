@@ -2,6 +2,7 @@ import datetime
 import functools
 import time
 import unittest
+from curses import def_shell_mode
 
 import arrow
 import cfg4py
@@ -12,48 +13,11 @@ from sklearn.metrics import mean_squared_error
 import omicron
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.dal.influx.serialize import unserialize
+from omicron.dal.influx.serialize import DataFrameDeserializer
 from tests import init_test_env
+from tests.dal.influx import mock_data_for_influx
 
 cfg = cfg4py.get_instance()
-
-
-async def mock_data(measurement: str, client, n=100):
-    mock_data = []
-    start = arrow.get("2019-01-01 09:30:00")
-    names = ["平安银行", "国联证券", "上海银行", "中国银行", "中国平安"]
-    for i in range(n):
-        mock_data.append(
-            (
-                start.shift(minutes=i).datetime,
-                0.1,
-                0.2,
-                f"00000{i%5+1}.XSHE",
-                names[i % 5],
-            )
-        )
-
-    mock_data = np.array(
-        mock_data,
-        dtype=[
-            ("frame", "datetime64[ns]"),
-            ("open", "float32"),
-            ("close", "float32"),
-            ("code", "O"),
-            ("name", "O"),
-        ],
-    )
-
-    lp = client.nparray_to_line_protocol(
-        measurement,
-        mock_data,
-        tags={"name", "code"},
-        tm_key="frame",
-        formatters={"open": "{:.02f}", "close": "{:.02f}"},
-    )
-
-    # unitest_test_query,code=000001.XSHE,name=平安银行 close=0.20,open=0.10 1546335000
-    await client.write(lp)
 
 
 class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
@@ -74,13 +38,23 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             debug=True,
         )
 
-        await mock_data("unitest_test_query", self.client, 10)
+        data = mock_data_for_influx(100)
+        lp = self.client.nparray_to_line_protocol(
+            "ut_test_query",
+            data,
+            tags={"name", "code"},
+            tm_key="frame",
+            formatters={"open": "{:.02f}", "close": "{:.02f}"},
+        )
+
+        # ut_test_query,code=000001.XSHE,name=平安银行 close=0.20,open=0.10 1546335000
+        await self.client.write(lp)
 
         return await super().asyncSetUp()
 
     async def asyncTearDown(self) -> None:
         try:
-            await self.client.drop_measurement("unitest_test_query")
+            await self.client.drop_measurement("ut_test_query")
         except Exception:
             pass
 
@@ -293,7 +267,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(exp, actual)
 
     async def test_query(self):
-        measurement = "unitest_test_query"
+        measurement = "ut_test_query"
         # query all from measurement
         flux = (
             Flux()
@@ -304,18 +278,19 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
-        t0 = time.time()
         data = await self.client.query(flux)
-        actual = unserialize(
-            data, keep_cols=["_time", "open", "code", "name"], sort_by="_time"
+        ds = DataFrameDeserializer(
+            sort_values="frame", usecols=["frame", "open", "code", "name"]
         )
-        print("query 1万行并反序列化为dataframe cost", time.time() - t0)
-        self.assertEqual(actual.loc[0]["name"], "平安银行")
-        self.assertEqual(actual.loc[0]["open"], 0.1)
-        self.assertEqual(actual.loc[0]["code"], "000001.XSHE")
-        self.assertEqual(
-            actual.loc[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30, 0)
-        )
+        # , keep_cols=["_time", "open", "code", "name"], sort_by="_time"
+        actual = ds(data)
+
+        actual = actual.to_records(index=False)
+
+        self.assertEqual(actual[0]["name"], "平安银行")
+        self.assertAlmostEqual(actual[0]["open"], 0.1)
+        self.assertEqual(actual[0]["code"], "000001.XSHE")
+        self.assertEqual(actual[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30, 0))
 
         # query by code, and test right close range
         flux = (
@@ -329,13 +304,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         )
 
         # given unserializer
-        partial = functools.partial(
-            unserialize,
-            keep_cols=["frame", "open", "code", "name"],
-            sort_by="frame",
-            rename_time_field="frame",
-        )
-        actual = await self.client.query(flux, partial)
+        ds = DataFrameDeserializer()
+        actual = await self.client.query(flux, ds)
         self.assertEqual(actual.loc[0]["name"], "平安银行")
         self.assertEqual(1, len(actual))
         self.assertEqual(actual.loc[0]["open"], 0.1)
@@ -351,7 +321,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
-        actual = await self.client.query(flux, partial)
+        ds = DataFrameDeserializer()
+        actual = await self.client.query(flux, def_shell_mode())
         self.assertSetEqual(set(["平安银行", "中国银行"]), set(actual["name"]))
         self.assertEqual(3, len(actual))
 
@@ -366,29 +337,33 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
-        actual = await self.client.query(flux, unserialize)
+        actual = await self.client.query(flux, ds)
         self.assertEqual(1, len(actual))
         self.assertEqual(actual.loc[0]["name"], "平安银行")
         self.assertEqual(actual.loc[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30))
 
     async def test_delete(self):
         cols = ["open", "close", "code", "name"]
+
+        q = Flux().drop_measurement("unittest_test_query").bucket(self.client._bucket)
         q = (
             Flux()
             .bucket(self.client._bucket)
-            .measurement("unitest_test_query")
+            .measurement("ut_test_query")
             .range(Flux.EPOCH_START, arrow.now().datetime)
             .keep(cols)
         )
-        recs = await self.client.query(q, unserialize)
+
+        ds = DataFrameDeserializer()
+        recs = await self.client.query(q, ds)
 
         self.assertEqual(len(recs), 10)
         self.assertEqual(recs.loc[0]["name"], "平安银行")
 
         # delete by tags
         await self.client.delete(
-            "unitest_test_query", arrow.now().naive, {"code": "000001.XSHE"}
+            "ut_test_query", arrow.now().naive, {"code": "000001.XSHE"}
         )
 
-        recs = await self.client.query(q, unserialize)
+        recs = await self.client.query(q, ds)
         self.assertEqual(len(recs), 8)

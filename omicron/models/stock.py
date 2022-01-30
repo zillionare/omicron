@@ -13,12 +13,13 @@ from coretypes import (
     FrameType,
     SecurityType,
     bars_with_limit_dtype,
+    stock_bars_cols,
     stock_bars_dtype,
 )
 
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache, influxdb
-from omicron.dal.influx.serialize import unserialize
+from omicron.dal.influx.serialize import DataFrameDeserializer
 from omicron.models.timeframe import TimeFrame
 
 logger = logging.getLogger(__name__)
@@ -868,43 +869,13 @@ class Stock:
         Returns:
             查询返回的行情数据
         """
-        result = result.decode("utf-8")
-
-        df = pd.read_csv(
-            io.StringIO(result),
-            parse_dates={"frame": ["_time"]},
-            sep=",",
-            header=0,
-            engine="c",
-            infer_datetime_format=True,
-        )
-
-        cols = [dtype[0] for dtype in stock_bars_dtype]
-
         recs = {}
+        des = DataFrameDeserializer(
+            encoding="utf-8", usecols=[3, 4, 5, 6, 7, 8, 9, 10], names=stock_bars_cols
+        )
+        df = des(result)
         for code, group in df.groupby("code"):
-            df_for_code = group[cols].sort_values(by=["frame"])
+            df_for_code = group[stock_bars_cols].sort_values(by=["frame"])
             recs[code] = df_for_code.to_records(index=False)
 
         return recs
-
-    @classmethod
-    def _deserialize_bars_flux_query(cls, result: bytes) -> np.ndarray:
-        """反序化flux查询的个股数据
-
-        flux查询返回的数据应该包含_time, code, amount, close, factore, high, low, open, volume（及influxdb塞进来的result,table字段）。
-
-        性能： 反序列化2000条数据，耗时21ms。
-
-        Args:
-            result : 从flux查询返回的byte数据
-            is_date: frame数据是否处理成日期格式
-
-        Returns:
-            查询返回的行情数据
-        """
-        cols = [dtype[0] for dtype in stock_bars_dtype]
-
-        return unserialize(result, "frame", cols, sort_by="frame").to_records(
-            index=False
-        )
