@@ -8,11 +8,15 @@ nav:
   - 版本历史: history.md
   - API文档:
     - omicron: api/omicron.md
-    - stock: api/stock.md
     - timeframe: api/timeframe.md
     - fund: api/funds.md
     - triggers: api/triggers.md
+    - stock: api/stock.md
     - metrics: api/metrics.md
+    - dal:
+      - Flux: api/dal/flux.md
+      - InfluxClient: api/dal/influxclient.md
+      - Serialize: api/dal/serialize.md
 
 theme:
   name: material
