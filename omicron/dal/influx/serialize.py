@@ -192,3 +192,10 @@ class NumpyDeserializer(Serializer):
             return np.sort(arr, order=self.sort_values)
         else:
             return arr
+
+
+class PyarrowDeserializer(Serializer):
+    """PyArrow can provide best performance for large data."""
+
+    def __init__(self) -> None:
+        raise NotImplementedError
