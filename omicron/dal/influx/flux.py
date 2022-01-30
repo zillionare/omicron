@@ -350,6 +350,14 @@ class Flux(object):
     def cols(self):
         return sorted(self._cols)
 
+    def drop_measurement(self, measurement: str) -> dict:
+        now = datetime.datetime.now()
+        return {
+            "start": Flux.EPOCH_START,
+            "stop": now.isoformat(timespec="nanoseconds") + "Z",
+            "predicate": f'_measurement="{measurement}"',
+        }
+
     def delete(
         self,
         measurement: str,
