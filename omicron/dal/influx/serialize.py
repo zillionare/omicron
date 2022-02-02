@@ -1,19 +1,267 @@
 import io
 import itertools
 import math
+import re
+from email.generator import Generator
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from unittest.mock import DEFAULT
 
 import numpy as np
 import pandas as pd
-from numpy.typing import ArrayLike, DTypeLike
+from numpy.typing import ANDArray
 from pandas import DataFrame
+
+from omicron.dal.influx.escape import KEY_ESCAPE, MEASUREMENT_ESCAPE, STR_ESCAPE
+
+
+def _itertuples(data_frame):
+    cols = [data_frame.iloc[:, k] for k in range(len(data_frame.columns))]
+    return zip(data_frame.index, *cols)
+
+
+def _not_nan(x):
+    return x == x
+
+
+def _any_not_nan(p, indexes):
+    return any(map(lambda x: _not_nan(p[x]), indexes))
 
 
 class Serializer(object):
     """base class of all serializer/deserializer"""
 
     pass
+
+
+class DataframeSerializer:
+    """Serialize DataFrame into LineProtocols.
+
+    Most code is copied from [influxdb-python-client](https://github.com/influxdata/influxdb-client-python/blob/master/influxdb_client/client/write/dataframe_serializer.py), but modified interfaces.
+    """
+
+    def __init__(
+        self,
+        data_frame: DataFrame,
+        measurement: str,
+        tag_keys: Union[str, List[str]] = [],
+        global_tags: Dict = {},
+        precision="s",
+        chunk_size: int = None,
+    ) -> None:
+        """Initialize DataframeSerializer.
+
+        field keys are column names minus tag keys.
+
+        Performance benchmark
+
+        - to serialize 10000 points
+            DataframeSerializer: 0.0893 seconds
+            NumpySerializer: 0.0698 seconds
+        - to serialize 1M points
+            DataframeSerializer: 8.06 seconds
+            NumpySerializer: 7.16 seconds
+
+        Args:
+            data_frame: DataFrame to be serialized.
+            measurement: measurement name.
+            tag_keys: List of tag keys.
+            global_tags: global tags to be added to every row.
+            precision: precision for write.
+            chunk_size: size of chunk to be serialized.
+        """
+        # This function is hard to understand but for good reason:
+        # the approach used here is considerably more efficient
+        # than the alternatives.
+        #
+        # We build up a Python expression that efficiently converts a data point
+        # tuple into line-protocol entry, and then evaluate the expression
+        # as a lambda so that we can call it. This avoids the overhead of
+        # invoking a function on every data value - we only have one function
+        # call per row instead. The expression consists of exactly
+        # one f-string, so we build up the parts of it as segments
+        # that are concatenated together to make the full f-string inside
+        # the lambda.
+        #
+        # Things are made a little more complex because fields and tags with NaN
+        # values and empty tags are omitted from the generated line-protocol
+        # output.
+        #
+        # As an example, say we have a data frame with two value columns:
+        #        a float
+        #        b int
+        #
+        # This will generate a lambda expression to be evaluated that looks like
+        # this:
+        #
+        #     lambda p: f"""{measurement_name} {keys[0]}={p[1]},{keys[1]}={p[2]}i {p[0].value}"""
+        #
+        # This lambda is then executed for each row p.
+        #
+        # When NaNs are present, the expression looks like this (split
+        # across two lines to satisfy the code-style checker)
+        #
+        #    lambda p: f"""{measurement_name} {"" if math.isnan(p[1])
+        #    else f"{keys[0]}={p[1]}"},{keys[1]}={p[2]}i {p[0].value}"""
+        #
+        # When there's a NaN value in column a, we'll end up with a comma at the start of the
+        # fields, so we run a regexp substitution after generating the line-protocol entries
+        # to remove this.
+        #
+        # We're careful to run these potentially costly extra steps only when NaN values actually
+        # exist in the data.
+
+        if not isinstance(data_frame, pd.DataFrame):
+            raise TypeError(
+                "Must be DataFrame, but type was: {0}.".format(type(data_frame))
+            )
+
+        data_frame = data_frame.copy(deep=False)
+        if isinstance(data_frame.index, pd.PeriodIndex):
+            data_frame.index = data_frame.index.to_timestamp()
+
+        if not isinstance(data_frame.index, pd.DatetimeIndex):
+            raise TypeError(
+                "Must be DatetimeIndex, but type was: {0}.".format(
+                    type(data_frame.index)
+                )
+            )
+
+        if data_frame.index.tzinfo is None:
+            data_frame.index = data_frame.index.tz_localize("UTC")
+
+        if isinstance(tag_keys, str):
+            tag_keys = [tag_keys]
+
+        tag_keys = set(tag_keys or [])
+
+        # keys holds a list of string keys.
+        keys = []
+        # tags holds a list of tag f-string segments ordered alphabetically by tag key.
+        tags = []
+        # fields holds a list of field f-string segments  ordered alphebetically by field key
+        fields = []
+        # field_indexes holds the index into each row of all the fields.
+        field_indexes = []
+
+        for key, value in global_tags.items():
+            data_frame[key] = value
+            tag_keys.add(key)
+
+        # Get a list of all the columns sorted by field/tag key.
+        # We want to iterate through the columns in sorted order
+        # so that we know when we're on the first field so we
+        # can know whether a comma is needed for that
+        # field.
+        columns = sorted(
+            enumerate(data_frame.dtypes.items()), key=lambda col: col[1][0]
+        )
+
+        # null_columns has a bool value for each column holding
+        # whether that column contains any null (NaN or None) values.
+        null_columns = data_frame.isnull().any()
+
+        # Iterate through the columns building up the expression for each column.
+        for index, (key, value) in columns:
+            key = str(key)
+            key_format = f"{{keys[{len(keys)}]}}"
+            keys.append(key.translate(KEY_ESCAPE))
+            # The field index is one more than the column index because the
+            # time index is at column zero in the finally zipped-together
+            # result columns.
+            field_index = index + 1
+            val_format = f"p[{field_index}]"
+
+            if key in tag_keys:
+                # This column is a tag column.
+                if null_columns[index]:
+                    key_value = f"""{{
+                            '' if {val_format} == '' or type({val_format}) == float and math.isnan({val_format}) else
+                            f',{key_format}={{str({val_format}).translate(_ESCAPE_STRING)}}'
+                        }}"""
+                else:
+                    key_value = (
+                        f",{key_format}={{str({val_format}).translate(_ESCAPE_KEY)}}"
+                    )
+                tags.append(key_value)
+                continue
+
+            # This column is a field column.
+            # Note: no comma separator is needed for the first field.
+            # It's important to omit it because when the first
+            # field column has no nulls, we don't run the comma-removal
+            # regexp substitution step.
+            sep = "" if len(field_indexes) == 0 else ","
+            if issubclass(value.type, np.integer):
+                field_value = f"{sep}{key_format}={{{val_format}}}i"
+            elif issubclass(value.type, np.bool_):
+                field_value = f"{sep}{key_format}={{{val_format}}}"
+            elif issubclass(value.type, np.floating):
+                if null_columns[index]:
+                    field_value = f"""{{"" if math.isnan({val_format}) else f"{sep}{key_format}={{{val_format}}}"}}"""
+                else:
+                    field_value = f"{sep}{key_format}={{{val_format}}}"
+            else:
+                if null_columns[index]:
+                    field_value = f"""{{
+                            '' if type({val_format}) == float and math.isnan({val_format}) else
+                            f'{sep}{key_format}="{{str({val_format}).translate(_ESCAPE_STRING)}}"'
+                        }}"""
+                else:
+                    field_value = f'''{sep}{key_format}="{{str({val_format}).translate(_ESCAPE_STRING)}}"'''
+            field_indexes.append(field_index)
+            fields.append(field_value)
+
+        measurement_name = str(measurement).translate(MEASUREMENT_ESCAPE)
+
+        tags = "".join(tags)
+        fields = "".join(fields)
+        timestamp = "{p[0].value}"
+        if precision.lower() == "us":
+            timestamp = "{int(p[0].value / 1e3)}"
+        elif precision.lower() == "ms":
+            timestamp = "{int(p[0].value / 1e6)}"
+        elif precision.lower() == "s":
+            timestamp = "{int(p[0].value / 1e9)}"
+
+        f = eval(
+            f'lambda p: f"""{{measurement_name}}{tags} {fields} {timestamp}"""',
+            {
+                "measurement_name": measurement_name,
+                "_ESCAPE_KEY": KEY_ESCAPE,
+                "_ESCAPE_STRING": STR_ESCAPE,
+                "keys": keys,
+                "math": math,
+            },
+        )
+
+        for k, v in dict(data_frame.dtypes).items():
+            if k in tag_keys:
+                data_frame[k].replace("", np.nan, inplace=True)
+
+        self.data_frame = data_frame
+        self.f = f
+        self.field_indexes = field_indexes
+        self.first_field_maybe_null = null_columns[field_indexes[0] - 1]
+
+        self.chunk_size = chunk_size or len(data_frame)
+
+    def serialize(self, chunk_size: int = None) -> Generator:
+        """Serialize chunk into LineProtocols."""
+        chunk_size = chunk_size or self.chunk_size
+        for i in range(math.ceil(len(self.data_frame) / chunk_size)):
+            chunk = self.data_frame[i * chunk_size : (i + 1) * chunk_size]
+            if self.first_field_maybe_null:
+                # When the first field is null (None/NaN), we'll have
+                # a spurious leading comma which needs to be removed.
+                lp = (
+                    re.sub("^(( |[^ ])* ),([a-zA-Z])(.*)", "\\1\\3\\4", self.f(p))
+                    for p in filter(
+                        lambda x: _any_not_nan(x, self.field_indexes),
+                        _itertuples(chunk),
+                    )
+                )
+                yield "\n".join(lp)
+            else:
+                yield "\n".join(map(self.f, _itertuples(chunk)))
 
 
 class DataframeDeserializer(Serializer):
@@ -128,6 +376,111 @@ class DataframeDeserializer(Serializer):
             return df
 
 
+class NumpySerializer(Serializer):
+    DEFAULT_DECIMALS = 6
+
+    def __init__(
+        self,
+        data: ANDArray,
+        measurement: str,
+        time_key: str,
+        tag_keys: List[str] = [],
+        global_tags: Dict[str, Any] = {},
+        time_precision: str = "s",
+        precisions: Dict[str, int] = {},
+    ):
+        """
+        serialize numpy structured array to influxdb line protocol.
+
+        field keys are column names minus tag keys.
+
+        compares to DataframeSerialize(influxdbClient), this one can NOT perform escape, but can set precisions per each column.
+
+        Performance benchmark
+
+        - to serialize 10000 points
+            DataframeSerializer: 0.0893 seconds
+            NumpySerializer: 0.0698 seconds
+        - to serialize 1M points
+            DataframeSerializer: 8.06 seconds
+            NumpySerializer: 7.16 seconds
+
+        Args:
+            data: the numpy structured array to be serialized.
+            measurement : name of the measurement
+            time_key: from which column to get the timestamp.
+            tag_keys : columns in dataframe which should be considered as tag columns
+            global_tags : static tags, which will be added to every row.
+            time_precision : precision for time field.
+            escape: whether to escape special chars. If the data don't need to be escaped, then it's better to set it to False to improve performance.
+            precisions: precisions for floating fields. If not specified, then we'll stringify the column according to the type of the column, and default precision is assumed if it's floating type.
+        """
+        if isinstance(tag_keys, str):
+            tag_keys = [tag_keys]
+
+        field_keys = sorted(set(data.dtype.names) - set(tag_keys) - set([time_key]))
+
+        assert len(field_keys) > 0, "field_columns must not be empty"
+
+        precision_factor = {"ns": 1, "us": 1e3, "ms": 1e6, "s": 1e9}.get(
+            time_precision, 1
+        )
+
+        # construct format string
+        # test,code=000001.XSHE a=1.1,b=2.024 631152000
+        tags = [f"{tag}={{}}" for tag in tag_keys]
+
+        fields = []
+        for field in field_keys:
+            if field in precisions:
+                fields.append(f"{field}={{:.{precisions[field]}}}")
+            else:
+                if np.issubdtype(data.dtype[field], np.unsignedinteger):
+                    fields.append(f"{field}={{}}u")
+                elif np.issubdtype(data.dtype[field], np.signedinteger):
+                    fields.append(f"{field}={{}}i")
+                elif np.issubdtype(data.dtype[field], np.bool_):
+                    fields.append(f"{field}={{}}")
+                else:
+                    fields.append(f'{field}="{{}}"')
+
+        global_labels = "".join(
+            f'{tag}="{value},"' for tag, value in global_tags.items()
+        )
+        self.format_string = (
+            f"{measurement},"
+            + global_labels
+            + ",".join(tags)
+            + " "
+            + ",".join(fields)
+            + " {}"
+        )
+
+        # transform data array so it can be serialized
+        output_dtype = [(name, "O") for name in itertools.chain(tag_keys, field_keys)]
+
+        output_dtype.append(("frame", "i8"))
+
+        # self.data = np.empty(len(data), dtype=output_dtype)
+
+        # for col in self.tag_columns + self.field_columns:
+        #     self.data[col] = data[col]
+
+        cols = tag_keys + field_keys + [time_key]
+        self.data = data[cols].astype(output_dtype)
+
+        self.data["frame"] = (
+            data[time_key].astype("M8[ns]").astype(int) / precision_factor
+        )
+
+    def _get_lines(self, data):
+        return "\n".join([self.format_string.format(*row) for row in data])
+
+    def serialize(self, batch: int) -> Generator:
+        for i in range(math.ceil(len(self.data) / batch)):
+            yield self._get_lines(self.data[i * batch : (i + 1) * batch])
+
+
 class NumpyDeserializer(Serializer):
     def __init__(
         self,
@@ -177,7 +530,7 @@ class NumpyDeserializer(Serializer):
         self.converters = converters
         self.sort_values = sort_values
 
-    def __call__(self, data: bytes) -> DTypeLike:
+    def __call__(self, data: bytes) -> ANDArray:
         if self.encoding:
             stream = io.StringIO(data.decode(self.encoding))
         else:
@@ -203,271 +556,6 @@ class PyarrowDeserializer(Serializer):
 
     def __init__(self) -> None:
         raise NotImplementedError
-
-
-class DataframeSerializer(Serializer):
-    DEFAULT_DECIMALS = 6
-
-    def __init__(
-        self,
-        measurement: str,
-        field_columns: List[str] = [],
-        tag_columns: List[str] = [],
-        global_tags: List[str] = {},
-        time_precision: str = "s",
-        precisions: dict = None,
-        escape=False,
-    ):
-        """
-        borrow ideas from [influxdb 1.x dataframe serializer](https://github.com/influxdata/influxdb-python/issues/363)
-
-        compares to DataframeSerialize(influxdbClient), this one can NOT perform escape, but can set precisions per each column.
-
-        Performance benchmark
-
-        - to serialize 10000 points
-            DataframeSerializer(Omicron): 0.1142 seconds
-            DataframeSerializer(InfluxdbClient): 0.0893 seconds
-            NumpySerializer(Omicron): 0.0698 seconds
-        - to serialize 1M points
-            DataframeSerializer(Omicron): 11.5 seconds
-            DataframeSerializer(InfluxdbClient): 7.7 seconds
-            NumpySerializer(Omicron): 7.2 seconds
-
-        precisions is type of dict<int, List<str>>. the int is the precision of the field, the List<str> is the field names.
-
-        Args:
-            measurement : name of the measurement
-            field_columns : the field columns. If not specified, then columns minus tag columns will be used.
-            tag_columns : columns in dataframe which should be considered as tag columns
-            global_tags : static tags, which will be added to every row.
-            time_precision : precision for time field.
-            precisions : precisions for floating fields. If not specified, then we'll stringify the column according to the type of the column, and default precision is assumed if it's floating type.
-            escape: whether to escape special chars. If the data don't need to be escaped, then it's better to set it to False to improve performance.
-        """
-        self.measurement = measurement
-
-        if isinstance(field_columns, str):
-            self.field_columns = [field_columns]
-        elif field_columns is None:
-            self.field_columns = []
-        else:
-            self.field_columns = field_columns
-
-        if isinstance(tag_columns, str):
-            self.tag_columns = [tag_columns]
-        elif tag_columns is None:
-            self.tag_columns = []
-        else:
-            self.tag_columns = tag_columns
-
-        self.global_tags = global_tags or {}
-        self.time_precision = time_precision
-
-        self.precisions = precisions or {}
-        self.cols_with_precision = [
-            v for v in itertools.chain(*self.precisions.values())
-        ]
-
-        self.escape = escape
-        self.precision_factor = {"ns": 1, "us": 1e3, "ms": 1e6, "s": 1e9}.get(
-            time_precision, 1
-        )
-
-    def _get_lines(self, dataframe):
-
-        if not isinstance(dataframe, pd.DataFrame):
-            raise TypeError(
-                "Must be DataFrame, but type was: {0}.".format(type(dataframe))
-            )
-        if not (
-            isinstance(dataframe.index, pd.PeriodIndex)
-            or isinstance(dataframe.index, pd.DatetimeIndex)
-        ):
-            raise TypeError(
-                "Must be DataFrame with DatetimeIndex or \
-                            PeriodIndex."
-            )
-
-        # Make array of timestamp ints
-        time = (
-            (dataframe.index.values.astype(int) / self.precision_factor)
-            .astype(int)
-            .astype(str)
-        )
-
-        # If tag columns exist, make an array of formatted tag keys and values
-        if self.tag_columns:
-            tag_df = dataframe[self.tag_columns]
-            tags = ("," + ((tag_df.columns.values + "=").tolist() + tag_df)).sum(axis=1)
-            del tag_df
-
-        else:
-            tags = ""
-
-        # Make an array of formatted field keys and values
-        fields = pd.DataFrame([], columns=self.field_columns)
-
-        # handle fields which precision is specified
-        for precision, cols in self.precisions.items():
-            fields[cols] = dataframe[cols].round(precision)
-
-        other_cols = set(fields.columns.tolist()) - set(self.cols_with_precision)
-
-        # stringify the columns which is not floating type
-        for col in other_cols:
-            fields[col] = self._stringify(dataframe[col])
-
-        fields = fields.astype(str)
-        fields = fields.columns.values + "=" + fields
-        fields[fields.columns[1:]] = "," + fields[fields.columns[1:]]
-        fields = fields.sum(axis=1)
-
-        # Add any global tags to formatted tag strings
-        if self.global_tags:
-            global_tags = ",".join(
-                ["=".join([tag, self.global_tags[tag]]) for tag in self.global_tags]
-            )
-            if self.tag_columns:
-                tags = tags + "," + global_tags
-            else:
-                tags = "," + global_tags
-
-        # Generate line protocol string
-        points = (self.measurement + tags + " " + fields + " " + time).tolist()
-        return points
-
-    def _stringify(self, data: ArrayLike) -> ArrayLike:
-        if np.issubdtype(data.dtype, np.number):
-            if np.issubdtype(data.dtype, np.signedinteger):
-                return data.astype(str) + "i"
-            elif np.issubdtype(data.dtype, np.unsignedinteger):
-                return data.astype(str) + "u"
-            else:
-                return data.round(self.DEFAULT_DECIMALS).astype(str)
-        elif np.issubdtype(data.dtype, np.bool_):
-            return data.astype(str)
-        else:  # treat as string
-            return '"' + data.astype(str) + '"'
-
-    def __call__(self, data: DataFrame, batch: int) -> str:
-        for i in range(math.ceil(len(data) / batch)):
-            yield "\n".join(self._get_lines(data[i * batch : (i + 1) * batch]))
-
-
-class NumpySerializer(Serializer):
-    DEFAULT_DECIMALS = 6
-
-    def __init__(
-        self,
-        data: DTypeLike,
-        measurement: str,
-        time_column: str,
-        tag_columns: List[str] = [],
-        field_columns: List[str] = [],
-        global_tags: Dict[str, Any] = {},
-        time_precision: str = "s",
-        precisions: Dict[str, int] = {},
-    ):
-        """
-        serialize numpy structured array to influxdb line protocol.
-
-        compares to DataframeSerialize(influxdbClient), this one can NOT perform escape, but can set precisions per each column.
-
-        Performance benchmark
-
-        - to serialize 10000 points
-            DataframeSerializer(Omicron): 0.1142 seconds
-            DataframeSerializer(InfluxdbClient): 0.0893 seconds
-            NumpySerializer(Omicron): 0.0698 seconds
-        - to serialize 1M points
-            DataframeSerializer(Omicron): 11.5 seconds
-            DataframeSerializer(InfluxdbClient): 7.7 seconds
-            NumpySerializer(Omicron): 7.2 seconds
-
-        Args:
-            data: the numpy structured array to be serialized.
-            measurement : name of the measurement
-            time_column: from which column to get the timestamp.
-            tag_columns : columns in dataframe which should be considered as tag columns
-            field_columns : the field columns. If not specified, then columns minus tag columns will be used.
-            global_tags : static tags, which will be added to every row.
-            time_precision : precision for time field.
-            escape: whether to escape special chars. If the data don't need to be escaped, then it's better to set it to False to improve performance.
-            precisions: precisions for floating fields. If not specified, then we'll stringify the column according to the type of the column, and default precision is assumed if it's floating type.
-        """
-        if isinstance(tag_columns, str):
-            tag_columns = [tag_columns]
-
-        if isinstance(field_columns, str):
-            field_columns = [field_columns]
-
-        if len(field_columns) == 0:
-            field_columns = sorted(set(data.dtype.names) - set(tag_columns)) - set(
-                [time_column]
-            )
-
-        assert len(field_columns) > 0, "field_columns must not be empty"
-
-        precision_factor = {"ns": 1, "us": 1e3, "ms": 1e6, "s": 1e9}.get(
-            time_precision, 1
-        )
-
-        # construct format string
-        # test,code=000001.XSHE a=1.1,b=2.024 631152000
-        tags = [f"{tag}={{}}" for tag in tag_columns]
-
-        fields = []
-        for field in field_columns:
-            if field in precisions:
-                fields.append(f"{field}={{:.{precisions[field]}}}")
-            else:
-                if np.issubdtype(data.dtype[field], np.unsignedinteger):
-                    fields.append(f"{field}={{}}u")
-                elif np.issubdtype(data.dtype[field], np.signedinteger):
-                    fields.append(f"{field}={{}}i")
-                elif np.issubdtype(data.dtype[field], np.bool_):
-                    fields.append(f"{field}={{}}")
-                else:
-                    fields.append(f'{field}="{{}}"')
-
-        global_labels = "".join(
-            f'{tag}="{value},"' for tag, value in global_tags.items()
-        )
-        self.format_string = (
-            f"{measurement},"
-            + global_labels
-            + ",".join(tags)
-            + " "
-            + ",".join(fields)
-            + " {}"
-        )
-
-        # transform data array so it can be serialized
-        output_dtype = [
-            (name, "O") for name in itertools.chain(tag_columns, field_columns)
-        ]
-
-        output_dtype.append(("frame", "i8"))
-
-        # self.data = np.empty(len(data), dtype=output_dtype)
-
-        # for col in self.tag_columns + self.field_columns:
-        #     self.data[col] = data[col]
-
-        cols = tag_columns + field_columns + [time_column]
-        self.data = data[cols].astype(output_dtype)
-
-        self.data["frame"] = (
-            data[time_column].astype("M8[ns]").astype(int) / precision_factor
-        )
-
-    def _get_lines(self, data):
-        return "\n".join([self.format_string.format(*row) for row in data])
-
-    def __call__(self, batch: int) -> str:
-        for i in range(math.ceil(len(self.data) / batch)):
-            yield self._get_lines(self.data[i * batch : (i + 1) * batch])
 
 
 if __name__ == "__main__":
@@ -508,11 +596,6 @@ if __name__ == "__main__":
         index=[datetime.datetime(1990, 1, 1), datetime.datetime(1990, 1, 2)],
     )
 
-    des = DataframeSerializer(
-        measurement="test",
-        field_columns=["a", "b"],
-        tag_columns="code",
-        precisions={2: ["a"], 3: ["b"]},
-    )
-    for lp in des(df, 1):
+    df_serializer = DataframeSerializer(df, "test", tag_keys="code", chunk_size=1)
+    for lp in df_serializer():
         print(lp)

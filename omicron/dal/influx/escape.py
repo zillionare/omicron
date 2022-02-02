@@ -6,14 +6,14 @@ import warnings
 # Go implementation: https://github.com/influxdata/influxdb/blob/master/pkg/escape/strings.go
 
 # for field key
-key_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
+KEY_ESCAPE = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
 
 # for both tag names and tag values
-tag_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
+TAG_ESCAPE = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
 
 # for field value in str-type
-str_escape = str.maketrans({"\\": "\\\\", '"': r"\"", "\n": ""})
-measurement_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "\n": ""})
+STR_ESCAPE = str.maketrans({"\\": "\\\\", '"': r"\"", "\n": ""})
+MEASUREMENT_ESCAPE = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "\n": ""})
 
 
 def escape(string, escape_pattern):
@@ -22,4 +22,4 @@ def escape(string, escape_pattern):
         return string.translate(escape_pattern)
     except AttributeError:
         warnings.warn("Non-string-like data passed. " "Attempting to convert to 'str'.")
-        return str(string).translate(tag_escape)
+        return str(string).translate(escape_pattern)

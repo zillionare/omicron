@@ -9,14 +9,11 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from influxdb_client.client.write import (
-    dataframe_serializer as influx_dataframe_serializer,
-)
-from numpy.typing import DTypeLike
+from numpy.typing import ANDArray
 
-from omicron.dal.influx import serialize as s
 from omicron.dal.influx.serialize import (
     DataframeDeserializer,
+    DataframeSerializer,
     NumpyDeserializer,
     NumpySerializer,
 )
@@ -24,7 +21,7 @@ from tests.dal.influx import mock_data_for_influx
 
 
 def _serialize(
-    arr: DTypeLike, format: List[str], sep=",", header: str = None, encoding="utf-8"
+    arr: ANDArray, format: List[str], sep=",", header: str = None, encoding="utf-8"
 ) -> str:
     stream = io.StringIO()
 
@@ -73,18 +70,18 @@ def test_dataframe_deserializer(lines, runs):
 
 def test_line_protocol_escape(runs):
     from omicron.dal.influx.escape import (
+        KEY_ESCAPE,
+        MEASUREMENT_ESCAPE,
+        STR_ESCAPE,
+        TAG_ESCAPE,
         escape,
-        key_escape,
-        measurement_escape,
-        str_escape,
-        tag_escape,
     )
 
     line = "a,b,c=d,little fox jump over the fence"
-    print(escape(line, tag_escape))
+    print(escape(line, TAG_ESCAPE))
     t0 = time.time()
     for i in range(runs):
-        pattern = [tag_escape, tag_escape, measurement_escape, key_escape, str_escape][
+        pattern = [TAG_ESCAPE, TAG_ESCAPE, MEASUREMENT_ESCAPE, KEY_ESCAPE, STR_ESCAPE][
             i % 5
         ]
         escape(line, pattern)
@@ -100,7 +97,7 @@ def test_mydataframe_serializer(lines, runs):
 
     t0 = time.time()
     for i in range(runs):
-        serialize = s.DataframeSerializer("test", ["open", "close"], ["code", "name"])
+        serialize = DataframeSerializer("test", ["open", "close"], ["code", "name"])
 
         for lp in serialize(df, lines):
             pass
@@ -117,18 +114,16 @@ def test_dataframe_serializer(lines, runs):
 
     t0 = time.time()
     for i in range(runs):  # noqa
-        ser = influx_dataframe_serializer.DataframeSerializer(
+        df_serializer = DataframeSerializer(
             df,
-            PointSettings(),
+            "test",
+            tag_keys=["name", "code"],
             chunk_size=lines,
-            data_frame_measurement_name="test",
-            data_frame_tag_columns=["code", "name"],
         )
-        lp = "\n".join(ser.serialize(0))  # noqa
+        for lp in df_serializer.serialize(lines):
+            pass
 
-    print(
-        f"influxdb dataframe serializer: {lines} lines: {(time.time() - t0)/runs} seconds"
-    )
+    print(f"dataframe serializer: {lines} lines: {(time.time() - t0)/runs} seconds")
 
 
 def test_numpy_serializer(lines, runs):
@@ -152,28 +147,20 @@ def test_numpy_serializer(lines, runs):
             "test",
             "frame",
             ["name", "code"],
-            ["open", "close"],
             precisions={"open": 1, "close": 2},
         )
-        for lp in serialize(lines):
+        for lp in serialize.serialize(lines):
             pass
 
-    print(
-        f"influxdb numpy serializer: {lines} lines: {(time.time() - t0)/runs} seconds"
-    )
+    print(f"numpy serializer: {lines} lines: {(time.time() - t0)/runs} seconds")
 
 
 if __name__ == "__main__":
-    lines = 1_000_000
+    lines = 10_000
     runs = 5
-
-    from influxdb_client.client.write.dataframe_serializer import DataframeSerializer
-    from influxdb_client.client.write_api import PointSettings
 
     # 2.75e-6 seconds per line
     test_line_protocol_escape(lines)
     # test_numpy_deserializer(lines, runs)
-    # test_dataframe_deserializer(lines, runs)
-    # test_mydataframe_serializer(lines, runs)
-    # test_dataframe_serializer(lines, runs)
-    # test_numpy_serializer(lines, runs)
+    test_dataframe_serializer(lines, runs)
+    test_numpy_serializer(lines, runs)
