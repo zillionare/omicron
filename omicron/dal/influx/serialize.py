@@ -1,9 +1,21 @@
 import io
-from typing import Callable, Dict, List, Optional, Tuple, Union
+import itertools
+import math
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from unittest.mock import DEFAULT
 
 import numpy as np
 import pandas as pd
-from numpy.typing import DTypeLike
+from numpy.typing import ArrayLike, DTypeLike
+from pandas import DataFrame
+
+from omicron.dal.influx.escape import (
+    escape_field_name,
+    escape_field_value,
+    escape_measurement,
+    escape_tag_name,
+    escape_tag_value,
+)
 
 
 class Serializer(object):
@@ -12,7 +24,7 @@ class Serializer(object):
     pass
 
 
-class DataFrameDeserializer(Serializer):
+class DataframeDeserializer(Serializer):
     def __init__(
         self,
         sort_values: Union[str, List[str]] = None,
@@ -31,7 +43,7 @@ class DataFrameDeserializer(Serializer):
         skipfooter=0,
         index_col: Union[int, str, List[int], List[str], bool] = None,
         skiprows: Union[int, List[int], Callable] = None,
-        **kwargs
+        **kwargs,
     ):
         """constructor a deserializer which convert a csv-like bytes array to pandas.DataFrame
 
@@ -115,7 +127,7 @@ class DataFrameDeserializer(Serializer):
             infer_datetime_format=self.infer_datetime_format,
             date_parser=self.date_parser,
             lineterminator=self.lineterminator,
-            **self.kwargs
+            **self.kwargs,
         )
 
         if self.sort_values is not None:
@@ -199,3 +211,316 @@ class PyarrowDeserializer(Serializer):
 
     def __init__(self) -> None:
         raise NotImplementedError
+
+
+class DataframeSerializer(Serializer):
+    DEFAULT_DECIMALS = 6
+
+    def __init__(
+        self,
+        measurement: str,
+        field_columns: List[str] = [],
+        tag_columns: List[str] = [],
+        global_tags: List[str] = {},
+        time_precision: str = "s",
+        precisions: dict = None,
+        escape=False,
+    ):
+        """
+        borrow ideas from [influxdb 1.x dataframe serializer](https://github.com/influxdata/influxdb-python/issues/363)
+
+        compares to DataframeSerialize(influxdbClient), this one can NOT perform escape, but can set precisions per each column.
+
+        Performance benchmark
+
+        - to serialize 10000 points
+            DataframeSerializer(Omicron): 0.1142 seconds
+            DataframeSerializer(InfluxdbClient): 0.0893 seconds
+            NumpySerializer(Omicron): 0.0698 seconds
+        - to serialize 1M points
+            DataframeSerializer(Omicron): 11.5 seconds
+            DataframeSerializer(InfluxdbClient): 7.7 seconds
+            NumpySerializer(Omicron): 7.2 seconds
+
+        precisions is type of dict<int, List<str>>. the int is the precision of the field, the List<str> is the field names.
+
+        Args:
+            measurement : name of the measurement
+            field_columns : the field columns. If not specified, then columns minus tag columns will be used.
+            tag_columns : columns in dataframe which should be considered as tag columns
+            global_tags : static tags, which will be added to every row.
+            time_precision : precision for time field.
+            precisions : precisions for floating fields. If not specified, then we'll stringify the column according to the type of the column, and default precision is assumed if it's floating type.
+            escape: whether to escape special chars. If the data don't need to be escaped, then it's better to set it to False to improve performance.
+        """
+        self.measurement = measurement
+
+        if isinstance(field_columns, str):
+            self.field_columns = [field_columns]
+        elif field_columns is None:
+            self.field_columns = []
+        else:
+            self.field_columns = field_columns
+
+        if isinstance(tag_columns, str):
+            self.tag_columns = [tag_columns]
+        elif tag_columns is None:
+            self.tag_columns = []
+        else:
+            self.tag_columns = tag_columns
+
+        self.global_tags = global_tags or {}
+        self.time_precision = time_precision
+
+        self.precisions = precisions or {}
+        self.cols_with_precision = [
+            v for v in itertools.chain(*self.precisions.values())
+        ]
+
+        self.escape = escape
+        self.precision_factor = {"ns": 1, "us": 1e3, "ms": 1e6, "s": 1e9}.get(
+            time_precision, 1
+        )
+
+    def _get_lines(self, dataframe):
+
+        if not isinstance(dataframe, pd.DataFrame):
+            raise TypeError(
+                "Must be DataFrame, but type was: {0}.".format(type(dataframe))
+            )
+        if not (
+            isinstance(dataframe.index, pd.PeriodIndex)
+            or isinstance(dataframe.index, pd.DatetimeIndex)
+        ):
+            raise TypeError(
+                "Must be DataFrame with DatetimeIndex or \
+                            PeriodIndex."
+            )
+
+        # Make array of timestamp ints
+        time = (
+            (dataframe.index.values.astype(int) / self.precision_factor)
+            .astype(int)
+            .astype(str)
+        )
+
+        # If tag columns exist, make an array of formatted tag keys and values
+        if self.tag_columns:
+            tag_df = dataframe[self.tag_columns]
+            tags = ("," + ((tag_df.columns.values + "=").tolist() + tag_df)).sum(axis=1)
+            del tag_df
+
+        else:
+            tags = ""
+
+        # Make an array of formatted field keys and values
+        fields = pd.DataFrame([], columns=self.field_columns)
+
+        # handle fields which precision is specified
+        for precision, cols in self.precisions.items():
+            fields[cols] = dataframe[cols].round(precision)
+
+        other_cols = set(fields.columns.tolist()) - set(self.cols_with_precision)
+
+        # stringify the columns which is not floating type
+        for col in other_cols:
+            fields[col] = self._stringify(dataframe[col])
+
+        fields = fields.astype(str)
+        fields = fields.columns.values + "=" + fields
+        fields[fields.columns[1:]] = "," + fields[fields.columns[1:]]
+        fields = fields.sum(axis=1)
+
+        # Add any global tags to formatted tag strings
+        if self.global_tags:
+            global_tags = ",".join(
+                ["=".join([tag, self.global_tags[tag]]) for tag in self.global_tags]
+            )
+            if self.tag_columns:
+                tags = tags + "," + global_tags
+            else:
+                tags = "," + global_tags
+
+        # Generate line protocol string
+        points = (self.measurement + tags + " " + fields + " " + time).tolist()
+        return points
+
+    def _stringify(self, data: ArrayLike) -> ArrayLike:
+        if np.issubdtype(data.dtype, np.number):
+            if np.issubdtype(data.dtype, np.signedinteger):
+                return data.astype(str) + "i"
+            elif np.issubdtype(data.dtype, np.unsignedinteger):
+                return data.astype(str) + "u"
+            else:
+                return data.round(self.DEFAULT_DECIMALS).astype(str)
+        elif np.issubdtype(data.dtype, np.bool_):
+            return data.astype(str)
+        else:  # treat as string
+            return '"' + data.astype(str) + '"'
+
+    def __call__(self, data: DataFrame, batch: int) -> str:
+        for i in range(math.ceil(len(data) / batch)):
+            yield "\n".join(self._get_lines(data[i * batch : (i + 1) * batch]))
+
+
+class NumpySerializer(Serializer):
+    DEFAULT_DECIMALS = 6
+
+    def __init__(
+        self,
+        data: DTypeLike,
+        measurement: str,
+        time_column: str,
+        tag_columns: List[str] = [],
+        field_columns: List[str] = [],
+        global_tags: Dict[str, Any] = {},
+        time_precision: str = "s",
+        precisions: Dict[str, int] = {},
+    ):
+        """
+        serialize numpy structured array to influxdb line protocol.
+
+        compares to DataframeSerialize(influxdbClient), this one can NOT perform escape, but can set precisions per each column.
+
+        Performance benchmark
+
+        - to serialize 10000 points
+            DataframeSerializer(Omicron): 0.1142 seconds
+            DataframeSerializer(InfluxdbClient): 0.0893 seconds
+            NumpySerializer(Omicron): 0.0698 seconds
+        - to serialize 1M points
+            DataframeSerializer(Omicron): 11.5 seconds
+            DataframeSerializer(InfluxdbClient): 7.7 seconds
+            NumpySerializer(Omicron): 7.2 seconds
+
+        Args:
+            data: the numpy structured array to be serialized.
+            measurement : name of the measurement
+            time_column: from which column to get the timestamp.
+            tag_columns : columns in dataframe which should be considered as tag columns
+            field_columns : the field columns. If not specified, then columns minus tag columns will be used.
+            global_tags : static tags, which will be added to every row.
+            time_precision : precision for time field.
+            escape: whether to escape special chars. If the data don't need to be escaped, then it's better to set it to False to improve performance.
+            precisions: precisions for floating fields. If not specified, then we'll stringify the column according to the type of the column, and default precision is assumed if it's floating type.
+        """
+        if isinstance(tag_columns, str):
+            tag_columns = [tag_columns]
+
+        if isinstance(field_columns, str):
+            field_columns = [field_columns]
+
+        if len(field_columns) == 0:
+            field_columns = sorted(set(data.dtype.names) - set(tag_columns)) - set(
+                [time_column]
+            )
+
+        assert len(field_columns) > 0, "field_columns must not be empty"
+
+        precision_factor = {"ns": 1, "us": 1e3, "ms": 1e6, "s": 1e9}.get(
+            time_precision, 1
+        )
+
+        # construct format string
+        # test,code=000001.XSHE a=1.1,b=2.024 631152000
+        tags = [f"{tag}={{}}" for tag in tag_columns]
+
+        fields = []
+        for field in field_columns:
+            if field in precisions:
+                fields.append(f"{field}={{:.{precisions[field]}}}")
+            else:
+                if np.issubdtype(data.dtype[field], np.unsignedinteger):
+                    fields.append(f"{field}={{}}u")
+                elif np.issubdtype(data.dtype[field], np.signedinteger):
+                    fields.append(f"{field}={{}}i")
+                elif np.issubdtype(data.dtype[field], np.bool_):
+                    fields.append(f"{field}={{}}")
+                else:
+                    fields.append(f'{field}="{{}}"')
+
+        global_labels = "".join(
+            f'{tag}="{value},"' for tag, value in global_tags.items()
+        )
+        self.format_string = (
+            f"{measurement},"
+            + global_labels
+            + ",".join(tags)
+            + " "
+            + ",".join(fields)
+            + " {}"
+        )
+
+        # transform data array so it can be serialized
+        output_dtype = [
+            (name, "O") for name in itertools.chain(tag_columns, field_columns)
+        ]
+
+        output_dtype.append(("frame", "i8"))
+
+        # self.data = np.empty(len(data), dtype=output_dtype)
+
+        # for col in self.tag_columns + self.field_columns:
+        #     self.data[col] = data[col]
+
+        cols = tag_columns + field_columns + [time_column]
+        self.data = data[cols].astype(output_dtype)
+
+        self.data["frame"] = (
+            data[time_column].astype("M8[ns]").astype(int) / precision_factor
+        )
+
+    def _get_lines(self, data):
+        return "\n".join([self.format_string.format(*row) for row in data])
+
+    def __call__(self, batch: int) -> str:
+        for i in range(math.ceil(len(self.data) / batch)):
+            yield self._get_lines(self.data[i * batch : (i + 1) * batch])
+
+
+if __name__ == "__main__":
+    import datetime
+
+    data = np.array(
+        [
+            (datetime.date(2022, 2, 1), "000001.XSHE", 1.1, 2, True, "上海银行"),
+            (datetime.date(2022, 2, 2), "000002.XSHE", 1.1, 3, False, "平安银行"),
+        ],
+        dtype=[
+            ("frame", "<M8[s]"),
+            ("code", "<U11"),
+            ("open", "<f4"),
+            ("seq", "i4"),
+            ("limit", "bool"),
+            ("name", "<U11"),
+        ],
+    )
+
+    serialize = NumpySerializer(
+        data,
+        "test",
+        "frame",
+        ["code", "name"],
+        ["open", "seq", "limit"],
+        global_tags={"a": "1", "b": "2"},
+        precisions={"open": 3},
+        time_precision="ns",
+    )
+
+    for lp in serialize(1):
+        print(lp)
+
+    df = pd.DataFrame(
+        [("000001.XSHE", 1.1, 2.0235353), ("000002.XSHE", 2.0001, 3.1)],
+        columns=["code", "a", "b"],
+        index=[datetime.datetime(1990, 1, 1), datetime.datetime(1990, 1, 2)],
+    )
+
+    des = DataframeSerializer(
+        measurement="test",
+        field_columns=["a", "b"],
+        tag_columns="code",
+        precisions={2: ["a"], 3: ["b"]},
+    )
+    for lp in des(df, 1):
+        print(lp)
