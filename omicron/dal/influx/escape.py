@@ -1,47 +1,25 @@
-import re
+import warnings
 
-import numpy as np
-from numpy.typing import ArrayLike
+# Special characters documentation:
+# https://docs.influxdata.com/influxdb/v1.4/write_protocols/line_protocol_reference/#special-characters
+# Although not in the official docs, new line characters are removed in order to avoid issues.
+# Go implementation: https://github.com/influxdata/influxdb/blob/master/pkg/escape/strings.go
 
-"""
-follow these rules to escape field values:
+# for field key
+key_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
 
-Measurement    Comma, Space
-Tag key    Comma, Equals Sign, Space
-Tag value    Comma, Equals Sign, Space
-Field key    Comma, Equals Sign, Space
-Field value    Double quote, Backslash
-"""
+# for both tag names and tag values
+tag_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "=": r"\=", "\n": ""})
 
-
-def escape_field_value(values: ArrayLike):
-    for char in ("\\", '"'):
-        values = [v.replace(char, f"\\{char}") for v in values]
-    return values
+# for field value in str-type
+str_escape = str.maketrans({"\\": "\\\\", '"': r"\"", "\n": ""})
+measurement_escape = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "\n": ""})
 
 
-def escape_tag_name(tag_names: ArrayLike):
-    return _escape_comma_equal_space(tag_names)
-
-
-def escape_tag_value(tag_values: ArrayLike):
-    return _escape_comma_equal_space(tag_values)
-
-
-def escape_field_name(field_names: ArrayLike):
-    return _escape_comma_equal_space(field_names)
-
-
-def escape_measurement(measurement: str):
-    return measurement.replace(",", "\\,").replace(" ", "\\ ")
-
-
-def _escape_comma_equal_space(values: ArrayLike):
-    # elementwise re.sub is 3~5 times slower than direct python replace
-    # pat = re.compile(r"([,= ])")
-    for char in (",", "=", " "):
-        # values = np.char.replace(values, char, f"\{char}")
-        values = [value.replace(char, f"\\{char}") for value in values]
-        # values = [pat.sub(r"\\\1", value) for value in values]
-
-    return values
+def escape(string, escape_pattern):
+    """Assistant function for string escaping"""
+    try:
+        return string.translate(escape_pattern)
+    except AttributeError:
+        warnings.warn("Non-string-like data passed. " "Attempting to convert to 'str'.")
+        return str(string).translate(tag_escape)

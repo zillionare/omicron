@@ -1,45 +1,36 @@
 import unittest
 
 from omicron.dal.influx.escape import (
-    escape_field_name,
-    escape_field_value,
-    escape_measurement,
-    escape_tag_name,
-    escape_tag_value,
+    escape,
+    key_escape,
+    measurement_escape,
+    str_escape,
+    tag_escape,
 )
 
 
 class EscapeTest(unittest.TestCase):
-    def test_escape_measurement(self):
+    def test_escape(self):
         # measurement
-        self.assertEqual(escape_measurement("test"), "test")
-        self.assertEqual(escape_measurement("test,test"), "test\\,test")
-        self.assertEqual(escape_measurement("test test"), "test\\ test")
+        measurements = ["test", "test,test", "test test"]
+        actual = [escape(m, measurement_escape) for m in measurements]
+        expected = ["test", "test\\,test", "test\\ test"]
+        self.assertListEqual(actual, expected)
 
-        # tag name
+        # tag name and value
         tags = ["test", "test test", "test=test"]
         expected = ["test", "test\\ test", "test\\=test"]
-        actual = escape_tag_name(tags)
+        actual = [escape(t, tag_escape) for t in tags]
         self.assertListEqual(expected, actual)
 
-        # tag value
-        values = ["test", "test test", "test=test"]
-        expected = ["test", "test\\ test", "test\\=test"]
-        actual = escape_tag_value(values)
-        self.assertListEqual(expected, actual)
-
-        # field name
+        # field key
         keys = ["test", "test test", "test=test"]
         expected = ["test", "test\\ test", "test\\=test"]
-        actual = escape_field_name(keys)
+        actual = [escape(k, key_escape) for k in keys]
         self.assertListEqual(expected, actual)
 
         # field value
         values = ["test", 'test "test', "test\\test"]
         expected = ["test", 'test \\"test', "test\\\\test"]
-        actual = escape_field_value(values)
+        actual = [escape(v, str_escape) for v in values]
         self.assertListEqual(expected, actual)
-
-        # field value with backslash
-        values = ["test\test", 'test"test']
-        expected = ["test\\\\test", 'test\\\\"test']

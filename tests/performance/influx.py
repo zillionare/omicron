@@ -71,18 +71,24 @@ def test_dataframe_deserializer(lines, runs):
     print(f"dataframe deserializer: {lines} lines: {(time.time() - t0)/runs} seconds")
 
 
-def test_line_protocol_escape(lines, runs):
-    from omicron.dal.influx.escape import _escape_comma_equal_space
+def test_line_protocol_escape(runs):
+    from omicron.dal.influx.escape import (
+        escape,
+        key_escape,
+        measurement_escape,
+        str_escape,
+        tag_escape,
+    )
 
-    data = []
-    for i in range(lines):
-        data.append("a,b,c=d,little fox jump over the fence")
-
-    print(_escape_comma_equal_space([data[0]]))
+    line = "a,b,c=d,little fox jump over the fence"
+    print(escape(line, tag_escape))
     t0 = time.time()
     for i in range(runs):
-        _escape_comma_equal_space(np.array(data))
-    print(f"escape: {lines} lines: {(time.time() - t0)/runs} seconds")
+        pattern = [tag_escape, tag_escape, measurement_escape, key_escape, str_escape][
+            i % 5
+        ]
+        escape(line, pattern)
+    print(f"escape {runs} lines: {(time.time() - t0)/runs} seconds")
 
 
 def test_mydataframe_serializer(lines, runs):
@@ -164,9 +170,10 @@ if __name__ == "__main__":
     from influxdb_client.client.write.dataframe_serializer import DataframeSerializer
     from influxdb_client.client.write_api import PointSettings
 
-    # test_line_protocol_escape(lines, runs)
+    # 2.75e-6 seconds per line
+    test_line_protocol_escape(lines)
     # test_numpy_deserializer(lines, runs)
     # test_dataframe_deserializer(lines, runs)
-    test_mydataframe_serializer(lines, runs)
-    test_dataframe_serializer(lines, runs)
-    test_numpy_serializer(lines, runs)
+    # test_mydataframe_serializer(lines, runs)
+    # test_dataframe_serializer(lines, runs)
+    # test_numpy_serializer(lines, runs)

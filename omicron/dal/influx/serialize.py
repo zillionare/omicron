@@ -9,14 +9,6 @@ import pandas as pd
 from numpy.typing import ArrayLike, DTypeLike
 from pandas import DataFrame
 
-from omicron.dal.influx.escape import (
-    escape_field_name,
-    escape_field_value,
-    escape_measurement,
-    escape_tag_name,
-    escape_tag_value,
-)
-
 
 class Serializer(object):
     """base class of all serializer/deserializer"""
