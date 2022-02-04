@@ -88,23 +88,6 @@ def test_line_protocol_escape(runs):
     print(f"escape {runs} lines: {(time.time() - t0)/runs} seconds")
 
 
-def test_mydataframe_serializer(lines, runs):
-    data = mock_data_for_influx(lines)
-
-    df = pd.DataFrame(
-        data, columns=["open", "close", "code", "name"], index=data["frame"]
-    )
-
-    t0 = time.time()
-    for i in range(runs):
-        serialize = DataframeSerializer("test", ["open", "close"], ["code", "name"])
-
-        for lp in serialize(df, lines):
-            pass
-
-    print(f"my dataframe serializer: {lines} lines: {(time.time() - t0)/runs} seconds")
-
-
 def test_dataframe_serializer(lines, runs):
     data = mock_data_for_influx(lines)
 
@@ -114,12 +97,7 @@ def test_dataframe_serializer(lines, runs):
 
     t0 = time.time()
     for i in range(runs):  # noqa
-        df_serializer = DataframeSerializer(
-            df,
-            "test",
-            tag_keys=["name", "code"],
-            chunk_size=lines,
-        )
+        df_serializer = DataframeSerializer(df, "test", tag_keys=["name", "code"])
         for lp in df_serializer.serialize(lines):
             pass
 
@@ -161,6 +139,8 @@ if __name__ == "__main__":
 
     # 2.75e-6 seconds per line
     test_line_protocol_escape(lines)
-    # test_numpy_deserializer(lines, runs)
-    test_dataframe_serializer(lines, runs)
+    test_numpy_deserializer(lines, runs)
     test_numpy_serializer(lines, runs)
+
+    test_dataframe_serializer(lines, runs)
+    test_dataframe_deserializer(lines, runs)
