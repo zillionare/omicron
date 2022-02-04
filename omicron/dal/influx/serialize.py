@@ -1,7 +1,9 @@
+import datetime
 import io
 import itertools
 import math
 import re
+import time
 from email.generator import Generator
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -45,7 +47,6 @@ class DataframeSerializer:
         tag_keys: Union[str, List[str]] = [],
         global_tags: Dict = {},
         precision="s",
-        chunk_size: int = None,
     ) -> None:
         """Initialize DataframeSerializer.
 
@@ -66,7 +67,6 @@ class DataframeSerializer:
             tag_keys: List of tag keys.
             global_tags: global tags to be added to every row.
             precision: precision for write.
-            chunk_size: size of chunk to be serialized.
         """
         # This function is hard to understand but for good reason:
         # the approach used here is considerably more efficient
@@ -242,11 +242,8 @@ class DataframeSerializer:
         self.field_indexes = field_indexes
         self.first_field_maybe_null = null_columns[field_indexes[0] - 1]
 
-        self.chunk_size = chunk_size or len(data_frame)
-
-    def serialize(self, chunk_size: int = None) -> Generator:
+    def serialize(self, chunk_size: int) -> Generator:
         """Serialize chunk into LineProtocols."""
-        chunk_size = chunk_size or self.chunk_size
         for i in range(math.ceil(len(self.data_frame) / chunk_size)):
             chunk = self.data_frame[i * chunk_size : (i + 1) * chunk_size]
             if self.first_field_maybe_null:
@@ -426,6 +423,21 @@ class NumpySerializer(Serializer):
             time_precision, 1
         )
 
+        data = data.copy()
+        if np.issubdtype(data[time_key].dtype, np.datetime64):
+            data[time_key] = (
+                data[time_key].astype("M8[ns]").astype(int) / precision_factor
+            )
+        elif isinstance(data[time_key][0], datetime.date):
+            factor = 1e9 / precision_factor
+            data[time_key] = [
+                time.mktime(x.timetuple()) * factor for x in data[time_key]
+            ]
+        else:
+            raise TypeError(
+                f"unsupported data type: expected datetime64 or date, got {type(data[time_key][0])}"
+            )
+
         # construct format string
         # test,code=000001.XSHE a=1.1,b=2.024 631152000
         tags = [f"{tag}={{}}" for tag in tag_keys]
@@ -435,7 +447,9 @@ class NumpySerializer(Serializer):
             if field in precisions:
                 fields.append(f"{field}={{:.{precisions[field]}}}")
             else:
-                if np.issubdtype(data.dtype[field], np.unsignedinteger):
+                if np.issubdtype(data[field].dtype, np.floating):
+                    fields.append(f"{field}={{:.{self.DEFAULT_DECIMALS}}}")
+                elif np.issubdtype(data.dtype[field], np.unsignedinteger):
                     fields.append(f"{field}={{}}u")
                 elif np.issubdtype(data.dtype[field], np.signedinteger):
                     fields.append(f"{field}={{}}i")
@@ -468,10 +482,6 @@ class NumpySerializer(Serializer):
 
         cols = tag_keys + field_keys + [time_key]
         self.data = data[cols].astype(output_dtype)
-
-        self.data["frame"] = (
-            data[time_key].astype("M8[ns]").astype(int) / precision_factor
-        )
 
     def _get_lines(self, data):
         return "\n".join([self.format_string.format(*row) for row in data])
@@ -559,8 +569,6 @@ class PyarrowDeserializer(Serializer):
 
 
 if __name__ == "__main__":
-    import datetime
-
     data = np.array(
         [
             (datetime.date(2022, 2, 1), "000001.XSHE", 1.1, 2, True, "上海银行"),

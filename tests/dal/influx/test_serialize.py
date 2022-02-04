@@ -5,6 +5,7 @@ from tkinter import S
 import cfg4py
 import numpy as np
 import pandas as pd
+from coretypes import stock_bars_dtype
 from influxdb_client.client.write_api import PointSettings
 
 import omicron
@@ -178,3 +179,62 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             "test,code=000005.XSHE,name=中国平安 close=0.2,open=0.1 1546335240\ntest,code=000005.XSHE,name=中国平安 close=0.2,open=0.1 1546335540",
         ]
         self.assertEqual(exp, actual)
+
+        # ms write precision
+        serializer = NumpySerializer(
+            data,
+            "test",
+            "frame",
+            ["code", "name"],
+            precisions={"open": 1, "close": 1},
+            time_precision="ms",
+        )
+        for actual in serializer.serialize(8):
+            exp = "test,code=000002.XSHE,name=国联证券 close=0.2,open=0.1 1546335060000\n"
+            self.assertLessEqual(exp, actual[:65])
+
+        # no tag_keys
+        bars = np.array(
+            [
+                (
+                    datetime.date(2019, 1, 1),
+                    5.1,
+                    5.2,
+                    5.0,
+                    5.15,
+                    1000000,
+                    100000000,
+                    1.23,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+
+        serializer = NumpySerializer(
+            bars,
+            "test",
+            "frame",
+            precisions={
+                "open": 2,
+                "close": 2,
+                "high": 2,
+                "low": 2,
+                "volume": 1,
+                "amount": 1,
+                "factor": 3,
+            },
+        )
+
+        exp = "test, amount=1e+08,close=5.2,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
+
+        for lines in serializer.serialize(len(bars)):
+            self.assertEqual(exp, lines)
+
+        # no precisions
+        serializer = NumpySerializer(bars, "test", "frame")
+
+        exp = "test, amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
+
+        for lines in serializer.serialize(len(bars)):
+            print(lines)
+            self.assertEqual(exp, lines)
