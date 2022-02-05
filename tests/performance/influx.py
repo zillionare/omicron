@@ -9,7 +9,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from numpy.typing import ANDArray
+from numpy import ndarray
 
 from omicron.dal.influx.serialize import (
     DataframeDeserializer,
@@ -21,7 +21,7 @@ from tests.dal.influx import mock_data_for_influx
 
 
 def _serialize(
-    arr: ANDArray, format: List[str], sep=",", header: str = None, encoding="utf-8"
+    arr: ndarray, format: List[str], sep=",", header: str = None, encoding="utf-8"
 ) -> str:
     stream = io.StringIO()
 

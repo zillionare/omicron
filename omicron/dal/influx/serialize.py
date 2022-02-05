@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import arrow
 import numpy as np
 import pandas as pd
-from numpy.typing import ANDArray
 from pandas import DataFrame
 
 from omicron.dal.influx.escape import KEY_ESCAPE, MEASUREMENT_ESCAPE, STR_ESCAPE
@@ -265,14 +264,14 @@ class DataframeDeserializer(Serializer):
     def __init__(
         self,
         sort_values: Union[str, List[str]] = None,
-        encoding: str = None,
-        sep: str = ",",
-        header: Union[int, List[int], str] = "infer",
+        encoding: str = "utf-8",
         names: List[str] = None,
         usecols: Union[List[int], List[str]] = None,
         dtype: dict = None,
-        engine: str = None,
         parse_dates=None,
+        sep: str = ",",
+        header: Union[int, List[int], str] = "infer",
+        engine: str = None,
         infer_datetime_format=True,
         lineterminator: str = None,
         converters: dict = None,
@@ -341,8 +340,8 @@ class DataframeDeserializer(Serializer):
         if names is not None:
             self.header = 0
 
-    def __call__(self, data: bytes) -> pd.DataFrame:
-        if self.encoding is None:
+    def __call__(self, data: Union[str, bytes]) -> pd.DataFrame:
+        if isinstance(data, str):
             # treat data as string
             stream = io.StringIO(data)
         else:
@@ -378,7 +377,7 @@ class NumpySerializer(Serializer):
 
     def __init__(
         self,
-        data: ANDArray,
+        data: np.ndarray,
         measurement: str,
         time_key: str = None,
         tag_keys: List[str] = [],
@@ -543,7 +542,7 @@ class NumpyDeserializer(Serializer):
         self.converters = converters
         self.sort_values = sort_values
 
-    def __call__(self, data: bytes) -> ANDArray:
+    def __call__(self, data: bytes) -> np.ndarray:
         if self.encoding:
             stream = io.StringIO(data.decode(self.encoding))
         else:
