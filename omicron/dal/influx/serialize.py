@@ -3,10 +3,10 @@ import io
 import itertools
 import math
 import re
-import time
 from email.generator import Generator
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import arrow
 import numpy as np
 import pandas as pd
 from numpy.typing import ANDArray
@@ -380,7 +380,7 @@ class NumpySerializer(Serializer):
         self,
         data: ANDArray,
         measurement: str,
-        time_key: str,
+        time_key: str = None,
         tag_keys: List[str] = [],
         global_tags: Dict[str, Any] = {},
         time_precision: str = "s",
@@ -405,7 +405,7 @@ class NumpySerializer(Serializer):
         Args:
             data: the numpy structured array to be serialized.
             measurement : name of the measurement
-            time_key: from which column to get the timestamp.
+            time_key: from which column to get the timestamp. if None, then server decides the timestamp of the record
             tag_keys : columns in dataframe which should be considered as tag columns
             global_tags : static tags, which will be added to every row.
             time_precision : precision for time field.
@@ -423,20 +423,21 @@ class NumpySerializer(Serializer):
             time_precision, 1
         )
 
-        data = data.copy()
-        if np.issubdtype(data[time_key].dtype, np.datetime64):
-            data[time_key] = (
-                data[time_key].astype("M8[ns]").astype(int) / precision_factor
-            )
-        elif isinstance(data[time_key][0], datetime.date):
-            factor = 1e9 / precision_factor
-            data[time_key] = [
-                time.mktime(x.timetuple()) * factor for x in data[time_key]
-            ]
-        else:
-            raise TypeError(
-                f"unsupported data type: expected datetime64 or date, got {type(data[time_key][0])}"
-            )
+        if time_key is not None:
+            data = data.copy()
+            if np.issubdtype(data[time_key].dtype, np.datetime64):
+                data[time_key] = (
+                    data[time_key].astype("M8[ns]").astype(int) / precision_factor
+                )
+            elif isinstance(data[time_key][0], datetime.date):
+                factor = 1e9 / precision_factor
+                data[time_key] = [
+                    arrow.get(x).timestamp * factor for x in data[time_key]
+                ]
+            else:
+                raise TypeError(
+                    f"unsupported data type: expected datetime64 or date, got {type(data[time_key][0])}"
+                )
 
         # construct format string
         # test,code=000001.XSHE a=1.1,b=2.024 631152000
@@ -458,29 +459,31 @@ class NumpySerializer(Serializer):
                 else:
                     fields.append(f'{field}="{{}}"')
 
-        global_labels = "".join(
-            f'{tag}="{value},"' for tag, value in global_tags.items()
-        )
-        self.format_string = (
-            f"{measurement},"
-            + global_labels
-            + ",".join(tags)
-            + " "
-            + ",".join(fields)
-            + " {}"
+        global_tags = ",".join(f"{tag}={value}" for tag, value in global_tags.items())
+
+        tags = ",".join(tags)
+
+        # part1: measurement and tags part
+        part1 = ",".join(filter(lambda x: len(x) > 0, [measurement, global_tags, tags]))
+
+        # part2: fields
+        part2 = ",".join(fields)
+
+        # part3: timestamp part
+        part3 = "" if time_key is None else "{}"
+
+        self.format_string = " ".join(
+            filter(lambda x: len(x) > 0, [part1, part2, part3])
         )
 
         # transform data array so it can be serialized
         output_dtype = [(name, "O") for name in itertools.chain(tag_keys, field_keys)]
+        cols = tag_keys + field_keys
 
-        output_dtype.append(("frame", "i8"))
+        if time_key is not None:
+            cols.append("frame")
+            output_dtype.append(("frame", "int64"))
 
-        # self.data = np.empty(len(data), dtype=output_dtype)
-
-        # for col in self.tag_columns + self.field_columns:
-        #     self.data[col] = data[col]
-
-        cols = tag_keys + field_keys + [time_key]
         self.data = data[cols].astype(output_dtype)
 
     def _get_lines(self, data):

@@ -125,11 +125,10 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             columns=["code", "a", "b", "name"],
             index=[datetime.datetime(1990, 1, 1), datetime.datetime(1990, 1, 2)],
         )
-
-        serializer = DataframeSerializer(df, "test", tag_keys="code", chunk_size=1)
+        serializer = DataframeSerializer(df, "test", tag_keys="code")
 
         actual = []
-        for lp in serializer.serialize():
+        for lp in serializer.serialize(1):
             actual.append(lp)
 
         expected = [
@@ -225,7 +224,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-        exp = "test, amount=1e+08,close=5.2,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
+        exp = "test amount=1e+08,close=5.2,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
 
         for lines in serializer.serialize(len(bars)):
             self.assertEqual(exp, lines)
@@ -233,8 +232,24 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         # no precisions
         serializer = NumpySerializer(bars, "test", "frame")
 
-        exp = "test, amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
+        exp = "test amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
 
         for lines in serializer.serialize(len(bars)):
             print(lines)
             self.assertEqual(exp, lines)
+
+        # no tm_key
+        serializer = NumpySerializer(bars, "test")
+
+        for actual in serializer.serialize(len(bars)):
+            exp = 'test amount=1e+08,close=5.15,factor=1.23,frame="2019-01-01",high=5.2,low=5.0,open=5.1,volume=1e+06'
+            self.assertEqual(exp, actual)
+
+        # global keys
+        serializer = NumpySerializer(
+            bars, "test", "frame", global_tags={"code": "000002.XSHE"}
+        )
+
+        for actual in serializer.serialize(len(bars)):
+            exp = "test,code=000002.XSHE amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546272000"
+            self.assertEqual(exp, actual)
