@@ -14,7 +14,7 @@ class Flux(object):
 
     EPOCH_START = datetime.datetime(1970, 1, 1, 0, 0, 0)
 
-    def __init__(self, enable_pivot=True):
+    def __init__(self, auto_pivot=True):
         """初始化Flux对象
 
         Args:
@@ -22,7 +22,7 @@ class Flux(object):
         """
         self._cols = None
         self.expressions = defaultdict(list)
-        self._enable_pivot = enable_pivot
+        self._auto_pivot = auto_pivot
 
     def __str__(self):
         return self._compose()
@@ -46,7 +46,7 @@ class Flux(object):
         if self.expressions.get("fields"):
             expr.append(self.expressions["fields"])
 
-        if self._enable_pivot and "pivot" not in self.expressions:
+        if self._auto_pivot and "pivot" not in self.expressions:
             self.pivot()
 
         if self.expressions.get("pivot"):
@@ -354,7 +354,7 @@ class Flux(object):
         now = datetime.datetime.now()
         return {
             "start": Flux.EPOCH_START,
-            "stop": now.isoformat(timespec="nanoseconds") + "Z",
+            "stop": now.isoformat(timespec="microseconds") + "Z",
             "predicate": f'_measurement="{measurement}"',
         }
 
