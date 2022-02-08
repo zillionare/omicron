@@ -59,20 +59,17 @@ class PerssidentInfluxDb(object):
     ):
         if not data_frame_measurement_name or not len(sequence):
             return
-        fields = set(fields) - set(["code", "frame", "frame_type"])
+        fields = (set(fields) - set(["code", "frame", "frame_type"])) & set(
+            sequence.dtype.names
+        )
         points = []
         for recs in sequence:
             data = {}
             item = dict(zip(sequence.dtype.names, recs))
-            field_values = {}
-            for field in fields:
-                value = item.get(field)
-                if value is not None:
-                    field_values[field] = value
             data["fields"] = ",".join(
                 map(
-                    lambda x: "{field}={value}".format(field=x, value=field_values[x]),
-                    field_values,
+                    lambda x: "{field}={value}".format(field=x, value=item.get(x)),
+                    fields,
                 )
             )
             data["frame"] = arrow.get(item["frame"]).timestamp

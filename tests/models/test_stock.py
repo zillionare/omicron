@@ -10,6 +10,7 @@ import omicron
 from omicron.dal import cache, influxdb
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock
+from omicron.models.timeframe import TimeFrame
 from tests import assert_bars_equal, init_test_env
 
 
@@ -489,6 +490,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
     async def test_get_cached_bars(self):
         """cache_bars, cache_unclosed_bars are tested also"""
         await Stock.reset_cache()
+        await cache._sys_.delete("second_data_source")
 
         # 当cache为空时，应该返回空数组
 
@@ -665,6 +667,39 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(False, "此处应该报告调用参数错误")
         except AssertionError:
             pass
+
+        await cache._sys_.set("second_data_source", "ht")
+        second_data_source = await cache._sys_.get("second_data_source")
+        key = f"{second_data_source}bars:{FrameType.MIN1.value}:{'000001.XSHE'}"
+        pl = cache.security.pipeline()
+        for bar in data:
+            val = [*bar]
+            val[0] = TimeFrame.time2int(val[0])
+            pl.hset(key, val[0], ",".join(map(str, val)))
+
+        await pl.execute()
+
+        end = datetime.datetime(2022, 1, 10, 9, 46)
+        bars = await Stock._get_cached_bars(
+            "000001.XSHE", end, 10, FrameType.MIN15, unclosed=False
+        )
+        exp_data = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 10, 9, 45),
+                    17.29,
+                    17.42,
+                    17.08,
+                    17.13,
+                    35288700.0,
+                    6.09085805e08,
+                    121.71913,
+                )
+            ],
+            dtype=stock_bars_dtype,
+        )
+        assert_bars_equal(exp_data, bars)
+        await cache._sys_.delete("second_data_source")
 
     async def test_get_bars(self):
         await Stock.reset_cache()

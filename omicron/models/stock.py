@@ -554,10 +554,11 @@ class Stock:
 
         _n = n if frame_type in TimeFrame.day_level_frames else 240
         raw = []
+        second_data_source = await cache._sys_.get("second_data_source") or ""
         if frame_type in TimeFrame.day_level_frames:
             convert = TimeFrame.int2date
             if unclosed:
-                key = f"bars:{frame_type.value}:unclosed"
+                key = f"{second_data_source}bars:{frame_type.value}:unclosed"
                 r1 = await cache.security.hget(key, code)
                 if r1 is None:
                     return None
@@ -569,7 +570,7 @@ class Stock:
                 ), f"bad parameters: FrameType[{frame_type}] + unclosed[{unclosed}] will always yield no result."
         else:
             convert = TimeFrame.int2time
-            key = f"bars:{FrameType.MIN1.value}:{code}"
+            key = f"{second_data_source}bars:{FrameType.MIN1.value}:{code}"
             end_ = TimeFrame.floor(end, FrameType.MIN1)
             frames = map(str, TimeFrame.get_frames_by_count(end_, _n, FrameType.MIN1))
             r1 = await cache.security.hmget(key, *frames)
