@@ -1,6 +1,7 @@
 import datetime
 import unittest
-from ctypes.wintypes import tagSIZE
+
+import numpy as np
 
 from omicron.core.errors import DuplicateOperationError
 from omicron.dal.influx.flux import Flux
@@ -140,7 +141,7 @@ class FluxTest(unittest.TestCase):
             '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))',
             '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
-            '  |> keep(columns: ["_time","close","high","low","open"])',
+            '  |> keep(columns: ["close","high","low","open","_time"])',
             "  |> limit(n: 10)",
         ]
         actual = str(flux).split("\n")
@@ -172,6 +173,9 @@ class FluxTest(unittest.TestCase):
                 {"code": "000001.XSHE"}
             )
 
+        with self.assertRaises(DuplicateOperationError):
+            flux.keep().keep()
+
         # test if fields has been set, then keep will use field without passing columns
         flux = Flux()
         flux.fields(["open", "close", "high", "low"]).keep()
@@ -194,3 +198,22 @@ class FluxTest(unittest.TestCase):
             "predicate": '_measurement="unittest" AND code = "000001.XSHE" AND name = "平安" AND name = "平安银行"',
         }
         self.assertDictEqual(expected, cmd)
+
+    def test_to_timestamp(self):
+        tm = "2022-02-08T01:02:03"
+
+        expected = [1644282123, 1644282123000, 1644282123000000]
+        for i, p in enumerate(["s", "ms", "us"]):
+            self.assertEqual(expected[i], Flux.to_timestamp(tm, p))
+
+        tm = datetime.datetime(2022, 2, 8, 1, 2, 3).replace(
+            tzinfo=datetime.timezone.utc
+        )
+        expected = [1644282123, 1644282123000, 1644282123000000]
+        for i, p in enumerate(["s", "ms", "us"]):
+            self.assertEqual(expected[i], Flux.to_timestamp(tm, p))
+
+        tm = np.datetime64("2022-02-08T01:02:03")
+        expected = [1644282123, 1644282123000, 1644282123000000]
+        for i, p in enumerate(["s", "ms", "us"]):
+            self.assertEqual(expected[i], Flux.to_timestamp(tm, p))

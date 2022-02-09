@@ -4,13 +4,14 @@ import itertools
 import math
 import re
 from email.generator import Generator
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Union
 
 import arrow
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
+from omicron.core.errors import SerializationError
 from omicron.dal.influx.escape import KEY_ESCAPE, MEASUREMENT_ESCAPE, STR_ESCAPE
 
 
@@ -43,6 +44,7 @@ class DataframeSerializer:
         self,
         data_frame: DataFrame,
         measurement: str,
+        time_key: str = None,
         tag_keys: Union[str, List[str]] = [],
         global_tags: Dict = {},
         precision="s",
@@ -63,6 +65,7 @@ class DataframeSerializer:
         Args:
             data_frame: DataFrame to be serialized.
             measurement: measurement name.
+            time_key: the name of time column, which will be used as timestamp. If it's None, then the index will be used as timestamp.
             tag_keys: List of tag keys.
             global_tags: global tags to be added to every row.
             precision: precision for write.
@@ -114,6 +117,13 @@ class DataframeSerializer:
             )
 
         data_frame = data_frame.copy(deep=False)
+        if time_key is not None:
+            assert (
+                time_key in data_frame.columns
+            ), f"time_key {time_key} not in data_frame"
+
+            data_frame.set_index(time_key, inplace=True)
+
         if isinstance(data_frame.index, pd.PeriodIndex):
             data_frame.index = data_frame.index.to_timestamp()
 
@@ -296,6 +306,8 @@ class DataframeDeserializer(Serializer):
 
         use `usecols` to specify the columns to read, and `names` to specify the column names (i.e., rename the columns), otherwise, the column names will be inferred from the first line.
 
+        when `names` is specified, it has to be as same length as actual columns of the data. If this caused column renam, then you should always use column name specified in `names` to access the data(for example, in `usecols`).
+
         Args:
             sort_values: sort the dataframe by the specified columns
             encoding: if the data is bytes, then encoding is required, due to pandas.read_csv only handle string array
@@ -440,7 +452,6 @@ class NumpySerializer(Serializer):
 
         # construct format string
         # test,code=000001.XSHE a=1.1,b=2.024 631152000
-        tags = [f"{tag}={{}}" for tag in tag_keys]
 
         fields = []
         for field in field_keys:
@@ -460,6 +471,7 @@ class NumpySerializer(Serializer):
 
         global_tags = ",".join(f"{tag}={value}" for tag, value in global_tags.items())
 
+        tags = [f"{tag}={{}}" for tag in tag_keys]
         tags = ",".join(tags)
 
         # part1: measurement and tags part
@@ -496,41 +508,41 @@ class NumpySerializer(Serializer):
 class NumpyDeserializer(Serializer):
     def __init__(
         self,
-        dtype: Union[dict, List[tuple]] = "float",
+        dtype: List[tuple] = "float",
         sort_values: Union[str, List[str]] = None,
-        use_cols: Union[List[int], List[str]] = None,
+        use_cols: Union[List[str], List[int]] = None,
         sep: str = ",",
-        encoding: str = None,
-        skip_rows: Union[int, List[int]] = 0,
+        encoding: str = "utf-8",
+        skip_rows: Union[int, List[int]] = 1,
+        header_line: int = 1,
         comments: str = "#",
         converters: Dict[str, Callable] = None,
     ):
         """construct a deserializer, which will convert a csv like multiline string/bytes array to a numpy array
 
-        dtype默认为float。如果反序列化后的对象是一个numpy structured array,则dtype可以设置为以下两种：
+        the data to be deserialized will be split into array of fields, then use use_cols to select which fields to use, and re-order them by the order of use_cols. After that, the fields will be converted to numpy array and converted into dtype.
 
-        by default dtype is float, which means the data will be converted to float. If you need to convert to a numpy structured array, then dtype could be one of the following format:
+        by default dtype is float, which means the data will be converted to float. If you need to convert to a numpy structured array, then you can specify the dtype as a list of tuples, e.g.
 
         ```
         dtype = [('col_1', 'datetime64[s]'), ('col_2', '<U12'), ('col_3', '<U4')]
 
         ```
-        or
-
-        ```
-        dtype = {
-            "names": ("col1", "col2", "col3"),
-            "formats": ("datetime64[s]", "O", "float"),
-        }
-        ```
-
-        if the `data` to be converted is a bytes array, then you should pass in the encoding to decode the bytes array.
 
         by default, the deserializer will try to convert every line from the very first line, if the very first lines contains comments and headers, these lines should be skipped by deserializer, you should set skip_rows to number of lines to skip.
 
-        if you don't like to convert every column, you can set use_cols to a list of column names, to keep only those columns. If you do so and specified complex dtype, then the dtype and columns should be aligned.
-
         for more information, please refer to [numpy.loadtxt](https://numpy.org/doc/stable/reference/generated/numpy.loadtxt.html)
+
+        Args:
+            dtype: dtype of the output numpy array.
+            sort_values: sort the output numpy array by the specified columns. If it's a string, then it's the name of the column, if it's a list of strings, then it's the names of the columns.
+            use_cols: use only the specified columns. If it's a list of strings, then it's the names of the columns, if it's a list of integers, then it's the column index.
+            sep: separator of each field
+            encoding: if the input is bytes, then encoding is used to decode the bytes to string.
+            skip_rows: required by np.loadtxt, skip the first n lines
+            header_line: which line contains header, started from 1. If you specify use_cols by list of string, then header line must be specified.
+            comments: required by np.loadtxt, skip the lines starting with this string
+            converters: required by np.loadtxt, a dict of column name to converter function.
 
         """
         self.dtype = dtype
@@ -542,11 +554,29 @@ class NumpyDeserializer(Serializer):
         self.converters = converters
         self.sort_values = sort_values
 
+        if use_cols is not None and isinstance(use_cols[0], str):
+            self._convert_use_col = True
+            self.header_line = header_line
+        else:
+            self._convert_use_col = False
+
     def __call__(self, data: bytes) -> np.ndarray:
-        if self.encoding:
+        if self.encoding and isinstance(data, bytes):
             stream = io.StringIO(data.decode(self.encoding))
         else:
             stream = io.StringIO(data)
+
+        if self._convert_use_col:
+            try:
+                line = stream.readlines(self.header_line)[-1]
+                cols = line.strip().split(self.sep)
+                self.use_cols = [cols.index(col) for col in self.use_cols]
+                self._convert_use_col = False
+                stream.seek(0)
+            except (IndexError, ValueError):
+                raise SerializationError(
+                    f"incorrect header[{self.header_line}]: {line}"
+                )
 
         arr = np.loadtxt(
             stream.readlines(),
@@ -557,7 +587,7 @@ class NumpyDeserializer(Serializer):
             converters=self.converters,
         )
 
-        if self.sort_values is not None:
+        if self.sort_values is not None and arr.size > 1:
             return np.sort(arr, order=self.sort_values)
         else:
             return arr

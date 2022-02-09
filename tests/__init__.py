@@ -5,7 +5,7 @@ import os
 import aioredis
 import cfg4py
 import numpy as np
-from coretypes import FrameType, stock_bars_dtype
+from coretypes import FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 cfg = cfg4py.get_instance()
@@ -5735,7 +5735,7 @@ def assert_bars_equal(exp, actual):
 
     assert_array_equal(exp["frame"], actual["frame"])
 
-    for field, _ in stock_bars_dtype:
+    for field, _ in bars_dtype:
         if field == "frame":
             continue
         assert_array_almost_equal(exp[field], actual[field], decimal=2)

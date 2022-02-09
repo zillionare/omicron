@@ -16,10 +16,11 @@ STR_ESCAPE = str.maketrans({"\\": "\\\\", '"': r"\"", "\n": ""})
 MEASUREMENT_ESCAPE = str.maketrans({"\\": "\\\\", ",": r"\,", " ": r"\ ", "\n": ""})
 
 
-def escape(string, escape_pattern):
-    """Assistant function for string escaping"""
-    try:
-        return string.translate(escape_pattern)
-    except AttributeError:
-        warnings.warn("Non-string-like data passed. " "Attempting to convert to 'str'.")
-        return str(string).translate(escape_pattern)
+def escape(string: str, escape_pattern):
+    """Assistant function for string escaping
+
+    Args:
+        string: string to be escaped
+        escape_pattern: str.maketrans() pattern
+    """
+    return string.translate(escape_pattern)

@@ -1,23 +1,79 @@
 import datetime
-import time
 import unittest
+from collections import defaultdict
 from unittest import mock
 
 import arrow
+import cfg4py
 import numpy as np
-from coretypes import FrameType, SecurityType, bars_with_limit_dtype, stock_bars_dtype
+import pandas as pd
+from coretypes import (
+    FrameType,
+    SecurityType,
+    bars_dtype,
+    bars_with_limit_cols,
+    bars_with_limit_dtype,
+)
 
 import omicron
-from omicron.dal import cache, influxdb
+from omicron.dal import cache
+from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock
 from tests import assert_bars_equal, init_test_env
+
+cfg = cfg4py.get_instance()
+
+
+def mock_bars(start, n=100):
+    mock_data = defaultdict(list)
+    start = arrow.get(start)
+    for i in range(n):
+        mock_data[f"00000{i%5+1}.XSHE"].append(
+            (start.shift(minutes=i).naive, 0.1, 0.2, 0.09, 0.15, 1e8, 1e10, 1.234)
+        )
+
+    for code, bars in mock_data.items():
+        mock_data[code] = np.array(bars, dtype=bars_dtype)
+    return mock_data
+
+
+def mock_bars_with_limit(start, n=100):
+    mock_data = defaultdict(list)
+    start = arrow.get(start)
+    for i in range(n):
+        mock_data[f"00000{i%5+1}.XSHE"].append(
+            (
+                start.shift(minutes=i).naive,
+                0.1,
+                0.2,
+                0.09,
+                0.15,
+                1e8,
+                1e10,
+                1.234,
+                0.11,
+                0.01,
+            )
+        )
+
+    for code, bars in mock_data.items():
+        mock_data[code] = np.array(bars, dtype=bars_with_limit_dtype)
+    return mock_data
 
 
 class StockTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         await init_test_env()
         await omicron.init()
+
+        url, token, bucket, org = (
+            cfg.influxdb.url,
+            cfg.influxdb.token,
+            cfg.influxdb.bucket_name,
+            cfg.influxdb.org,
+        )
+        self.client = InfluxClient(url, token, bucket, org)
         return super().setUp()
 
     async def asyncTearDown(self) -> None:
@@ -420,72 +476,72 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         except ValueError as e:
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
-    async def test_persist_bars(self):
-        response = influxdb.client.buckets_api().find_buckets()
+    # async def test_persist_bars(self):
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
-        influxdb.client.buckets_api().create_bucket(
-            bucket_name=influxdb.bucket_name, org=influxdb.org
-        )
-        code = "000001.XSHE"
-        bars = np.array(
-            [
-                (
-                    datetime.datetime(2022, 1, 7, 10, 0),
-                    17.1,
-                    17.28,
-                    17.06,
-                    17.2,
-                    1.1266307e08,
-                    1.93771096e09,
-                    18.83,
-                    15.41,
-                    1.0,
-                    code,
-                    6,
-                ),
-                (
-                    datetime.datetime(2022, 1, 6, 10, 0),
-                    17.1,
-                    17.28,
-                    17.06,
-                    17.2,
-                    1.1266307e08,
-                    1.93771096e09,
-                    18.83,
-                    15.41,
-                    1.0,
-                    code,
-                    6,
-                ),
-            ],
-            dtype=bars_with_limit_dtype,
-        )
-        await Stock.persist_bars(FrameType.DAY, bars)
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
+    #     influxdb.client.buckets_api().create_bucket(
+    #         bucket_name=influxdb.bucket_name, org=influxdb.org
+    #     )
+    #     code = "000001.XSHE"
+    #     bars = np.array(
+    #         [
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 10, 0),
+    #                 17.1,
+    #                 17.28,
+    #                 17.06,
+    #                 17.2,
+    #                 1.1266307e08,
+    #                 1.93771096e09,
+    #                 18.83,
+    #                 15.41,
+    #                 1.0,
+    #                 code,
+    #                 6,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 6, 10, 0),
+    #                 17.1,
+    #                 17.28,
+    #                 17.06,
+    #                 17.2,
+    #                 1.1266307e08,
+    #                 1.93771096e09,
+    #                 18.83,
+    #                 15.41,
+    #                 1.0,
+    #                 code,
+    #                 6,
+    #             ),
+    #         ],
+    #         dtype=bars_with_limit_dtype,
+    #     )
+    #     await Stock.persist_bars(FrameType.DAY, bars)
 
-        recs: np.array = await Stock._get_persisted_bars(
-            code=code, end=arrow.get("2022-01-06 10:00:00")
-        )
-        data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
-        self.assertEqual(
-            data["frame"].strftime("%Y-%m-%d %H:%M:%S"), "2022-01-06 10:00:00"
-        )
+    #     recs: np.array = await Stock._get_persisted_bars(
+    #         code=code, end=arrow.get("2022-01-06 10:00:00")
+    #     )
+    #     data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
+    #     self.assertEqual(
+    #         data["frame"].strftime("%Y-%m-%d %H:%M:%S"), "2022-01-06 10:00:00"
+    #     )
 
-        recs: np.array = await Stock._get_persisted_bars(
-            code="000002.XSHE", end=arrow.get("2022-01-14")
-        )
-        self.assertFalse(len(recs))
+    #     recs: np.array = await Stock._get_persisted_bars(
+    #         code="000002.XSHE", end=arrow.get("2022-01-14")
+    #     )
+    #     self.assertFalse(len(recs))
 
-        recs: np.array = await Stock._get_persisted_bars(end=arrow.get("2022-01-14"))
-        self.assertTrue(len(recs))
+    #     recs: np.array = await Stock._get_persisted_bars(end=arrow.get("2022-01-14"))
+    #     self.assertTrue(len(recs))
 
-        response = influxdb.client.buckets_api().find_buckets()
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
 
     async def test_get_cached_bars(self):
         """cache_bars, cache_unclosed_bars are tested also"""
@@ -497,7 +553,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         bars = await Stock._get_cached_bars(
             "000001.XSHE", end, 10, FrameType.MIN5, unclosed=True
         )
-        self.assertEqual(len(bars), 0)
+        self.assertEqual(bars.size, 0)
 
         bars = await Stock._get_cached_bars(
             "000001.XSHE", end, 10, FrameType.MIN1, unclosed=False
@@ -538,7 +594,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 ),
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         await Stock.cache_bars("000001.XSHE", FrameType.MIN1, data)
@@ -567,7 +623,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 ),
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
         assert_bars_equal(exp_data, bars)
 
@@ -609,7 +665,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 )
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         await Stock.cache_unclosed_bars("000001.XSHE", FrameType.MIN15, unclosed)
@@ -726,7 +782,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 ),
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         cache_unclosed_bars = np.array(
@@ -742,7 +798,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 )
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         await Stock.cache_bars(code, FrameType.MIN1, cache_bars)
@@ -832,7 +888,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 ),
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         # 1. end is None, 取当前时间作为end.
@@ -1251,7 +1307,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 )
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         assert_bars_equal(exp, bars)
@@ -1277,339 +1333,339 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     121.71913,
                 )
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
         assert_bars_equal(exp, bars)
 
-    async def test_get_limits_in_range(self):
-        response = influxdb.client.buckets_api().find_buckets()
+    # async def test_get_limits_in_range(self):
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
-        influxdb.client.buckets_api().create_bucket(
-            bucket_name=influxdb.bucket_name, org=influxdb.org
-        )
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
+    #     influxdb.client.buckets_api().create_bucket(
+    #         bucket_name=influxdb.bucket_name, org=influxdb.org
+    #     )
 
-        now = datetime.datetime.now().date()
-        code = "000001.XSHE"
+    #     now = datetime.datetime.now().date()
+    #     code = "000001.XSHE"
 
-        bars = np.array(
-            [
-                (
-                    datetime.datetime(2022, 1, 7, 10, 0),
-                    17.1,
-                    17.28,
-                    17.06,
-                    17.8,
-                    1.1266307e08,
-                    1.93771096e09,
-                    18.83,
-                    15.41,
-                    1.0,
-                    code,
-                    6,
-                ),
-                (
-                    datetime.datetime(2022, 1, 6, 10, 0),
-                    17.1,
-                    17.28,
-                    17.06,
-                    17.2,
-                    1.1266307e08,
-                    1.93771096e09,
-                    18.83,
-                    15.41,
-                    1.0,
-                    code,
-                    6,
-                ),
-            ],
-            dtype=bars_with_limit_dtype,
-        )
-        await Stock.persist_bars(FrameType.DAY, bars)
+    #     bars = np.array(
+    #         [
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 10, 0),
+    #                 17.1,
+    #                 17.28,
+    #                 17.06,
+    #                 17.8,
+    #                 1.1266307e08,
+    #                 1.93771096e09,
+    #                 18.83,
+    #                 15.41,
+    #                 1.0,
+    #                 code,
+    #                 6,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 6, 10, 0),
+    #                 17.1,
+    #                 17.28,
+    #                 17.06,
+    #                 17.2,
+    #                 1.1266307e08,
+    #                 1.93771096e09,
+    #                 18.83,
+    #                 15.41,
+    #                 1.0,
+    #                 code,
+    #                 6,
+    #             ),
+    #         ],
+    #         dtype=bars_with_limit_dtype,
+    #     )
+    #     await Stock.persist_bars(FrameType.DAY, bars)
 
-        result = await Stock.get_limits_in_range(
-            code,
-            begin=arrow.get("2022-01-06").date(),
-            end=arrow.get("2022-01-07").date(),
-        )
-        self.assertTrue(len(result))
+    #     result = await Stock.get_limits_in_range(
+    #         code,
+    #         begin=arrow.get("2022-01-06").date(),
+    #         end=arrow.get("2022-01-07").date(),
+    #     )
+    #     self.assertTrue(len(result))
 
-        result = await Stock.get_limits_in_range(
-            code,
-            begin=arrow.get("2022-01-06").date(),
-            end=now + datetime.timedelta(days=1),
-        )
-        self.assertEqual(len(result), 3)
-        self.assertAlmostEqual(result[0][3], 19.57, delta=0.1)
-        self.assertAlmostEqual(result[0][4], 16.01, delta=0.1)
+    #     result = await Stock.get_limits_in_range(
+    #         code,
+    #         begin=arrow.get("2022-01-06").date(),
+    #         end=now + datetime.timedelta(days=1),
+    #     )
+    #     self.assertEqual(len(result), 3)
+    #     self.assertAlmostEqual(result[0][3], 19.57, delta=0.1)
+    #     self.assertAlmostEqual(result[0][4], 16.01, delta=0.1)
 
-        await cache._security_.hset("high_low_limit", f"{code}.high_limit", 100)
-        await cache._security_.hset("high_low_limit", f"{code}.low_limit", 80)
+    #     await cache._security_.hset("high_low_limit", f"{code}.high_limit", 100)
+    #     await cache._security_.hset("high_low_limit", f"{code}.low_limit", 80)
 
-        result = await Stock.get_limits_in_range(
-            code,
-            begin=arrow.get("2022-01-06").date(),
-            end=now + datetime.timedelta(days=1),
-        )
-        self.assertEqual(len(result), 3)
-        self.assertAlmostEqual(result[0][3], 100)
-        self.assertAlmostEqual(result[0][4], 80)
+    #     result = await Stock.get_limits_in_range(
+    #         code,
+    #         begin=arrow.get("2022-01-06").date(),
+    #         end=now + datetime.timedelta(days=1),
+    #     )
+    #     self.assertEqual(len(result), 3)
+    #     self.assertAlmostEqual(result[0][3], 100)
+    #     self.assertAlmostEqual(result[0][4], 80)
 
-        await cache._security_.delete("high_low_limit")
+    #     await cache._security_.delete("high_low_limit")
 
-        result = await Stock.get_limits_in_range(
-            "999999.XXXX",
-            begin=arrow.get("2022-01-06").date(),
-            end=now + datetime.timedelta(days=1),
-        )
-        self.assertFalse(len(result))
+    #     result = await Stock.get_limits_in_range(
+    #         "999999.XXXX",
+    #         begin=arrow.get("2022-01-06").date(),
+    #         end=now + datetime.timedelta(days=1),
+    #     )
+    #     self.assertFalse(len(result))
 
-        response = influxdb.client.buckets_api().find_buckets()
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
 
-    async def test_get_bars_in_range(self):
-        await Stock.reset_cache()
-        response = influxdb.client.buckets_api().find_buckets()
+    # async def test_get_bars_in_range(self):
+    #     await Stock.reset_cache()
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
-        influxdb.client.buckets_api().create_bucket(
-            bucket_name=influxdb.bucket_name, org=influxdb.org
-        )
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
+    #     influxdb.client.buckets_api().create_bucket(
+    #         bucket_name=influxdb.bucket_name, org=influxdb.org
+    #     )
 
-        ft = FrameType.MIN1
-        # len == 5
-        cache_bars = np.array(
-            [
-                (
-                    datetime.datetime(2022, 1, 10, 9, 31),
-                    17.29,
-                    17.42,
-                    17.16,
-                    17.18,
-                    23069200.0,
-                    3.99426730e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 10, 9, 32),
-                    17.17,
-                    17.27,
-                    17.08,
-                    17.13,
-                    12219500.0,
-                    2.09659075e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 10, 9, 33),
-                    17.14,
-                    17.15,
-                    17.03,
-                    17.04,
-                    11106800.0,
-                    1.89643093e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 10, 9, 34),
-                    17.05,
-                    17.12,
-                    17.05,
-                    17.09,
-                    3352900.0,
-                    5.72981150e07,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 10, 9, 35),
-                    17.08,
-                    17.19,
-                    17.07,
-                    17.14,
-                    3150400.0,
-                    5.39887270e07,
-                    121.71913,
-                ),
-            ],
-            dtype=stock_bars_dtype,
-        )
+    #     ft = FrameType.MIN1
+    #     # len == 5
+    #     cache_bars = np.array(
+    #         [
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 31),
+    #                 17.29,
+    #                 17.42,
+    #                 17.16,
+    #                 17.18,
+    #                 23069200.0,
+    #                 3.99426730e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 32),
+    #                 17.17,
+    #                 17.27,
+    #                 17.08,
+    #                 17.13,
+    #                 12219500.0,
+    #                 2.09659075e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 33),
+    #                 17.14,
+    #                 17.15,
+    #                 17.03,
+    #                 17.04,
+    #                 11106800.0,
+    #                 1.89643093e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 34),
+    #                 17.05,
+    #                 17.12,
+    #                 17.05,
+    #                 17.09,
+    #                 3352900.0,
+    #                 5.72981150e07,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 35),
+    #                 17.08,
+    #                 17.19,
+    #                 17.07,
+    #                 17.14,
+    #                 3150400.0,
+    #                 5.39887270e07,
+    #                 121.71913,
+    #             ),
+    #         ],
+    #         dtype=bars_dtype,
+    #     )
 
-        cache_unclosed_bars = np.array(
-            [
-                (
-                    datetime.datetime(2022, 1, 10, 9, 36),
-                    17.14,
-                    17.17,
-                    17.14,
-                    17.15,
-                    376200.0,
-                    6.45355700e06,
-                    121.71913,
-                )
-            ],
-            dtype=stock_bars_dtype,
-        )
-        for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
-            await Stock.cache_bars(code, FrameType.MIN1, cache_bars)
-            await Stock.cache_unclosed_bars(code, FrameType.MIN1, cache_unclosed_bars)
+    #     cache_unclosed_bars = np.array(
+    #         [
+    #             (
+    #                 datetime.datetime(2022, 1, 10, 9, 36),
+    #                 17.14,
+    #                 17.17,
+    #                 17.14,
+    #                 17.15,
+    #                 376200.0,
+    #                 6.45355700e06,
+    #                 121.71913,
+    #             )
+    #         ],
+    #         dtype=bars_dtype,
+    #     )
+    #     for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
+    #         await Stock.cache_bars(code, FrameType.MIN1, cache_bars)
+    #         await Stock.cache_unclosed_bars(code, FrameType.MIN1, cache_unclosed_bars)
 
-        # len == 8
-        persist_bars = np.array(
-            [
-                (
-                    datetime.datetime(2022, 1, 7, 13, 15),
-                    17.24,
-                    17.28,
-                    17.24,
-                    17.26,
-                    7509700.0,
-                    1.29655754e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 13, 30),
-                    17.25,
-                    17.26,
-                    17.17,
-                    17.19,
-                    6348400.0,
-                    1.09249162e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 13, 45),
-                    17.18,
-                    17.22,
-                    17.16,
-                    17.2,
-                    2748100.0,
-                    4.72354460e07,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 14, 0),
-                    17.19,
-                    17.2,
-                    17.17,
-                    17.2,
-                    3153700.0,
-                    5.42049370e07,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 14, 15),
-                    17.19,
-                    17.23,
-                    17.19,
-                    17.22,
-                    5729200.0,
-                    9.86084270e07,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 14, 30),
-                    17.22,
-                    17.25,
-                    17.2,
-                    17.22,
-                    6729300.0,
-                    1.15946564e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 14, 45),
-                    17.21,
-                    17.23,
-                    17.17,
-                    17.18,
-                    7203100.0,
-                    1.23899524e08,
-                    121.71913,
-                ),
-                (
-                    datetime.datetime(2022, 1, 7, 15, 0),
-                    17.16,
-                    17.2,
-                    17.15,
-                    17.2,
-                    8683800.0,
-                    1.49181676e08,
-                    121.71913,
-                ),
-            ],
-            dtype=stock_bars_dtype,
-        )
+    #     # len == 8
+    #     persist_bars = np.array(
+    #         [
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 13, 15),
+    #                 17.24,
+    #                 17.28,
+    #                 17.24,
+    #                 17.26,
+    #                 7509700.0,
+    #                 1.29655754e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 13, 30),
+    #                 17.25,
+    #                 17.26,
+    #                 17.17,
+    #                 17.19,
+    #                 6348400.0,
+    #                 1.09249162e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 13, 45),
+    #                 17.18,
+    #                 17.22,
+    #                 17.16,
+    #                 17.2,
+    #                 2748100.0,
+    #                 4.72354460e07,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 14, 0),
+    #                 17.19,
+    #                 17.2,
+    #                 17.17,
+    #                 17.2,
+    #                 3153700.0,
+    #                 5.42049370e07,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 14, 15),
+    #                 17.19,
+    #                 17.23,
+    #                 17.19,
+    #                 17.22,
+    #                 5729200.0,
+    #                 9.86084270e07,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 14, 30),
+    #                 17.22,
+    #                 17.25,
+    #                 17.2,
+    #                 17.22,
+    #                 6729300.0,
+    #                 1.15946564e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 14, 45),
+    #                 17.21,
+    #                 17.23,
+    #                 17.17,
+    #                 17.18,
+    #                 7203100.0,
+    #                 1.23899524e08,
+    #                 121.71913,
+    #             ),
+    #             (
+    #                 datetime.datetime(2022, 1, 7, 15, 0),
+    #                 17.16,
+    #                 17.2,
+    #                 17.15,
+    #                 17.2,
+    #                 8683800.0,
+    #                 1.49181676e08,
+    #                 121.71913,
+    #             ),
+    #         ],
+    #         dtype=bars_dtype,
+    #     )
 
-        # 1. end is None, 取当前时间作为end.
-        with mock.patch.object(
-            arrow, "now", return_value=arrow.get("2022-01-10 10:47:02")
-        ):
-            end = arrow.get("2022-01-10 10:47:02").naive
-            n = 1
-            bars = await Stock.get_bars_in_range(
-                codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
-                end=end,
-                n=n,
-                frame_type=ft,
-            )
-            self.assertEqual(
-                set(bars.keys()),
-                set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
-            )
+    #     # 1. end is None, 取当前时间作为end.
+    #     with mock.patch.object(
+    #         arrow, "now", return_value=arrow.get("2022-01-10 10:47:02")
+    #     ):
+    #         end = arrow.get("2022-01-10 10:47:02").naive
+    #         n = 1
+    #         bars = await Stock.__get_bars_in_range(
+    #             codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+    #             end=end,
+    #             n=n,
+    #             frame_type=ft,
+    #         )
+    #         self.assertEqual(
+    #             set(bars.keys()),
+    #             set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+    #         )
 
-            bars = await Stock.get_bars_in_range(
-                codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
-                end=end,
-                begin=arrow.get("2022-01-10 10:40:02").naive,
-                frame_type=ft,
-            )
-            self.assertEqual(
-                set(bars.keys()),
-                set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
-            )
+    #         bars = await Stock.__get_bars_in_range(
+    #             codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+    #             end=end,
+    #             begin=arrow.get("2022-01-10 10:40:02").naive,
+    #             frame_type=ft,
+    #         )
+    #         self.assertEqual(
+    #             set(bars.keys()),
+    #             set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+    #         )
 
-        # 2. end < ff，仅从persistent中取
-        end = datetime.datetime(2022, 1, 7, 15, 0)
-        begin = arrow.get("2022-01-07 14:45:00").naive
-        for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
-            _persist_bars = (
-                numpy_append_fields(persist_bars, "code", code, [("code", "O")]),
-            )
-            await Stock.persist_bars(ft, _persist_bars[0])
-        recs = await Stock.get_bars_in_range(
-            codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
-            end=end,
-            begin=begin,
-            frame_type=ft,
-        )
-        self.assertEqual(
-            set(recs.keys()),
-            set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
-        )
-        recs = await Stock.get_bars_in_range(
-            ["000001.XSHE"], n=7, frame_type=ft, end=end, unclosed=False
-        )
-        self.assertEqual(set(recs.keys()), set(["000001.XSHE"]))
-        self.assertEqual(len(recs["000001.XSHE"]), 7)
+    #     # 2. end < ff，仅从persistent中取
+    #     end = datetime.datetime(2022, 1, 7, 15, 0)
+    #     begin = arrow.get("2022-01-07 14:45:00").naive
+    #     for code in ["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]:
+    #         _persist_bars = (
+    #             numpy_append_fields(persist_bars, "code", code, [("code", "O")]),
+    #         )
+    #         await Stock.persist_bars(ft, _persist_bars[0])
+    #     recs = await Stock.__get_bars_in_range(
+    #         codes=["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"],
+    #         end=end,
+    #         begin=begin,
+    #         frame_type=ft,
+    #     )
+    #     self.assertEqual(
+    #         set(recs.keys()),
+    #         set(["000001.XSHE", "000001.XSHG", "000406.XSHE", "000005.XSHE"]),
+    #     )
+    #     recs = await Stock.__get_bars_in_range(
+    #         ["000001.XSHE"], n=7, frame_type=ft, end=end, unclosed=False
+    #     )
+    #     self.assertEqual(set(recs.keys()), set(["000001.XSHE"]))
+    #     self.assertEqual(len(recs["000001.XSHE"]), 7)
 
-        end = arrow.get("2022-01-10 10:47:02").naive
-        recs = await Stock.get_bars_in_range(
-            ["000001.XSHE"], begin=begin, frame_type=ft, end=end, unclosed=False
-        )
+    #     end = arrow.get("2022-01-10 10:47:02").naive
+    #     recs = await Stock.__get_bars_in_range(
+    #         ["000001.XSHE"], begin=begin, frame_type=ft, end=end, unclosed=False
+    #     )
 
-        response = influxdb.client.buckets_api().find_buckets()
+    #     response = influxdb.client.buckets_api().find_buckets()
 
-        for bucket in response.buckets:
-            if bucket.name == influxdb.bucket_name:
-                influxdb.client.buckets_api().delete_bucket(bucket)
+    #     for bucket in response.buckets:
+    #         if bucket.name == influxdb.bucket_name:
+    #             influxdb.client.buckets_api().delete_bucket(bucket)
 
     async def test_stock_ctor(self):
         payh = Stock("000001.XSHE")
@@ -1629,72 +1685,201 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("000001", payh.sim_code)
         self.assertEqual("000001", Stock.simplify_code("000001.XSHE"))
 
-    async def test_deserialize_bars_flux_batch_query(self):
-        # uncomment the following once you need more data
-        # headers = (
-        #     ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
-        # )
+    async def test_get_persisted_bars(self):
+        client = InfluxClient(
+            cfg.influxdb.url,
+            cfg.influxdb.token,
+            cfg.influxdb.bucket_name,
+            cfg.influxdb.org,
+        )
 
-        # ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
+        await client.drop_measurement("stock_bars_1m")
 
-        # with open("tests/data/stock_bars_flux_batch_query.txt", "w") as f:
-        #     f.write(headers)
-        #     for i in range(2000):
-        #         code = f"00000{i%2 + 1}.XSHE"
-        #         tm = (
-        #             arrow.get("2019-01-01T00:00:00Z")
-        #             .shift(days=i)
-        #             .naive.isoformat(timespec="seconds")
-        #             + "Z"
-        #         )
+        start = "2022-02-07 09:30:00"
+        data = mock_bars(start)
+        for code, bars in data.items():
+            await client.save(
+                bars, "stock_bars_1m", time_key="frame", global_tags={"code": code}
+            )
 
-        #         f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
+        data = await Stock._get_persisted_bars(
+            "000001.XSHE", FrameType.MIN1, begin=start
+        )
 
-        with open("tests/data/stock_bars_flux_batch_query.txt", "rb") as f:
-            data = f.read()
+        self.assertEqual(len(data), 20)
+        self.assertEqual(data[0]["frame"], np.datetime64("2022-02-07T09:30:00"))
 
-        recs = Stock._deserialize_bars_flux_batch_query(data)
+        # n = 10, and begin is set
+        data = await Stock._get_persisted_bars(
+            "000001.XSHE", FrameType.MIN1, n=10, begin=start
+        )
 
-        self.assertEqual(len(recs), 2)
-        self.assertTrue("000002.XSHE" in recs)
+        self.assertEqual(len(data), 10)
 
-        exp = "('2019-01-01T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
-        self.assertEqual(exp, str(recs["000001.XSHE"][0]))
+        # n = 10, and begin is None
+        data = await Stock._get_persisted_bars("000001.XSHE", FrameType.MIN1, n=10)
+        self.assertEqual(len(data), 10)
 
-        exp = "('2024-06-22T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
-        self.assertEqual(exp, str(recs["000002.XSHE"][-1]))
+        # set end to 2022-02-07 10:15, which should yield 10 recs
+        data = await Stock._get_persisted_bars(
+            "000001.XSHE",
+            FrameType.MIN1,
+            end=arrow.get("2022-02-07 10:15:00").naive,
+            begin=start,
+        )
 
-    async def test_deserialize_bars_flux_query(self):
-        # uncomment the following once you need more data
-        # headers = (
-        #     ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n"
-        # )
+        self.assertEqual(len(data), 10)
 
-        # ohlc = "100000000,5.15,1.23,5.2,5,5.1,1000000"
+        # raise error if both n and begin are not set
+        with self.assertRaises(AssertionError):
+            data = await Stock._get_persisted_bars("000001.XSHE", FrameType.MIN1)
 
-        # with open("tests/data/stock_bars_flux_query.txt", "w") as f:
-        #     f.write(headers)
-        #     for i in range(2000):
-        #         code = f"000001.XSHE"
-        #         tm = (
-        #             arrow.get("2019-01-01T00:00:00Z")
-        #             .shift(days=i)
-        #             .naive.isoformat(timespec="seconds")
-        #             + "Z"
-        #         )
+    async def test_batch_get_persisted_bars(self):
+        client = InfluxClient(
+            cfg.influxdb.url,
+            cfg.influxdb.token,
+            cfg.influxdb.bucket_name,
+            cfg.influxdb.org,
+        )
 
-        #         f.writelines(f",_result,0,{tm},{code},{ohlc}\r\n")
+        await client.drop_measurement("stock_bars_1m")
 
-        with open("tests/data/stock_bars_flux_query.txt", "rb") as f:
-            data = f.read()
+        start = "2022-02-07 09:30:00"
+        data = mock_bars(start)
+        for code, bars in data.items():
+            await client.save(
+                bars, "stock_bars_1m", time_key="frame", global_tags={"code": code}
+            )
 
-        t0 = time.time()
-        for i in range(10):
-            recs = Stock._deserialize_bars_flux_query(data)
-        print("time cost", time.time() - t0)
+        data = await Stock._batch_get_persisted_bars(FrameType.MIN1, begin=start)
+        self.assertEqual(len(data), 5)
+        bars = data["000001.XSHE"]
+        self.assertEqual(len(bars), 20)
+        self.assertEqual(bars[0]["frame"], np.datetime64("2022-02-07T09:30:00"))
 
-        exp = "('2019-01-01T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
-        self.assertEqual(exp, str(recs[0]))
+    async def test_get_persisted_trade_limit_prices(self):
+        measurement = "stock_bars_1d"
+        await self.client.drop_measurement(measurement)
 
-        exp = "('2024-06-22T00:00:00.000000000', 5.1, 5.2, 5, 5.15, 1000000, 100000000, 1.23)"
-        self.assertEqual(exp, str(recs[-1]))
+        # fill in data
+        start = arrow.get("2022-01-01")
+        data = np.array(
+            [
+                (
+                    start.shift(days=1).date(),
+                    9.5,
+                    9.6,
+                    9.4,
+                    9.6,
+                    1e8,
+                    1e9,
+                    1.234,
+                    9.5 * 1.1,
+                    9.5 * 0.9,
+                ),
+                (
+                    start.shift(days=2).date(),
+                    9.6,
+                    9.6,
+                    9.4,
+                    9.7,
+                    1e8,
+                    1e9,
+                    1.234,
+                    9.6 * 1.1,
+                    9.6 * 0.9,
+                ),
+                (
+                    start.shift(days=3).date(),
+                    9.7,
+                    9.6,
+                    9.4,
+                    9.8,
+                    1e8,
+                    1e9,
+                    1.234,
+                    9.7 * 1.1,
+                    9.7 * 0.9,
+                ),
+            ],
+            dtype=bars_with_limit_dtype,
+        )
+
+        await self.client.save(
+            data, measurement, time_key="frame", global_tags={"code": "000001.XSHE"}
+        )
+
+        start = datetime.date(2021, 1, 2)
+        end = datetime.date(2022, 1, 3)
+        result = await Stock._get_persisted_trade_limit_prices(
+            "000001.XSHE", start, end
+        )
+        expected = np.array(
+            [("2022-01-02", 10.45, 8.55), ("2022-01-03", 10.56, 8.64)],
+            dtype=[
+                ("frame", "datetime64[D]"),
+                ("high_limit", "<f8"),
+                ("low_limit", "<f8"),
+            ],
+        )
+
+        for col in ["high_limit", "low_limit"]:
+            np.testing.assert_array_almost_equal(expected[col], result[col])
+
+        np.testing.assert_array_equal(expected["frame"], result["frame"])
+
+    async def test_get_limits_in_range(self):
+        measurement = "stock_bars_1d"
+        code = "000001.XSHE"
+        await self.client.drop_measurement(measurement)
+        bars = np.array(
+            [
+                (
+                    datetime.datetime(2022, 1, 7, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.8,
+                    1.1266307e08,
+                    1.93771096e09,
+                    1.0,
+                    18.83,
+                    15.41,
+                ),
+                (
+                    datetime.datetime(2022, 1, 6, 10, 0),
+                    17.1,
+                    17.28,
+                    17.06,
+                    17.2,
+                    1.1266307e08,
+                    1.93771096e09,
+                    1.0,
+                    18.83,
+                    15.41,
+                ),
+            ],
+            dtype=bars_with_limit_dtype,
+        )
+
+        await self.client.save(
+            bars, measurement, time_key="frame", global_tags={"code": code}
+        )
+
+        start = datetime.date(2022, 1, 6)
+        end = datetime.date(2022, 1, 7)
+        result = await Stock.get_limits_in_range(code, start, end)
+
+        expected = np.array(
+            [("2022-01-06", 18.43, 15.41), ("2022-01-07", 18.83, 15.41)],
+            dtype=[
+                ("frame", "datetime64[D]"),
+                ("high_limit", "<f8"),
+                ("low_limit", "<f8"),
+            ],
+        )
+
+        for col in ["high_limit", "low_limit"]:
+            np.testing.assert_array_almost_equal(expected[col], result[col])
+
+        np.testing.assert_array_equal(expected["frame"], result["frame"])

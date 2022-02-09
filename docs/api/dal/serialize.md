@@ -2,7 +2,7 @@
 ## Serializer and Deserializer
 ### DataFrameDeserializer
 
-::: omicron.dal.influx.serialize.DataFrameDeserializer
+::: omicron.dal.influx.serialize.DataframeDeserializer
 
 ### NumpyDeserializer
 

@@ -1,6 +1,6 @@
 import datetime
 from collections import defaultdict
-from typing import DefaultDict, List, Union
+from typing import DefaultDict, List, Tuple, Union
 
 import arrow
 import numpy as np
@@ -152,6 +152,8 @@ class Flux(object):
 
         在往influxdb写入数据时，line-protocol要求的时间戳为unix timestamp，并且与其精度对应。
 
+        influxdb始终使用UTC时间，因此，`tm`也必须已经转换成UTC时间。
+
         Args:
             tm: 时间
             precision: 时间精度，默认为秒。
@@ -165,8 +167,8 @@ class Flux(object):
         # get int repr of tm, in seconds unit
         if isinstance(tm, np.datetime64):
             tm = tm.astype("datetime64[s]").astype("int")
-        elif getattr(tm, "timestamp", None):
-            tm = tm.timestamp
+        elif isinstance(tm, datetime.datetime):
+            tm = tm.timestamp()
         else:
             tm = arrow.get(tm).timestamp
 
@@ -273,7 +275,7 @@ class Flux(object):
         if "fields" in self.expressions:
             raise DuplicateOperationError("fields has been set")
 
-        self._cols = fields
+        self._cols = sorted(fields)
 
         filters = [f'r["_field"] == "{name}"' for name in fields]
 
@@ -320,8 +322,14 @@ class Flux(object):
         """指定查询中的哪些列被保留（即被传回客户端）
 
         如果columns为None,则使用之前传入的fields,如果fields也为空，则raise Error.
-
         如果reserve_time_stamp为True,则会在columns之上，再加上_time字段（此字段为缺省字段）。
+
+        如果一次查询中，不通过本函数对传回列进行限定，则一般可能会多出以下列：
+        `_start`,`_stop`,`_measurement`
+
+        注意，即使指定了keep，下列字段也会仍然会被传回：
+        `unnamed`,`result`(alias),`table`(seq no),`_time`
+
 
         Args:
             columns: 待保留的列名称列表
@@ -333,30 +341,24 @@ class Flux(object):
         if "keep" in self.expressions:
             raise DuplicateOperationError("keep has been set")
 
-        self._cols = columns or self._cols
+        if columns is not None:
+            self._cols = columns.copy()
+
         if self._cols is None:
             raise ValueError("columns和fields必须至少提供一个。")
 
         if reserve_time_stamp and "_time" not in self._cols:
             self._cols.append("_time")
 
-        columns = ",".join([f'"{name}"' for name in self.cols])
+        columns_ = ",".join([f'"{name}"' for name in self._cols])
 
-        self.expressions["keep"] = f"  |> keep(columns: [{columns}])"
+        self.expressions["keep"] = f"  |> keep(columns: [{columns_}])"
 
         return self
 
     @property
     def cols(self):
         return sorted(self._cols)
-
-    def drop_measurement(self, measurement: str) -> dict:
-        now = datetime.datetime.now()
-        return {
-            "start": Flux.EPOCH_START,
-            "stop": now.isoformat(timespec="microseconds") + "Z",
-            "predicate": f'_measurement="{measurement}"',
-        }
 
     def delete(
         self,

@@ -7,7 +7,6 @@ import gino
 import pkg_resources
 
 from omicron.dal.cache import cache
-from omicron.dal.influxdb import influxdb
 from omicron.dal.postgres import db
 from omicron.dal.postgres import init as init_db
 from omicron.models.timeframe import TimeFrame as tf
@@ -27,7 +26,6 @@ async def init():
 
     await cache.init()
     await tf.init()
-    await influxdb.init()
     from omicron.models.stock import Stock
 
     await Stock.init()
@@ -46,11 +44,6 @@ async def close():
 
     try:
         await cache.close()
-    except Exception as e:  # noqa
-        pass
-
-    try:
-        await influxdb.close()
     except Exception as e:  # noqa
         pass
 

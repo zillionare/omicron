@@ -1,19 +1,26 @@
 import datetime
-import functools
-import time
 import unittest
-from curses import def_shell_mode
+from unittest import mock
 
 import arrow
 import cfg4py
 import numpy as np
-from coretypes import stock_bars_dtype
-from sklearn.metrics import mean_squared_error
+import pandas as pd
+from coretypes import bars_cols, bars_dtype
 
 import omicron
+from omicron.core.errors import (
+    InfluxDBQueryError,
+    InfluxDBWriteError,
+    InfluxDeleteError,
+)
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.dal.influx.serialize import DataFrameDeserializer
+from omicron.dal.influx.serialize import (
+    DataframeDeserializer,
+    NumpyDeserializer,
+    NumpySerializer,
+)
 from tests import init_test_env
 from tests.dal.influx import mock_data_for_influx
 
@@ -30,25 +37,15 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         org = cfg.influxdb.org
         bucket_name = cfg.influxdb.bucket_name
 
-        self.client = InfluxClient(
-            url,
-            token,
-            bucket=bucket_name,
-            org=org,
-            debug=True,
-        )
+        self.client = InfluxClient(url, token, bucket=bucket_name, org=org)
 
         data = mock_data_for_influx(100)
-        lp = self.client.nparray_to_line_protocol(
-            "ut_test_query",
-            data,
-            tags={"name", "code"},
-            tm_key="frame",
-            formatters={"open": "{:.02f}", "close": "{:.02f}"},
+        serializer = NumpySerializer(
+            data, "ut_test_query", time_key="frame", tag_keys=["name", "code"]
         )
-
         # ut_test_query,code=000001.XSHE,name=平安银行 close=0.20,open=0.10 1546335000
-        await self.client.write(lp)
+        for lines in serializer.serialize(len(data)):
+            await self.client.write(lines)
 
         return await super().asyncSetUp()
 
@@ -59,118 +56,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             pass
 
         return await super().asyncTearDown()
-
-    async def test_to_line_protocol(self):
-        measurement = "stock_bars_1d"
-        bars = np.array(
-            [
-                (
-                    datetime.date(2019, 1, 1),
-                    5.1,
-                    5.2,
-                    5.0,
-                    5.15,
-                    1000000,
-                    100000000,
-                    1.23,
-                )
-            ],
-            dtype=stock_bars_dtype,
-        )
-
-        client = InfluxClient("", "", "")
-
-        tags = "code=000001.XSHE"
-
-        actual = client.nparray_to_line_protocol(
-            measurement, bars, tags, tm_key="frame"
-        )
-        print(actual)
-
-        actual = client.nparray_to_line_protocol(
-            measurement,
-            bars,
-            tags,
-            tm_key="frame",
-            formatters={
-                "open": "{:.02f}",
-                "close": "{:.02f}",
-                "high": "{:.02f}",
-                "low": "{:.02f}",
-                "amount": "{:.02f}",
-                "volume": "{:.02f}",
-                "factor": "{:.04f}",
-            },
-        )
-
-        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546300800"
-        self.assertEqual(exp, actual)
-
-        bars = np.array(
-            [
-                (
-                    datetime.date(2019, 1, 1),
-                    5.1,
-                    5.2,
-                    5.0,
-                    5.15,
-                    1000000,
-                    100000000,
-                    1.23,
-                ),
-                (
-                    datetime.date(2019, 1, 2),
-                    5.1,
-                    5.2,
-                    5.0,
-                    5.15,
-                    1000000,
-                    100000000,
-                    1.23,
-                ),
-            ],
-            dtype=stock_bars_dtype,
-        )
-
-        actual = client.nparray_to_line_protocol(
-            measurement,
-            bars,
-            tags,
-            tm_key="frame",
-            formatters={
-                "open": "{:.02f}",
-                "close": "{:.02f}",
-                "high": "{:.02f}",
-                "low": "{:.02f}",
-                "amount": "{:.02f}",
-                "volume": "{:.02f}",
-                "factor": "{:.04f}",
-            },
-        )
-
-        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546300800\n"
-        exp += "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,high=5.20,low=5.00,open=5.10,volume=1000000.00 1546387200"
-
-        self.assertEqual(exp, actual)
-
-        # without tm_key
-        actual = client.nparray_to_line_protocol(
-            measurement,
-            bars,
-            tags,
-            formatters={
-                "open": "{:.02f}",
-                "close": "{:.02f}",
-                "high": "{:.02f}",
-                "low": "{:.02f}",
-                "amount": "{:.02f}",
-                "volume": "{:.02f}",
-                "factor": "{:.04f}",
-            },
-        )
-
-        exp = "stock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,frame=2019-01-01,high=5.20,low=5.00,open=5.10,volume=1000000.00 \nstock_bars_1d,code=000001.XSHE amount=100000000.00,close=5.15,factor=1.2300,frame=2019-01-02,high=5.20,low=5.00,open=5.10,volume=1000000.00 "
-        self.assertEqual(exp, actual)
 
     async def test_write(self):
         """
@@ -200,42 +85,22 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
                     1.23,
                 ),
             ],
-            dtype=stock_bars_dtype,
+            dtype=bars_dtype,
         )
 
-        data = self.client.nparray_to_line_protocol(
-            measurement,
-            bars,
-            "code=000001.XSHE",
-            tm_key="frame",
-            formatters={
-                "open": "{:.02f}",
-                "close": "{:.02f}",
-                "high": "{:.02f}",
-                "low": "{:.02f}",
-                "amount": "{:.02f}",
-                "volume": "{:.02f}",
-                "factor": "{:.04f}",
-            },
+        serializer = NumpySerializer(
+            bars, measurement, global_tags={"code": "000001.XSHE"}, time_key="frame"
         )
-        await self.client.write(data)
 
-        data = self.client.nparray_to_line_protocol(
-            measurement,
-            bars,
-            "code=000002.XSHE",
-            tm_key="frame",
-            formatters={
-                "open": "{:.02f}",
-                "close": "{:.02f}",
-                "high": "{:.02f}",
-                "low": "{:.02f}",
-                "amount": "{:.02f}",
-                "volume": "{:.02f}",
-                "factor": "{:.04f}",
-            },
+        for data in serializer.serialize(len(bars)):
+            await self.client.write(data)
+
+        serializer = NumpySerializer(
+            bars, measurement, global_tags={"code": "000002.XSHE"}, time_key="frame"
         )
-        await self.client.write(data)
+
+        for data in serializer.serialize(len(bars)):
+            await self.client.write(data)
 
         query = (
             Flux()
@@ -266,6 +131,47 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         exp = ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
         self.assertEqual(exp, actual)
 
+        # reset measurement and test gzip
+        await self.client.drop_measurement("stock_bars_1d")
+
+        url = cfg.influxdb.url
+        token = cfg.influxdb.token
+        org = cfg.influxdb.org
+        bucket_name = cfg.influxdb.bucket_name
+
+        client = InfluxClient(
+            url, token, bucket=bucket_name, org=org, enable_compress=True
+        )
+        for data in serializer.serialize(len(bars)):
+            await client.write(data)
+
+        query = (
+            Flux()
+            .bucket(self.client._bucket)
+            .measurement(measurement)
+            .tags({"code": "000002.XSHE"})
+            .range(datetime.date(2019, 1, 5), datetime.date(2019, 1, 6))
+            .pivot()
+            .keep(
+                columns=[
+                    "code",
+                    "_time",
+                    "open",
+                    "close",
+                    "high",
+                    "low",
+                    "amount",
+                    "volume",
+                    "factor",
+                ]
+            )
+        )
+
+        result = await self.client.query(query)
+        actual = result.decode("utf-8")
+        exp = ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,000002.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,000002.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
+        self.assertEqual(exp, actual)
+
     async def test_query(self):
         measurement = "ut_test_query"
         # query all from measurement
@@ -279,10 +185,13 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         )
 
         data = await self.client.query(flux)
-        ds = DataFrameDeserializer(
-            sort_values="frame", usecols=["frame", "open", "code", "name"]
+
+        ds = DataframeDeserializer(
+            sort_values="_time",
+            usecols=["_time", "open", "code", "name"],
+            parse_dates="_time",
+            engine="c",
         )
-        # , keep_cols=["_time", "open", "code", "name"], sort_by="_time"
         actual = ds(data)
 
         actual = actual.to_records(index=False)
@@ -290,7 +199,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(actual[0]["name"], "平安银行")
         self.assertAlmostEqual(actual[0]["open"], 0.1)
         self.assertEqual(actual[0]["code"], "000001.XSHE")
-        self.assertEqual(actual[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30, 0))
+        self.assertEqual(actual[0]["_time"], np.datetime64("2019-01-01T09:30:00"))
 
         # query by code, and test right close range
         flux = (
@@ -303,8 +212,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
-        # given unserializer
-        ds = DataFrameDeserializer()
+        # given deserializer
+        ds = DataframeDeserializer()
         actual = await self.client.query(flux, ds)
         self.assertEqual(actual.loc[0]["name"], "平安银行")
         self.assertEqual(1, len(actual))
@@ -321,8 +230,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(["open", "close", "code", "name"])
         )
 
-        ds = DataFrameDeserializer()
-        actual = await self.client.query(flux, def_shell_mode())
+        ds = DataframeDeserializer()
+        actual = await self.client.query(flux, ds)
         self.assertSetEqual(set(["平安银行", "中国银行"]), set(actual["name"]))
         self.assertEqual(3, len(actual))
 
@@ -340,12 +249,22 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         actual = await self.client.query(flux, ds)
         self.assertEqual(1, len(actual))
         self.assertEqual(actual.loc[0]["name"], "平安银行")
-        self.assertEqual(actual.loc[0]["_time"], datetime.datetime(2019, 1, 1, 9, 30))
+        self.assertEqual(str(actual.loc[0]["_time"]), "2019-01-01T09:30:00Z")
+
+        # check exceptions
+        with mock.patch("aiohttp.ClientSession.post") as mock_post:
+            mock_post.return_value.__aenter__.status = 400
+            mock_post.return_value.__aenter__.json = mock.Mock()
+            mock_post.return_value.__aenter__.json.return_value = {
+                "code": -1,
+                "message": "mockerror",
+            }
+            with self.assertRaises(InfluxDBQueryError):
+                await self.client.query(flux, ds)
 
     async def test_delete(self):
         cols = ["open", "close", "code", "name"]
 
-        q = Flux().drop_measurement("unittest_test_query").bucket(self.client._bucket)
         q = (
             Flux()
             .bucket(self.client._bucket)
@@ -354,10 +273,10 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(cols)
         )
 
-        ds = DataFrameDeserializer()
+        ds = DataframeDeserializer()
         recs = await self.client.query(q, ds)
 
-        self.assertEqual(len(recs), 10)
+        self.assertEqual(len(recs), 100)
         self.assertEqual(recs.loc[0]["name"], "平安银行")
 
         # delete by tags
@@ -366,4 +285,125 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         )
 
         recs = await self.client.query(q, ds)
+        self.assertEqual(len(recs), 80)
+
+        # delete by range
+        await self.client.delete(
+            "ut_test_query", arrow.get("2019-01-01 09:30:00").shift(minutes=90).naive
+        )
+        recs = await self.client.query(q, ds)
         self.assertEqual(len(recs), 8)
+
+        # test dop measurement
+        await self.client.drop_measurement("ut_test_query")
+
+        with mock.patch("aiohttp.ClientSession.post") as mock_post:
+            mock_post.return_value.__aenter__.status = 400
+            mock_post.return_value.__aenter__.json = mock.Mock()
+            mock_post.return_value.__aenter__.json.return_value = {
+                "code": -1,
+                "message": "mockerror",
+            }
+            with self.assertRaises(InfluxDeleteError):
+                await self.client.delete("ut_test_query", arrow.now().naive)
+
+    async def test_save(self):
+        measurement = "ut_test_influxclient_save"
+        await self.client.drop_measurement(measurement)
+        bars = np.array(
+            [
+                (
+                    datetime.date(2019, 1, 5),
+                    5.1,
+                    5.2,
+                    5.0,
+                    5.15,
+                    1000000,
+                    100000000,
+                    1.23,
+                ),
+                (
+                    datetime.date(2019, 1, 6),
+                    5.1,
+                    5.2,
+                    5.0,
+                    5.15,
+                    1000000,
+                    100000000,
+                    1.23,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        # save np.array
+        await self.client.save(
+            bars, measurement, time_key="frame", global_tags={"code": "000001.XSHE"}
+        )
+
+        start, end = datetime.datetime(2019, 1, 5), datetime.datetime(2019, 1, 6)
+        query = (
+            Flux()
+            .measurement(measurement)
+            .bucket(self.client._bucket)
+            .range(start, end)
+            .keep(bars_cols)
+        )
+
+        query_result = await self.client.query(query)
+        expected = b",result,table,_time,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
+
+        self.assertEqual(expected, query_result)
+
+        # save np.array with chunk_size == -1
+        await self.client.save(
+            bars,
+            measurement,
+            time_key="frame",
+            global_tags={"code": "000001.XSHE"},
+            chunk_size=-1,
+        )
+
+        await self.client.drop_measurement(measurement)
+        df = pd.DataFrame(bars, columns=bars_cols)
+
+        ## save pd.DataFrame
+        await self.client.save(
+            df, measurement, time_key="frame", global_tags={"code": "000001.XSHE"}
+        )
+
+        use_cols = bars_cols.copy()
+        use_cols[0] = "_time"
+        ds = NumpyDeserializer(bars_dtype, "frame", use_cols=use_cols, encoding="utf-8")
+        query_result = await self.client.query(query, ds)
+        for col in ["close", "factor", "high", "low", "open", "volume"]:
+            np.testing.assert_array_almost_equal(
+                bars[col], query_result[col], decimal=2
+            )
+
+        np.testing.assert_array_equal(bars["frame"], query_result["frame"])
+
+        ## save pd.DataFrame with chunk_size == -1
+        await self.client.save(
+            df,
+            measurement,
+            time_key="frame",
+            global_tags={"code": "000001.XSHE"},
+            chunk_size=-1,
+        )
+
+        with self.assertRaises(InfluxDBWriteError):
+            with mock.patch("aiohttp.ClientSession.post") as mock_post:
+                mock_post.return_value.__aenter__.status = 400
+                mock_post.return_value.__aenter__.json = mock.Mock()
+                mock_post.return_value.__aenter__.json.return_value = {
+                    "code": -1,
+                    "message": "mockerror",
+                }
+
+                await self.client.save(
+                    df,
+                    measurement,
+                    time_key="frame",
+                    global_tags={"code": "000001.XSHE"},
+                )

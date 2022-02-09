@@ -44,6 +44,12 @@ class InfluxDeleteError(Error):
 
 
 class DuplicateOperationError(Error):
-    """重复key错误"""
+    """重复操作错误。"""
+
+    pass
+
+
+class SerializationError(Error):
+    """序列化错误。"""
 
     pass

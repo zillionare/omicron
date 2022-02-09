@@ -2,27 +2,12 @@ import datetime
 import gzip
 import json
 import logging
-from itertools import chain
-from typing import (
-    Any,
-    Callable,
-    DefaultDict,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import arrow
 import numpy as np
 from aiohttp import ClientSession
-from attr import field
-from coretypes import Frame
-from influxdb_client import InfluxDBClient
-from setuptools import Command
+from pandas import DataFrame
 
 from omicron.core.errors import (
     InfluxDBQueryError,
@@ -30,11 +15,16 @@ from omicron.core.errors import (
     InfluxDeleteError,
 )
 from omicron.dal.influx.flux import Flux
+from omicron.dal.influx.serialize import (
+    DataframeSerializer,
+    NumpyDeserializer,
+    NumpySerializer,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class InfluxClient(InfluxDBClient):
+class InfluxClient:
     def __init__(
         self,
         url: str,
@@ -42,7 +32,8 @@ class InfluxClient(InfluxDBClient):
         bucket: str,
         org: str = None,
         enable_compress=False,
-        **kwargs,
+        chunk_size: int = 5000,
+        precision: str = "s",
     ):
         """[summary]
 
@@ -52,22 +43,23 @@ class InfluxClient(InfluxDBClient):
             bucket ([type]): [description]
             org ([type], optional): [description]. Defaults to None.
             enable_compress ([type], optional): [description]. Defaults to False.
+            chunk_size: number of lines to be saved in one request
             precision: 支持的时间精度
         """
-        super().__init__(url, token, org=org, enable_gzip=enable_compress, **kwargs)
-
+        self._url = url
         self._bucket = bucket
         self._enable_compress = enable_compress
+        self._org = org
 
         # influxdb 2.0起支持的时间精度有：ns, us, ms, s。本客户端只支持s, ms和us
-        self._precision = kwargs.get("precision", "s")
-        if self._precision not in ["s", "ms", "us"]:
+        self._precision = precision.lower()
+        if self._precision not in ["s", "ms", "us"]:  # pragma: no cover
             raise ValueError("precision must be one of ['s', 'ms', 'us']")
 
-        self._batch_write_size = kwargs.get("batch_write_size", 5000)
+        self._chunk_size = chunk_size
 
         # write
-        self._write_url = f"{self.url}/api/v2/write?org={self.org}&bucket={self._bucket}&precision={self._precision}"
+        self._write_url = f"{self._url}/api/v2/write?org={self._org}&bucket={self._bucket}&precision={self._precision}"
 
         self._write_headers = {
             "Content-Type": "text/plain; charset=utf-8",
@@ -78,7 +70,7 @@ class InfluxClient(InfluxDBClient):
         if self._enable_compress:
             self._write_headers["Content-Encoding"] = "gzip"
 
-        self._query_url = f"{self.url}/api/v2/query?org={self.org}"
+        self._query_url = f"{self._url}/api/v2/query?org={self._org}"
         self._query_headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/vnd.flux",
@@ -90,81 +82,93 @@ class InfluxClient(InfluxDBClient):
             self._query_headers["Accept-Encoding"] = "gzip"
 
         self._delete_url = (
-            f"{self.url}/api/v2/delete?org={self.org}&bucket={self._bucket}"
+            f"{self._url}/api/v2/delete?org={self._org}&bucket={self._bucket}"
         )
         self._delete_headers = {
             "Authorization": f"Token {token}",
             "Content-Type": "application/json",
         }
 
-    def nparray_to_line_protocol(
+    async def save(
         self,
-        measurement: str,
-        data: np.ndarray,
-        tags: Union[set, str] = None,
-        field_keys: List[str] = None,
-        tm_key: str = None,
-        formatters: dict = {},
-    ) -> Generator:
-        """将由`data`（由numpy structure array表示，同属于**一个series**<即具有相同的tags和retention policy>）的多个数据点转换为line-protocol数据
+        data: Union[np.ndarray, DataFrame],
+        measurement: str = None,
+        tag_keys: List[str] = [],
+        time_key: str = None,
+        global_tags: Dict = {},
+        chunk_size: int = None,
+    ) -> None:
+        """save `data` into influxdb
 
-        `data`为要存储的数据，是一个numpy structured array，其中的每一行都是一个数据点。如果`tm_key`存在，则必须在`data`中存在`tm_key`列，否则，该组数据的timestamp将由服务器决定。
+        if `data` is a pandas.DataFrame or numy structured array, it will be converted to line protocol and saved. If `data` is str, use `write` method instead.
 
-        formatters为一个字典，其中的键为data中的列名，其值为将列值转换为字符串的格式化串。
-
-        Notice:
-            我们约定field_keys与tags_key必须互斥。不确定influxdb中是否有这一要求，但一个值既定义为tags,又定义为field，实际上只增加了存储空间，似乎没有必要。
-
-            本函数在处理field时，只能处理其值为数值类型的情况。
         Args:
-            measurement: measurement(即table/collection)名称
-            data: 待存储的数据
-            tags: 如果为set，则将从`data`中取对应字段和值构成tags；如果为str,则认为是预先生成好的tags
-            field_keys: data中的哪些字段会当作fields存储。如果未提供，则将除`tm_key`以外的全部字段当成fields存储
-            tm_key: 时间戳列名
-            formatters: 格式化字符串
+            data: data to be saved
+            measurement: the name of measurement
+            tag_keys: which columns name will be used as tags
+            chunk_size: number of lines to be saved in one request. if it's -1, then all data will be written in one request. If it's None, then it will be set to `self._chunk_size`
 
-        Returns:
-            line-protocol数据, str
+        Raises:
+            InfluxDBWriteError: if write failed
+
         """
-        field_keys = set(field_keys or data.dtype.names)
-        if isinstance(tags, set):
-            field_keys = field_keys - tags
+        # todo: add more errors raise
+        if isinstance(data, DataFrame):
+            assert (
+                measurement is not None
+            ), "measurement must be specified when data is a DataFrame"
 
-        if tm_key:
-            assert tm_key in data.dtype.names, f"{tm_key} not exist in data"
-            if tm_key in field_keys:
-                field_keys.remove(tm_key)
+            if tag_keys:
+                assert set(tag_keys) in set(
+                    data.columns.tolist()
+                ), "tag_keys must be in data.columns"
 
-        field_keys = sorted(list(field_keys))
-        lps = []
+            serializer = DataframeSerializer(
+                data,
+                measurement,
+                time_key,
+                tag_keys,
+                global_tags,
+                precision=self._precision,
+            )
+            if chunk_size == -1:
+                chunk_size = len(data)
 
-        # todo: if we process the array by columns first, then we can boost performance exetremly and allow handling more data types
-        for row in data:
-            fields = []
-            tm = Flux.to_timestamp(row[tm_key], self._precision) if tm_key else ""
-
-            for key in field_keys:
-                fmt = formatters.get(key, "{}")
-                fields.append(f"{key}={fmt.format(row[key])}")
-
-            if isinstance(tags, set):
-                tags_ = ",".join([f"{k}={row[k]}" for k in tags])
-            else:
-                tags_ = tags
-
-            lp_row = f"{measurement},{tags_} {','.join(fields)} {tm}"
-
-            lps.append(lp_row)
-
-        return "\n".join(lps)
+            for lines in serializer.serialize(chunk_size or self._chunk_size):
+                await self.write(lines)
+        elif isinstance(data, np.ndarray):
+            assert (
+                measurement is not None
+            ), "measurement must be specified when data is a numpy array"
+            assert (
+                time_key is not None
+            ), "time_key must be specified when data is a numpy array"
+            serializer = NumpySerializer(
+                data,
+                measurement,
+                time_key,
+                tag_keys,
+                global_tags,
+                time_precision=self._precision,
+            )
+            if chunk_size == -1:
+                chunk_size = len(data)
+            for lines in serializer.serialize(chunk_size or self._chunk_size):
+                await self.write(lines)
+        else:
+            raise TypeError(
+                f"data must be pandas.DataFrame, numpy array, got {type(data)}"
+            )
 
     async def write(self, line_protocol: str):
         """将line-protocol数组写入influxdb
 
         Args:
             line_protocol: 待写入的数据，以line-protocol数组形式存在
+
+        Raises:
         """
+        # todo: add raise error declaration
         if self._enable_compress:
             line_protocol_ = gzip.compress(line_protocol.encode("utf-8"))
         else:
@@ -184,10 +188,10 @@ class InfluxClient(InfluxDBClient):
                     )
                     logger.debug("data caused error:%s", line_protocol)
                     raise InfluxDBWriteError(
-                        f"influxdb write failed, err: {resp.status}"
+                        f"influxdb write failed, err: {err['message']}"
                     )
 
-    async def query(self, flux: Union[Flux, str], unserializer: Callable = None) -> Any:
+    async def query(self, flux: Union[Flux, str], deserializer: Callable = None) -> Any:
         """flux查询
 
         flux查询结果是一个以annotated csv格式存储的数据，例如：
@@ -198,14 +202,14 @@ class InfluxClient(InfluxDBClient):
 
         上述`result`中，事先通过Flux.keep()限制了返回的字段为_time,code,amount,close,factor,high,low,open,volume。influxdb查询返回结果时，字段不会按查询时[keep][omicron.dal.flux.Flux.keep]指定的顺序排列，而总是按照字段名称升序排列。此外，总是会额外地返回_result, table两个字段。
 
-        如果传入了unserializer，则会调用unserializer将其解析成为python对象。否则，返回bytes数据。
+        如果传入了deserializer，则会调用deserializer将其解析成为python对象。否则，返回bytes数据。
 
         Args:
             flux: flux查询语句
-            unserializer: 反序列化函数
+            deserializer: 反序列化函数
 
         Returns:
-            返回查询结果
+            如果未提供反序列化函数，则返回结果为bytes array(如果指定了compress=True，返回结果为gzip解压缩后的bytes array)，否则返回反序列化后的python对象
         """
         if isinstance(flux, Flux):
             flux = str(flux)
@@ -224,30 +228,29 @@ class InfluxClient(InfluxDBClient):
                         f"influxdb query failed, status code: {err['message']}"
                     )
                 else:
+                    # auto-unzip
                     body = await resp.read()
-                    if self._enable_compress:
-                        body = gzip.decompress(body)
-
-                    if unserializer:
-                        return unserializer(body)
+                    if deserializer:
+                        return deserializer(body)
                     else:
                         return body
 
     async def drop_measurement(self, measurement: str):
         """从influxdb中删除一个measurement
 
-        # todo: `stop`为必选参数，但如果使用$(date +"%Y-%m-%dT%H:%M:%SZ") 方法来指定，则会报告非RFC3339格式的时间。但这里由客户端来指定时间，有一定概率无法完全删除measurement中的数据。
-
         调用此方法后，实际上该measurement仍然存在，只是没有数据。
 
+        Raises:
+
         """
-        await self.delete(measurement, arrow.now().naive, start=None)
+        # todo: add raise error declaration
+        await self.delete(measurement, arrow.now().naive)
 
     async def delete(
         self,
         measurement: str,
         stop: datetime.datetime,
-        predicates: Union[str, List[str]] = [],
+        tags: Optional[Dict[str, str]] = {},
         start: datetime.datetime = None,
         precision: str = "s",
     ):
@@ -260,11 +263,15 @@ class InfluxClient(InfluxDBClient):
             stop: 结束时间
             measurement: 指定measurement
             tag: 指定tag
+            precision: 用以格式化起始和结束时间。
+
+        Raises:
         """
+        # todo: add raise error declaration
         command = Flux().delete(
             measurement,
             stop,
-            predicates,
+            tags,
             start=start,
             precision=precision,
         )
@@ -277,8 +284,8 @@ class InfluxClient(InfluxDBClient):
                     err = await resp.json()
                     logger.warning(
                         "influxdb delete error: %s when processin command %s",
-                        err,
-                        Command,
+                        err["message"],
+                        command,
                     )
                     raise InfluxDeleteError(
                         f"influxdb delete failed, status code: {err['message']}"

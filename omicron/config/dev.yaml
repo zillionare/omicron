@@ -6,6 +6,7 @@ influxdb:
   token: my-token
   org: my-org
   bucket_name: my-bucket
+  enable_compress: true
 postgres:
   dsn: postgres://zillionare:123456@localhost:5432/zillionare
   enabled: true
