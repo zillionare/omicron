@@ -27,6 +27,9 @@ class Flux(object):
     def __str__(self):
         return self._compose()
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}>:\n{self._compose()}"
+
     def _compose(self):
         """将所有表达式合并为一个表达式"""
         if not all(
@@ -54,6 +57,9 @@ class Flux(object):
 
         if self.expressions.get("keep"):
             expr.append(self.expressions["keep"])
+
+        if self.expressions.get("group"):
+            expr.append(self.expressions["group"])
 
         if self.expressions.get("limit"):
             expr.append(self.expressions["limit"])
@@ -353,6 +359,22 @@ class Flux(object):
         columns_ = ",".join([f'"{name}"' for name in self._cols])
 
         self.expressions["keep"] = f"  |> keep(columns: [{columns_}])"
+
+        return self
+
+    def group(self, by: Tuple[str]) -> "Flux":
+        """[summary]
+
+        Returns:
+            [description]
+        """
+        if "group" in self.expressions:
+            raise DuplicateOperationError("group has been set")
+
+        if isinstance(by, str):
+            by = [by]
+        cols = ",".join([f'"{col}"' for col in by])
+        self.expressions["group"] = f"  |> group(columns: [{cols}])"
 
         return self
 

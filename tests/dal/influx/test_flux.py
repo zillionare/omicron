@@ -132,7 +132,9 @@ class FluxTest(unittest.TestCase):
             ["open", "close", "high", "low"]
         ).limit(
             10
-        ).pivot().keep()
+        ).pivot().keep().group(
+            "code"
+        )
 
         exp = [
             'from(bucket: "my-bucket")',
@@ -142,6 +144,7 @@ class FluxTest(unittest.TestCase):
             '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
             '  |> keep(columns: ["close","high","low","open","_time"])',
+            '  |> group(columns: ["code"])',
             "  |> limit(n: 10)",
         ]
         actual = str(flux).split("\n")
