@@ -1417,7 +1417,7 @@ multidict = ">=4.0"
 
 [[package]]
 name = "zillionare-core-types"
-version = "0.3.0"
+version = "0.4.0"
 description = "core types definition shared by zillionare."
 category = "main"
 optional = false
@@ -1453,7 +1453,7 @@ test = ["pytest", "black", "isort", "doc8", "flake8", "pytest-cov", "psutil"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "d054f8af7544070175aa4747421e69ec4510c9dc035294c441dc4b5b41b7fa70"
+content-hash = "0cb24fdedb99536154995a427929a48b401e9829e03bc1e94e83091b7cef1025"
 
 [metadata.files]
 aiohttp = [
@@ -2811,8 +2811,8 @@ yarl = [
     {file = "yarl-1.7.2.tar.gz", hash = "sha256:45399b46d60c253327a460e99856752009fcee5f5d3c80b2f7c0cae1c38d56dd"},
 ]
 zillionare-core-types = [
-    {file = "zillionare_core_types-0.3.0-py3-none-any.whl", hash = "sha256:722f8093fbbab44094aed0c4634430a7a86bd73a7124a5fc784231f7ffced3e3"},
-    {file = "zillionare_core_types-0.3.0.tar.gz", hash = "sha256:abc471a5e07b14ed957dd9e92ef7fbe6d52dd142b7be2a9b0cd780acbf15fa9e"},
+    {file = "zillionare_core_types-0.4.0-py3-none-any.whl", hash = "sha256:81b39e96f7f29b4e19b8d318961fbcb256147a7875dfdd17f1e656081dfbcc42"},
+    {file = "zillionare_core_types-0.4.0.tar.gz", hash = "sha256:32c1fb52a370b522c97136a9e519dd2a57ebb3a213ace1f0b4a1fe8f4be6c777"},
 ]
 zipp = [
     {file = "zipp-3.7.0-py3-none-any.whl", hash = "sha256:b47250dd24f92b7dd6a0a8fc5244da14608f3ca90a5efcd37a3b1642fac9a375"},

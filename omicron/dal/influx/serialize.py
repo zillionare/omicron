@@ -1,18 +1,22 @@
 import datetime
 import io
 import itertools
+import logging
 import math
 import re
 from email.generator import Generator
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Mapping, Union
 
 import arrow
+import ciso8601
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
-from omicron.core.errors import SerializationError
+from omicron.core.errors import BadParameterError, SerializationError
 from omicron.dal.influx.escape import KEY_ESCAPE, MEASUREMENT_ESCAPE, STR_ESCAPE
+
+logger = logging.getLogger(__name__)
 
 
 def _itertuples(data_frame):
@@ -126,6 +130,9 @@ class DataframeSerializer:
 
         if isinstance(data_frame.index, pd.PeriodIndex):
             data_frame.index = data_frame.index.to_timestamp()
+
+        if data_frame.index.dtype == "O":
+            data_frame.index = pd.to_datetime(data_frame.index)
 
         if not isinstance(data_frame.index, pd.DatetimeIndex):
             raise TypeError(
@@ -278,14 +285,13 @@ class DataframeDeserializer(Serializer):
         names: List[str] = None,
         usecols: Union[List[int], List[str]] = None,
         dtype: dict = None,
-        parse_dates=None,
+        time_col: Union[int, str] = None,
         sep: str = ",",
         header: Union[int, List[int], str] = "infer",
         engine: str = None,
         infer_datetime_format=True,
         lineterminator: str = None,
         converters: dict = None,
-        date_parser=None,
         skipfooter=0,
         index_col: Union[int, str, List[int], List[str], bool] = None,
         skiprows: Union[int, List[int], Callable] = None,
@@ -318,15 +324,22 @@ class DataframeDeserializer(Serializer):
             usecols : the column number or name of the columns to use
             dtype : the dtype of the columns
             engine : the engine of the csv file, default is None
-            converters : the converters of the columns
+            converters : specify converter for columns.
             skiprows : the row number to skip
             skipfooter : the row number to skip at the end of the file
-            parse_dates : the columns to parse as dates
+            time_col : the columns to parse as dates
             infer_datetime_format : whether to infer the datetime format
             date_parser : the function to parse the date
             lineterminator: the line terminator of the csv file, only valid when engine is 'c'
             kwargs : other arguments
         """
+        if "parse_dates" in kwargs:
+            raise BadParameterError("parse_dates is disabled, use time_col instead")
+        if "date_parser" in kwargs:
+            raise BadParameterError(
+                "date_parser is disabled, ciso8061 parser is used instead"
+            )
+
         self.sort_values = sort_values
         self.encoding = encoding
         self.sep = sep
@@ -336,21 +349,19 @@ class DataframeDeserializer(Serializer):
         self.usecols = usecols
         self.dtype = dtype
         self.engine = engine
-        self.converters = converters
+        self.converters = converters or {}
         self.skiprows = skiprows
         self.skipfooter = skipfooter
         self.infer_datetime_format = infer_datetime_format
-        self.date_parser = date_parser
+
         self.lineterminator = lineterminator
         self.kwargs = kwargs
 
-        if isinstance(parse_dates, str):
-            parse_dates = [parse_dates]
-
-        self.parse_dates = parse_dates
-
         if names is not None:
             self.header = 0
+
+        if time_col is not None:
+            self.converters[time_col] = lambda x: ciso8601.parse_datetime_as_naive(x)
 
     def __call__(self, data: Union[str, bytes]) -> pd.DataFrame:
         if isinstance(data, str):
@@ -371,9 +382,7 @@ class DataframeDeserializer(Serializer):
             converters=self.converters,
             skiprows=self.skiprows,
             skipfooter=self.skipfooter,
-            parse_dates=self.parse_dates,
             infer_datetime_format=self.infer_datetime_format,
-            date_parser=self.date_parser,
             lineterminator=self.lineterminator,
             **self.kwargs,
         )
@@ -511,16 +520,17 @@ class NumpyDeserializer(Serializer):
         dtype: List[tuple] = "float",
         sort_values: Union[str, List[str]] = None,
         use_cols: Union[List[str], List[int]] = None,
+        parse_date: Union[int, str] = "_time",
         sep: str = ",",
         encoding: str = "utf-8",
         skip_rows: Union[int, List[int]] = 1,
         header_line: int = 1,
         comments: str = "#",
-        converters: Dict[str, Callable] = None,
+        converters: Mapping[int, Callable] = None,
     ):
         """construct a deserializer, which will convert a csv like multiline string/bytes array to a numpy array
 
-        the data to be deserialized will be split into array of fields, then use use_cols to select which fields to use, and re-order them by the order of use_cols. After that, the fields will be converted to numpy array and converted into dtype.
+        the data to be deserialized will be first split into array of fields, then use use_cols to select which fields to use, and re-order them by the order of use_cols. After that, the fields will be converted to numpy array and converted into dtype.
 
         by default dtype is float, which means the data will be converted to float. If you need to convert to a numpy structured array, then you can specify the dtype as a list of tuples, e.g.
 
@@ -536,7 +546,8 @@ class NumpyDeserializer(Serializer):
         Args:
             dtype: dtype of the output numpy array.
             sort_values: sort the output numpy array by the specified columns. If it's a string, then it's the name of the column, if it's a list of strings, then it's the names of the columns.
-            use_cols: use only the specified columns. If it's a list of strings, then it's the names of the columns, if it's a list of integers, then it's the column index.
+            use_cols: use only the specified columns. If it's a list of strings, then it's the names of the columns (presented in raw data header line), if it's a list of integers, then it's the column index.
+            parse_date: by default we'll convert "_time" column into python datetime.datetime. Set it to None to turn off the conversion. ciso8601 is default parser. If you need to parse date but just don't like ciso8601, then you can turn off default parser (by set parse_date to None), and specify your own parser in converters.
             sep: separator of each field
             encoding: if the input is bytes, then encoding is used to decode the bytes to string.
             skip_rows: required by np.loadtxt, skip the first n lines
@@ -551,14 +562,72 @@ class NumpyDeserializer(Serializer):
         self.encoding = encoding
         self.skip_rows = skip_rows
         self.comments = comments
-        self.converters = converters
+        self.converters = converters or {}
         self.sort_values = sort_values
+        self.parse_date = parse_date
+        self.header_line = header_line
 
-        if use_cols is not None and isinstance(use_cols[0], str):
-            self._convert_use_col = True
-            self.header_line = header_line
-        else:
-            self._convert_use_col = False
+        if header_line is None:
+            assert parse_date is None or isinstance(
+                parse_date, int
+            ), "parse_date must be an integer if data contains no header"
+
+            if len(self.converters) > 1:
+                assert all(
+                    [isinstance(x, int) for x in self.converters.keys()]
+                ), "converters must be a dict of column index to converter function, if there's no header"
+
+        if isinstance(parse_date, int):
+            if parse_date in self.converters.keys():
+                logger.warning(
+                    "specify duplicated converter in both parse_date and converters for col %s, use converters.",
+                    parse_date,
+                )
+            else:
+                self.converters[
+                    parse_date
+                ] = lambda x: ciso8601.parse_datetime_as_naive(x)
+
+        self._parsed_headers = None
+
+    def _parse_header_once(self, stream):
+        """parse header and convert use_cols, if columns is specified in string. And if parse_date is required, add it into converters
+
+        Args:
+            stream : [description]
+
+        Raises:
+            SerializationError: [description]
+        """
+        if self.header_line is None:
+            return
+
+        if self._parsed_headers is None:
+            try:
+                line = stream.readlines(self.header_line)[-1]
+                cols = line.strip().split(self.sep)
+                self._parsed_headers = cols
+
+                use_cols = self.use_cols
+                if use_cols is not None and isinstance(use_cols[0], str):
+                    self.use_cols = [cols.index(col) for col in self.use_cols]
+                if isinstance(self.parse_date, str):
+                    self.parse_date = cols.index(self.parse_date)
+                    if self.parse_date in self.converters.keys():
+                        logger.warning(
+                            "specify duplicated converter in both parse_date and converters for col %s, use converters.",
+                            self.parse_date,
+                        )
+                    else:
+                        self.converters[
+                            self.parse_date
+                        ] = lambda x: ciso8601.parse_datetime_as_naive(x)
+
+                stream.seek(0)
+            except (IndexError, ValueError):
+                raise SerializationError(
+                    f"incorrect header[{self.header_line}]: {line}"
+                )
 
     def __call__(self, data: bytes) -> np.ndarray:
         if self.encoding and isinstance(data, bytes):
@@ -566,17 +635,7 @@ class NumpyDeserializer(Serializer):
         else:
             stream = io.StringIO(data)
 
-        if self._convert_use_col:
-            try:
-                line = stream.readlines(self.header_line)[-1]
-                cols = line.strip().split(self.sep)
-                self.use_cols = [cols.index(col) for col in self.use_cols]
-                self._convert_use_col = False
-                stream.seek(0)
-            except (IndexError, ValueError):
-                raise SerializationError(
-                    f"incorrect header[{self.header_line}]: {line}"
-                )
+        self._parse_header_once(stream)
 
         arr = np.loadtxt(
             stream.readlines(),
@@ -585,6 +644,7 @@ class NumpyDeserializer(Serializer):
             dtype=self.dtype,
             usecols=self.use_cols,
             converters=self.converters,
+            encoding=self.encoding,
         )
 
         if self.sort_values is not None and arr.size > 1:
@@ -598,44 +658,3 @@ class PyarrowDeserializer(Serializer):
 
     def __init__(self) -> None:
         raise NotImplementedError
-
-
-if __name__ == "__main__":
-    data = np.array(
-        [
-            (datetime.date(2022, 2, 1), "000001.XSHE", 1.1, 2, True, "上海银行"),
-            (datetime.date(2022, 2, 2), "000002.XSHE", 1.1, 3, False, "平安银行"),
-        ],
-        dtype=[
-            ("frame", "<M8[s]"),
-            ("code", "<U11"),
-            ("open", "<f4"),
-            ("seq", "i4"),
-            ("limit", "bool"),
-            ("name", "<U11"),
-        ],
-    )
-
-    serialize = NumpySerializer(
-        data,
-        "test",
-        "frame",
-        ["code", "name"],
-        ["open", "seq", "limit"],
-        global_tags={"a": "1", "b": "2"},
-        precisions={"open": 3},
-        time_precision="ns",
-    )
-
-    for lp in serialize(1):
-        print(lp)
-
-    df = pd.DataFrame(
-        [("000001.XSHE", 1.1, 2.0235353), ("000002.XSHE", 2.0001, 3.1)],
-        columns=["code", "a", "b"],
-        index=[datetime.datetime(1990, 1, 1), datetime.datetime(1990, 1, 2)],
-    )
-
-    df_serializer = DataframeSerializer(df, "test", tag_keys="code", chunk_size=1)
-    for lp in df_serializer():
-        print(lp)

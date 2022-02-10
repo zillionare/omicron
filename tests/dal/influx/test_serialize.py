@@ -1,8 +1,8 @@
 import datetime
 import unittest
-from tkinter import S
 
 import cfg4py
+import ciso8601
 import numpy as np
 import pandas as pd
 from coretypes import bars_cols, bars_dtype
@@ -346,7 +346,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         serializer = NumpySerializer(bars, "test")
 
         for actual in serializer.serialize(len(bars)):
-            exp = 'test amount=1e+08,close=5.15,factor=1.23,frame="2019-01-01 00:00:00",high=5.2,low=5.0,open=5.1,volume=1e+06'
+            exp = 'test amount=1e+08,close=5.15,factor=1.23,frame="2019-01-01",high=5.2,low=5.0,open=5.1,volume=1e+06'
             self.assertEqual(exp, actual)
 
         # global keys

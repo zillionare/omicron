@@ -350,10 +350,10 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(bars_cols)
         )
 
-        query_result = await self.client.query(query)
+        actual = await self.client.query(query)
         expected = b",result,table,_time,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
 
-        self.assertEqual(expected, query_result)
+        self.assertEqual(expected, actual)
 
         # save np.array with chunk_size == -1
         await self.client.save(
@@ -374,14 +374,14 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
 
         use_cols = bars_cols.copy()
         use_cols[0] = "_time"
-        ds = NumpyDeserializer(bars_dtype, "frame", use_cols=use_cols, encoding="utf-8")
-        query_result = await self.client.query(query, ds)
+        ds = NumpyDeserializer(bars_dtype, "frame", use_cols=use_cols)
+        actual = await self.client.query(query, ds)
         for col in ["close", "factor", "high", "low", "open", "volume"]:
-            np.testing.assert_array_almost_equal(
-                bars[col], query_result[col], decimal=2
-            )
+            np.testing.assert_array_almost_equal(bars[col], actual[col], decimal=2)
 
-        np.testing.assert_array_equal(bars["frame"], query_result["frame"])
+        np.testing.assert_array_equal(
+            bars["frame"], [x.date() for x in actual["frame"]]
+        )
 
         ## save pd.DataFrame with chunk_size == -1
         await self.client.save(

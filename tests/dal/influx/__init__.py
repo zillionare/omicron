@@ -20,7 +20,7 @@ def mock_data_for_influx(n=100):
     mock_data = np.array(
         mock_data,
         dtype=[
-            ("frame", "datetime64[ns]"),
+            ("frame", "O"),
             ("open", "float32"),
             ("close", "float32"),
             ("code", "O"),

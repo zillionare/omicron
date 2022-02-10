@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Union
 
 import arrow
 import cfg4py
+import ciso8601
 import numpy as np
 import pandas as pd
 from coretypes import (
@@ -510,7 +511,7 @@ class Stock:
         keep_cols = bars_cols
         use_cols = list(range(3, 11))
 
-        measurement = f"stock_bars_{frame_type.value}"
+        measurement = cls._measurement_name(frame_type)
         query = (
             Flux()
             .bucket(cfg.influxdb.bucket_name)
@@ -561,11 +562,11 @@ class Stock:
         注意，返回的数据有可能不是等长的。
 
         Args:
-            frame_type : [description]
-            code : [description].
-            n : [description].
-            begin : [description].
-            end : [description].
+            frame_type : the frame_type to query
+            code : 证券代码
+            n : 返回结果数量
+            begin : begin timestamp of returned results
+            end : end timestamp of returned results
 
         Returns:
             以`code`为key, 行情数据为value的字典。
@@ -578,46 +579,14 @@ class Stock:
         end = end or arrow.now().naive
 
         # influxdb的查询结果格式类似于CSV，其列顺序为_, result_alias, table_seq, _time, tags, fields,其中tags和fields都是升序排列
-        if frame_type == FrameType.DAY:
-            dtype = bars_with_limit_dtype
-            return_cols = bars_with_limit_cols
-            keep_cols = bars_with_limit_cols + ["code"]
-            names = [
-                "_",
-                "result",
-                "table",
-                "frame",
-                "code",
-                "amount",
-                "close",
-                "factor",
-                "high",
-                "high_limit",
-                "low",
-                "low_limit",
-                "open",
-                "volume",
-            ]
-        else:
-            dtype = bars_dtype
-            return_cols = bars_cols
-            keep_cols = bars_cols + ["code"]
-            names = [
-                "_",
-                "result",
-                "table",
-                "frame",
-                "code",
-                "amount",
-                "close",
-                "factor",
-                "high",
-                "low",
-                "open",
-                "volume",
-            ]
+        return_cols = bars_cols
+        keep_cols = bars_cols + ["code"]
+        names = ["_", "result", "table", "frame", "code"]
 
-        measurement = f"stock_bars_{frame_type.value}"
+        # influxdb will return fields in the order of name ascending parallel
+        names.extend(sorted(bars_cols[1:]))
+
+        measurement = cls._measurement_name(frame_type)
         query = (
             Flux()
             .bucket(cfg.influxdb.bucket_name)
@@ -632,7 +601,7 @@ class Stock:
             query.limit(n)
 
         deserializer = DataframeDeserializer(
-            names=names, usecols=keep_cols, encoding="utf-8", parse_dates="frame"
+            names=names, usecols=keep_cols, encoding="utf-8", time_col="frame"
         )
 
         url = cfg.influxdb.url
@@ -646,12 +615,9 @@ class Stock:
         # 将查询结果转换为dict,并且进行排序
         result = {}
         for code, group in result_df.groupby("code"):
-            bars = (
-                group[return_cols]
-                .sort_values("frame")
-                .to_records(index=False)
-                .astype(dtype)
-            )
+            df = group[return_cols].sort_values("frame")
+            bars = df.to_records(index=False).astype(bars_dtype)
+            bars["frame"] = [x.to_pydatetime() for x in df["frame"]]
             result[code] = bars
 
         return result
@@ -941,7 +907,7 @@ class Stock:
             enable_compress=cfg.influxdb.enable_compress,
         )
 
-        measurement = f"stock_bars_{frame_type.value}"
+        measurement = cls._measurement_name(frame_type)
 
         await client.save(
             bars,
@@ -974,6 +940,10 @@ class Stock:
             return cls._resample_from_day(bars, to_frame)
         else:  # pragma: no cover
             raise TypeError(f"unsupported from_frame: {from_frame}")
+
+    @classmethod
+    def _measurement_name(cls, frame_type):
+        return f"stock_bars_{frame_type.value}"
 
     @classmethod
     def _resample_from_min1(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
@@ -1058,7 +1028,7 @@ class Stock:
             end : [description]
 
         Returns:
-            dtype为[('code', 'O'), ('frame', 'datetime64[D]'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
+            dtype为[('code', 'O'), ('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
         """
         url, token, org, bucket = (
             cfg.influxdb.url,
@@ -1067,8 +1037,8 @@ class Stock:
             cfg.influxdb.bucket_name,
         )
         client = InfluxClient(url, token, bucket, org)
-        measurement = f"stock_bars_{FrameType.DAY.value}"
-        query = (
+        measurement = cls._measurement_name(FrameType.DAY)
+        flux = (
             Flux()
             .bucket(bucket)
             .measurement(measurement)
@@ -1077,12 +1047,19 @@ class Stock:
             .tags({"code": code})
         )
 
-        dtype = [("frame", "datetime64[D]"), ("high_limit", "f8"), ("low_limit", "f8")]
+        dtype = [("frame", "O"), ("high_limit", "f8"), ("low_limit", "f8")]
         ds = NumpyDeserializer(
-            dtype, sort_values="frame", use_cols=["_time", "high_limit", "low_limit"]
+            dtype,
+            sort_values="frame",
+            use_cols=["_time", "high_limit", "low_limit"],
+            converters={
+                5: lambda x: ciso8601.parse_datetime(x).date(),
+            },
+            # since we ask parse date in convertors, so we have to disable parse_date
+            parse_date=None,
         )
 
-        result = await client.query(query, ds)
+        result = await client.query(flux, ds)
         return result
 
     @classmethod
@@ -1107,5 +1084,5 @@ class Stock:
                 part2 = np.array([(end, hl, ll)], dtype=part1.dtype)
                 return np.concatenate((part1, part2))
 
-            else:
-                return part1
+        else:
+            return part1

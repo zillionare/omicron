@@ -69,7 +69,7 @@ livereload = {version = "^2.6.3", optional = true}
 influxdb-client = "^1.24.0"
 aiosmtplib = "^1.1.6"
 pandas = "^1.3.5"
-zillionare-core-types = "^0.3"
+zillionare-core-types = "^0.4"
 ciso8601 = "^2.2.0"
 
 [tool.poetry.extras]

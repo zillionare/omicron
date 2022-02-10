@@ -476,73 +476,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         except ValueError as e:
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
-    # async def test_persist_bars(self):
-    #     response = influxdb.client.buckets_api().find_buckets()
-
-    #     for bucket in response.buckets:
-    #         if bucket.name == influxdb.bucket_name:
-    #             influxdb.client.buckets_api().delete_bucket(bucket)
-    #     influxdb.client.buckets_api().create_bucket(
-    #         bucket_name=influxdb.bucket_name, org=influxdb.org
-    #     )
-    #     code = "000001.XSHE"
-    #     bars = np.array(
-    #         [
-    #             (
-    #                 datetime.datetime(2022, 1, 7, 10, 0),
-    #                 17.1,
-    #                 17.28,
-    #                 17.06,
-    #                 17.2,
-    #                 1.1266307e08,
-    #                 1.93771096e09,
-    #                 18.83,
-    #                 15.41,
-    #                 1.0,
-    #                 code,
-    #                 6,
-    #             ),
-    #             (
-    #                 datetime.datetime(2022, 1, 6, 10, 0),
-    #                 17.1,
-    #                 17.28,
-    #                 17.06,
-    #                 17.2,
-    #                 1.1266307e08,
-    #                 1.93771096e09,
-    #                 18.83,
-    #                 15.41,
-    #                 1.0,
-    #                 code,
-    #                 6,
-    #             ),
-    #         ],
-    #         dtype=bars_with_limit_dtype,
-    #     )
-    #     await Stock.persist_bars(FrameType.DAY, bars)
-
-    #     recs: np.array = await Stock._get_persisted_bars(
-    #         code=code, end=arrow.get("2022-01-06 10:00:00")
-    #     )
-    #     data = [dict(zip(recs.dtype.names, x)) for x in recs][0]
-    #     self.assertEqual(
-    #         data["frame"].strftime("%Y-%m-%d %H:%M:%S"), "2022-01-06 10:00:00"
-    #     )
-
-    #     recs: np.array = await Stock._get_persisted_bars(
-    #         code="000002.XSHE", end=arrow.get("2022-01-14")
-    #     )
-    #     self.assertFalse(len(recs))
-
-    #     recs: np.array = await Stock._get_persisted_bars(end=arrow.get("2022-01-14"))
-    #     self.assertTrue(len(recs))
-
-    #     response = influxdb.client.buckets_api().find_buckets()
-
-    #     for bucket in response.buckets:
-    #         if bucket.name == influxdb.bucket_name:
-    #             influxdb.client.buckets_api().delete_bucket(bucket)
-
     async def test_get_cached_bars(self):
         """cache_bars, cache_unclosed_bars are tested also"""
         await Stock.reset_cache()
@@ -690,14 +623,8 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             "000001.XSHE", end, 4, FrameType.MIN1, unclosed=True
         )
 
+        # fixme: enable the check later
         # assert_bars_equal(data[-1:], bars)
-
-        # 不复权的情况
-        end = datetime.datetime(2022, 1, 10, 10, 3)
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", end, 4, FrameType.MIN1, fq=False
-        )
-        assert_bars_equal(data[-1:], bars[-1:])
 
         # 取日线
         unclosed[0]["frame"] = datetime.date(2022, 1, 10)
@@ -1755,7 +1682,8 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(data), 5)
         bars = data["000001.XSHE"]
         self.assertEqual(len(bars), 20)
-        self.assertEqual(bars[0]["frame"], np.datetime64("2022-02-07T09:30:00"))
+        self.assertEqual(bars[0]["frame"], datetime.datetime(2022, 2, 7, 9, 30))
+        self.assertTrue(isinstance(bars[0]["frame"], datetime.datetime))
 
     async def test_get_persisted_trade_limit_prices(self):
         measurement = "stock_bars_1d"
@@ -1835,7 +1763,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         bars = np.array(
             [
                 (
-                    datetime.datetime(2022, 1, 7, 10, 0),
+                    datetime.date(2022, 1, 7),
                     17.1,
                     17.28,
                     17.06,
@@ -1847,7 +1775,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     15.41,
                 ),
                 (
-                    datetime.datetime(2022, 1, 6, 10, 0),
+                    datetime.date(2022, 1, 6),
                     17.1,
                     17.28,
                     17.06,
@@ -1868,18 +1796,21 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         start = datetime.date(2022, 1, 6)
         end = datetime.date(2022, 1, 7)
-        result = await Stock.get_limits_in_range(code, start, end)
+        actual = await Stock.get_limits_in_range(code, start, end)
 
         expected = np.array(
-            [("2022-01-06", 18.43, 15.41), ("2022-01-07", 18.83, 15.41)],
+            [
+                (datetime.date(2022, 1, 6), 18.83, 15.41),
+                (datetime.date(2022, 1, 7), 18.83, 15.41),
+            ],
             dtype=[
-                ("frame", "datetime64[D]"),
+                ("frame", "O"),
                 ("high_limit", "<f8"),
                 ("low_limit", "<f8"),
             ],
         )
 
         for col in ["high_limit", "low_limit"]:
-            np.testing.assert_array_almost_equal(expected[col], result[col])
+            np.testing.assert_array_almost_equal(expected[col], actual[col])
 
-        np.testing.assert_array_equal(expected["frame"], result["frame"])
+        np.testing.assert_array_equal(expected["frame"], actual["frame"])
