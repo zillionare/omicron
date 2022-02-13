@@ -13,8 +13,9 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
-from omicron.core.errors import BadParameterError, SerializationError
+from omicron.core.errors import BadParameterError, EmptyResult, SerializationError
 from omicron.dal.influx.escape import KEY_ESCAPE, MEASUREMENT_ESCAPE, STR_ESCAPE
+from omicron.models.timeframe import date_to_utc_timestamp, datetime_to_utc_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,9 @@ def _not_nan(x):
 
 def _any_not_nan(p, indexes):
     return any(map(lambda x: _not_nan(p[x]), indexes))
+
+
+EPOCH = datetime.datetime(1970, 1, 1)
 
 
 class Serializer(object):
@@ -394,8 +398,6 @@ class DataframeDeserializer(Serializer):
 
 
 class NumpySerializer(Serializer):
-    DEFAULT_DECIMALS = 6
-
     def __init__(
         self,
         data: np.ndarray,
@@ -443,22 +445,6 @@ class NumpySerializer(Serializer):
             time_precision, 1
         )
 
-        if time_key is not None:
-            data = data.copy()
-            if np.issubdtype(data[time_key].dtype, np.datetime64):
-                data[time_key] = (
-                    data[time_key].astype("M8[ns]").astype(int) / precision_factor
-                )
-            elif isinstance(data[time_key][0], datetime.date):
-                factor = 1e9 / precision_factor
-                data[time_key] = [
-                    arrow.get(x).timestamp * factor for x in data[time_key]
-                ]
-            else:
-                raise TypeError(
-                    f"unsupported data type: expected datetime64 or date, got {type(data[time_key][0])}"
-                )
-
         # construct format string
         # test,code=000001.XSHE a=1.1,b=2.024 631152000
 
@@ -468,7 +454,7 @@ class NumpySerializer(Serializer):
                 fields.append(f"{field}={{:.{precisions[field]}}}")
             else:
                 if np.issubdtype(data[field].dtype, np.floating):
-                    fields.append(f"{field}={{:.{self.DEFAULT_DECIMALS}}}")
+                    fields.append(f"{field}={{}}")
                 elif np.issubdtype(data.dtype[field], np.unsignedinteger):
                     fields.append(f"{field}={{}}u")
                 elif np.issubdtype(data.dtype[field], np.signedinteger):
@@ -501,10 +487,25 @@ class NumpySerializer(Serializer):
         cols = tag_keys + field_keys
 
         if time_key is not None:
-            cols.append("frame")
+            if np.issubdtype(data[time_key].dtype, np.datetime64):
+                frames = data[time_key].astype("M8[ns]").astype(int) / precision_factor
+            elif isinstance(data[0][time_key], datetime.datetime):
+                factor = 1e9 / precision_factor
+                frames = [datetime_to_utc_timestamp(x) * factor for x in data[time_key]]
+            elif isinstance(data[time_key][0], datetime.date):
+                factor = 1e9 / precision_factor
+                frames = [date_to_utc_timestamp(x) * factor for x in data[time_key]]
+            else:
+                raise TypeError(
+                    f"unsupported data type: expected datetime64 or date, got {type(data[time_key][0])}"
+                )
             output_dtype.append(("frame", "int64"))
 
-        self.data = data[cols].astype(output_dtype)
+            self.data = np.empty((len(data),), dtype=output_dtype)
+            self.data["frame"] = frames
+            self.data[cols] = data[cols]
+        else:
+            self.data = data[cols].astype(output_dtype)
 
     def _get_lines(self, data):
         return "\n".join([self.format_string.format(*row) for row in data])
@@ -625,9 +626,16 @@ class NumpyDeserializer(Serializer):
 
                 stream.seek(0)
             except (IndexError, ValueError):
-                raise SerializationError(
-                    f"incorrect header[{self.header_line}]: {line}"
-                )
+                if line.strip() == "":
+                    content = "".join(stream.readlines()).strip()
+                    if len(content) > 0:
+                        raise SerializationError(
+                            f"specified heder line {self.header_line} is empty"
+                        )
+                    else:
+                        raise EmptyResult()
+                else:
+                    raise SerializationError(f"bad header[{self.header_line}]: {line}")
 
     def __call__(self, data: bytes) -> np.ndarray:
         if self.encoding and isinstance(data, bytes):
@@ -635,7 +643,10 @@ class NumpyDeserializer(Serializer):
         else:
             stream = io.StringIO(data)
 
-        self._parse_header_once(stream)
+        try:
+            self._parse_header_once(stream)
+        except EmptyResult:
+            return np.empty((0,), dtype=self.dtype)
 
         arr = np.loadtxt(
             stream.readlines(),
@@ -647,6 +658,9 @@ class NumpyDeserializer(Serializer):
             encoding=self.encoding,
         )
 
+        # 如果返回仅一条记录，有时会出现 shape == ()
+        if arr.shape == tuple():
+            arr = arr.reshape((-1,))
         if self.sort_values is not None and arr.size > 1:
             return np.sort(arr, order=self.sort_values)
         else:

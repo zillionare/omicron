@@ -41,7 +41,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
 
         # default
         des = DataframeDeserializer(
-            parse_dates=["_time"],
+            time_col="_time",
         )
         df = des(data)
         self.assertEqual(8, len(df))
@@ -55,7 +55,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
 
         # keep cols
         des = DataframeDeserializer(
-            names=["frame", "open", "close"], usecols=[3, 6, 7], parse_dates="frame"
+            names=["frame", "open", "close"], usecols=[3, 6, 7], time_col="frame"
         )
         df = des(data)
         self.assertEqual(3, len(df.columns))
@@ -65,7 +65,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         # sort by
         des = DataframeDeserializer(
             sort_values="frame",
-            parse_dates="frame",
+            time_col="frame",
             names=["frame", "open", "close"],
             usecols=[3, 6, 7],
         )
@@ -85,7 +85,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
 
         # use string cols and names
         des = DataframeDeserializer(
-            parse_dates="frame",
+            time_col="frame",
             names=[
                 "_",
                 "result",
@@ -329,14 +329,14 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         dtype[0] = ("frame", "O")
         bars = bars.astype(dtype)
         serializer = NumpySerializer(bars, "test", "frame")
-        exp = "test amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546300800"
+        exp = "test amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0 1546300800"
         for lines in serializer.serialize(len(bars)):
             self.assertEqual(exp, lines)
 
         # no precisions
         serializer = NumpySerializer(bars, "test", "frame")
 
-        exp = "test amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546300800"
+        exp = "test amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0 1546300800"
 
         for lines in serializer.serialize(len(bars)):
             print(lines)
@@ -346,7 +346,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         serializer = NumpySerializer(bars, "test")
 
         for actual in serializer.serialize(len(bars)):
-            exp = 'test amount=1e+08,close=5.15,factor=1.23,frame="2019-01-01",high=5.2,low=5.0,open=5.1,volume=1e+06'
+            exp = 'test amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,frame="2019-01-01",high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0'
             self.assertEqual(exp, actual)
 
         # global keys
@@ -355,5 +355,5 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         )
 
         for actual in serializer.serialize(len(bars)):
-            exp = "test,code=000002.XSHE amount=1e+08,close=5.15,factor=1.23,high=5.2,low=5.0,open=5.1,volume=1e+06 1546300800"
+            exp = "test,code=000002.XSHE amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0 1546300800"
             self.assertEqual(exp, actual)
