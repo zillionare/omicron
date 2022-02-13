@@ -23,6 +23,7 @@ class Flux(object):
         self._cols = None
         self.expressions = defaultdict(list)
         self._auto_pivot = auto_pivot
+        self._last_n = None
 
     def __str__(self):
         return self._compose()
@@ -61,8 +62,21 @@ class Flux(object):
         if self.expressions.get("group"):
             expr.append(self.expressions["group"])
 
+        if self.expressions.get("sort"):
+            expr.append(self.expressions["sort"])
+
         if self.expressions.get("limit"):
             expr.append(self.expressions["limit"])
+
+        if self._last_n:
+            expr.append(
+                "\n".join(
+                    [
+                        ' |> top(n: 10, columns: ["_time"])',
+                        ' |> sort(columns: ["_time"], desc: false)',
+                    ]
+                )
+            )
 
         return "\n".join(expr)
 
@@ -239,7 +253,7 @@ class Flux(object):
         Examples:
             >>> flux = Flux()
             >>> flux.tags({"code": ["000001", "000002"], "name": ["浦发银行"]}).expressions["tags"]
-            '  |> filter(fn: (r) => r["code"] == "000001" or r["code"] == "000002" or r["name"] == "浦发银行")'
+            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001","000002"]) or contains(value: r["name"], set: ["浦发银行"]))
 
 
         Returns:
@@ -362,6 +376,31 @@ class Flux(object):
 
         return self
 
+    def sort(self, by: List[str] = None, desc: bool = False) -> "Flux":
+        """按照指定的列进行排序
+
+
+        Args:
+            by: 指定排序的列名称列表
+
+        Returns:
+            Flux对象，以便进行管道操作
+        """
+        if "sort" in self.expressions:
+            raise DuplicateOperationError("sort has been set")
+
+        if by is None:
+            by = ["_value"]
+        if isinstance(by, str):
+            by = [by]
+
+        columns_ = ",".join([f'"{name}"' for name in by])
+
+        desc = "true" if desc else "false"
+        self.expressions["sort"] = f"  |> sort(columns: [{columns_}], desc: {desc})"
+
+        return self
+
     def group(self, by: Tuple[str]) -> "Flux":
         """[summary]
 
@@ -378,9 +417,56 @@ class Flux(object):
 
         return self
 
+    def lastest(self, n: int) -> "Flux":
+        """获取最后n条数据，按时间增序返回
+
+        Flux查询的增强功能，相当于top + sort + limit
+
+        Args:
+            n: 最后n条数据
+
+        Returns:
+            Flux对象，以便进行管道操作
+        """
+        assert "top" not in self.expressions, "top and last_n can not be used together"
+        assert (
+            "sort" not in self.expressions
+        ), "sort and last_n can not be used together"
+        assert (
+            "limit" not in self.expressions
+        ), "limit and last_n can not be used together"
+
+        self._last_n = n
+
+        return self
+
     @property
     def cols(self):
+        """the columns in the return records
+
+        the implementation is buggy. Influx doesn't tell us in which order these columns are.
+
+
+        Returns:
+            [description]
+        """
+        # fixme: if keep in expression, then return group key + tag key + value key
+        # if keep not in expression, then stream, table, _time, ...
         return sorted(self._cols)
+
+    def order_columns(self, cols_in, cols_out):
+        """re-order columns according `self.cols`
+
+        当Flux语句指定后，输出记录的字段个数及顺序也就指定了。但是，Influx输出的csv的字段顺序并不是应用层指定的顺序，需要进行顺序转换（比如，如果deserializer为NumpyDeserializer，则通过use_cols来进行重排序）。
+
+        Args:
+            cols_in: the columns in the return records
+            cols_out: the columns in the return records
+
+        Returns:
+            [description]
+        """
+        raise NotImplementedError
 
     def delete(
         self,
