@@ -59,3 +59,13 @@ class BadParameterError(Error):
     """函数传入了错误的参数、参数个数或者参数值。"""
 
     pass
+
+
+class EmptyResult(Error):
+    """返回了空的查询结果
+
+    Args:
+        Error : [description]
+    """
+
+    pass

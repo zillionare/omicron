@@ -3,10 +3,13 @@ import logging
 import os
 
 import aioredis
+import arrow
 import cfg4py
 import numpy as np
 from coretypes import FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
+
+from omicron.models.timeframe import TimeFrame
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
@@ -5729,10 +5732,6 @@ async def init_test_env():
 
 
 def assert_bars_equal(exp, actual):
-    assert len(exp) == len(
-        actual
-    ), f"Bars length is not equal: exp {len(exp)}, actual {len(actual)}"
-
     assert_array_equal(exp["frame"], actual["frame"])
 
     for field, _ in bars_dtype:
@@ -5742,5 +5741,80 @@ def assert_bars_equal(exp, actual):
 
 
 def test_dir():
+    # return path to tests/
     home = os.path.dirname(__file__)
     return home
+
+
+def lines2bars(lines, is_date):
+    """将CSV记录转换为Bar对象
+
+    header: date,open,high,low,close,money,volume,factor
+    lines: 2022-02-10 10:06:00,16.87,16.89,16.87,16.88,4105065.000000,243200.000000,121.719130
+
+    """
+    if isinstance(lines, str):
+        lines = [lines]
+
+    def parse_date(x):
+        return arrow.get(x).date()
+
+    def parse_naive(x):
+        return arrow.get(x).naive
+
+    if is_date:
+        convert = parse_date
+    else:
+        convert = parse_naive
+
+    data = []
+    for line in lines:
+        fields = line.split(",")
+        data.append(
+            (
+                convert(fields[0]),
+                float(fields[1]),
+                float(fields[2]),
+                float(fields[3]),
+                float(fields[4]),
+                float(fields[5]),
+                float(fields[6]),
+                float(fields[7]),
+            )
+        )
+
+    return np.array(data, dtype=bars_dtype)
+
+
+def read_csv(fname, start=None, end=None):
+    """start, end是行计数，从1开始，以便于与编辑器展示的相一致。
+    返回[start, end]之间的行
+    """
+    path = os.path.join(test_dir(), "data", fname)
+    with open(path, "r") as f:
+        lines = f.readlines()
+
+    if start is None:
+        start = 1  # skip header
+    else:
+        start -= 1
+
+    if end is None:
+        end = len(lines)
+
+    return lines[start:end]
+
+
+def bars_from_csv(
+    code: str, ft: FrameType, start_line: int = None, end_line: int = None
+):
+    ft = FrameType(ft)
+
+    fname = f"{code}.{ft.value}.csv"
+
+    if ft in TimeFrame.minute_level_frames:
+        is_date = False
+    else:
+        is_date = True
+
+    return lines2bars(read_csv(fname, start_line, end_line), is_date)

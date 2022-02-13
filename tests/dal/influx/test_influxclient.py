@@ -4,9 +4,10 @@ from unittest import mock
 
 import arrow
 import cfg4py
+import ciso8601
 import numpy as np
 import pandas as pd
-from coretypes import bars_cols, bars_dtype
+from coretypes import FrameType, bars_cols, bars_dtype
 
 import omicron
 from omicron.core.errors import (
@@ -21,7 +22,8 @@ from omicron.dal.influx.serialize import (
     NumpyDeserializer,
     NumpySerializer,
 )
-from tests import init_test_env
+from omicron.models.stock import Stock
+from tests import assert_bars_equal, init_test_env
 from tests.dal.influx import mock_data_for_influx
 
 cfg = cfg4py.get_instance()
@@ -62,6 +64,10 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         this also test drop_measurement, query
         """
         measurement = "stock_bars_1d"
+
+        await self.client.drop_measurement(measurement)
+
+        code = "000001.XSHE"
         bars = np.array(
             [
                 (
@@ -88,6 +94,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             dtype=bars_dtype,
         )
 
+        start, end = bars["frame"]
+
         serializer = NumpySerializer(
             bars, measurement, global_tags={"code": "000001.XSHE"}, time_key="frame"
         )
@@ -102,34 +110,32 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         for data in serializer.serialize(len(bars)):
             await self.client.write(data)
 
-        query = (
+        keep_cols = ["_time"] + bars_cols[1:]
+        flux = (
             Flux()
             .bucket(self.client._bucket)
             .measurement(measurement)
-            .tags({"code": "000001.XSHE"})
-            .range(datetime.date(2019, 1, 5), datetime.date(2019, 1, 6))
-            .pivot()
-            .keep(
-                columns=[
-                    "code",
-                    "_time",
-                    "open",
-                    "close",
-                    "high",
-                    "low",
-                    "amount",
-                    "volume",
-                    "factor",
-                ]
-            )
+            .range(start, end)
+            .keep(keep_cols)
+            .tags({"code": code})
         )
 
-        result = await self.client.query(query)
-        actual = result.decode("utf-8")
+        des = NumpyDeserializer(
+            bars_dtype,
+            # sort at server side
+            # sort_values="frame",
+            encoding="utf-8",
+            skip_rows=1,
+            use_cols=keep_cols,
+            converters={
+                # fixme: to use name like "_time" instead of index 3
+                3: lambda x: ciso8601.parse_datetime(x).date()
+            },
+            parse_date=None,
+        )
 
-        print(actual)
-        exp = ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
-        self.assertEqual(exp, actual)
+        actual = await self.client.query(flux, des)
+        assert_bars_equal(bars, actual)
 
         # reset measurement and test gzip
         await self.client.drop_measurement("stock_bars_1d")
@@ -151,26 +157,11 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .measurement(measurement)
             .tags({"code": "000002.XSHE"})
             .range(datetime.date(2019, 1, 5), datetime.date(2019, 1, 6))
-            .pivot()
-            .keep(
-                columns=[
-                    "code",
-                    "_time",
-                    "open",
-                    "close",
-                    "high",
-                    "low",
-                    "amount",
-                    "volume",
-                    "factor",
-                ]
-            )
+            .keep(keep_cols)
         )
 
-        result = await self.client.query(query)
-        actual = result.decode("utf-8")
-        exp = ",result,table,_time,code,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,000002.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,000002.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
-        self.assertEqual(exp, actual)
+        actual = await self.client.query(query, des)
+        assert_bars_equal(bars, actual)
 
     async def test_query(self):
         measurement = "ut_test_query"
@@ -189,7 +180,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         ds = DataframeDeserializer(
             sort_values="_time",
             usecols=["_time", "open", "code", "name"],
-            parse_dates="_time",
+            time_col="_time",
             engine="c",
         )
         actual = ds(data)
@@ -217,7 +208,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         actual = await self.client.query(flux, ds)
         self.assertEqual(actual.loc[0]["name"], "平安银行")
         self.assertEqual(1, len(actual))
-        self.assertEqual(actual.loc[0]["open"], 0.1)
+        self.assertAlmostEqual(actual.loc[0]["open"], 0.1)
 
         # query by two different tags and involve contains operator
         flux = (
@@ -350,10 +341,15 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .keep(bars_cols)
         )
 
-        actual = await self.client.query(query)
-        expected = b",result,table,_time,amount,close,factor,high,low,open,volume\r\n,_result,0,2019-01-05T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n,_result,0,2019-01-06T00:00:00Z,100000000,5.15,1.23,5.2,5,5.1,1000000\r\n\r\n"
+        des = NumpyDeserializer(
+            bars_dtype,
+            parse_date=None,
+            converters={3: lambda x: ciso8601.parse_datetime(x).date()},
+            use_cols=["_time"] + bars_cols[1:],
+        )
+        actual = await self.client.query(query, des)
 
-        self.assertEqual(expected, actual)
+        assert_bars_equal(bars, actual)
 
         # save np.array with chunk_size == -1
         await self.client.save(

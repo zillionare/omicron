@@ -9,7 +9,7 @@ def mock_data_for_influx(n=100):
     for i in range(n):
         mock_data.append(
             (
-                start.shift(minutes=i).datetime,
+                start.shift(minutes=i).naive,
                 0.1,
                 0.2,
                 f"00000{i%5+1}.XSHE",
