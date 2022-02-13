@@ -12,6 +12,7 @@ import arrow
 if TYPE_CHECKING:
     from arrow import Arrow
 
+
 import numpy as np
 from coretypes import Frame, FrameType
 
@@ -19,6 +20,17 @@ from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
 
 logger = logging.getLogger(__file__)
+EPOCH = datetime.datetime(1970, 1, 1, 0, 0, 0)
+
+
+def datetime_to_utc_timestamp(tm: datetime.datetime) -> int:
+    return (tm - EPOCH).total_seconds()
+
+
+def date_to_utc_timestamp(dt: datetime.date) -> int:
+    tm = datetime.datetime(*dt.timetuple()[:-4])
+
+    return datetime_to_utc_timestamp(tm)
 
 
 class TimeFrame:
@@ -728,7 +740,7 @@ class TimeFrame:
 
     @classmethod
     def first_min_frame(
-        cls, day: Union[str, Arrow, datetime.date], frame_type: FrameType
+        cls, day: Union[str, Arrow, Frame], frame_type: FrameType
     ) -> Union[datetime.date, datetime.datetime]:
         """获取指定日期类型为`frame_type`的`frame`。
 
