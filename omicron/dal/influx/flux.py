@@ -417,7 +417,7 @@ class Flux(object):
 
         return self
 
-    def lastest(self, n: int) -> "Flux":
+    def latest(self, n: int) -> "Flux":
         """获取最后n条数据，按时间增序返回
 
         Flux查询的增强功能，相当于top + sort + limit
