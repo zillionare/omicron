@@ -1,14 +1,14 @@
 import datetime
 import unittest
 
+import arrow
 import cfg4py
-import ciso8601
 import numpy as np
 import pandas as pd
 from coretypes import bars_cols, bars_dtype
 
 import omicron
-from omicron.core.errors import SerializationError
+from omicron.core.errors import EmptyResult, SerializationError
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import (
@@ -199,6 +199,35 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             header_line=2,
         )
         with self.assertRaises(SerializationError):
+            des(data)
+
+        # no header line
+        data = ",_result,0,2019-01-01T09:31:00Z,000002.XSHE,国联证券,0.2,0.1\r\n,_result,0,2019-01-01T09:36:00Z,000002.XSHE,国联证券,0.2,0.1\r\n"
+
+        with self.assertRaises(AssertionError):
+            des = NumpyDeserializer(
+                bars_dtype,
+                use_cols=["_time"] + bars_dtype[1:],
+                skip_rows=None,
+                converters={"_time": lambda x: arrow.get(x).date()},
+                header_line=None,
+            )
+
+            des = NumpyDeserializer(
+                bars_dtype,
+                parse_date=None,
+                use_cols=["_time"] + bars_dtype[1:],
+                converters={"_time": lambda x: arrow.get(x).date()},
+            )
+            des(data)
+        # content is empty
+        data = "\r\n"
+        des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_dtype[1:])
+        self.assertEqual(0, des(data).size)
+
+        data = "\r\nabceefg\r\n"
+        with self.assertRaises(SerializationError):
+            des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_dtype[1:])
             des(data)
 
     async def test_dataframe_serializer(self):

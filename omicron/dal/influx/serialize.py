@@ -573,21 +573,14 @@ class NumpyDeserializer(Serializer):
                 parse_date, int
             ), "parse_date must be an integer if data contains no header"
 
+            assert use_cols is None or isinstance(
+                use_cols[0], str
+            ), "use_cols must be a list of integers if data contains no header"
+
             if len(self.converters) > 1:
                 assert all(
                     [isinstance(x, int) for x in self.converters.keys()]
                 ), "converters must be a dict of column index to converter function, if there's no header"
-
-        if isinstance(parse_date, int):
-            if parse_date in self.converters.keys():
-                logger.warning(
-                    "specify duplicated converter in both parse_date and converters for col %s, use converters.",
-                    parse_date,
-                )
-            else:
-                self.converters[
-                    parse_date
-                ] = lambda x: ciso8601.parse_datetime_as_naive(x)
 
         self._parsed_headers = None
 
@@ -600,42 +593,47 @@ class NumpyDeserializer(Serializer):
         Raises:
             SerializationError: [description]
         """
-        if self.header_line is None:
+        if self.header_line is None or self._parsed_headers is not None:
             return
 
-        if self._parsed_headers is None:
-            try:
-                line = stream.readlines(self.header_line)[-1]
-                cols = line.strip().split(self.sep)
-                self._parsed_headers = cols
+        try:
+            line = stream.readlines(self.header_line)[-1]
+            cols = line.strip().split(self.sep)
+            self._parsed_headers = cols
 
-                use_cols = self.use_cols
-                if use_cols is not None and isinstance(use_cols[0], str):
-                    self.use_cols = [cols.index(col) for col in self.use_cols]
-                if isinstance(self.parse_date, str):
-                    self.parse_date = cols.index(self.parse_date)
-                    if self.parse_date in self.converters.keys():
-                        logger.warning(
-                            "specify duplicated converter in both parse_date and converters for col %s, use converters.",
-                            self.parse_date,
-                        )
-                    else:
-                        self.converters[
-                            self.parse_date
-                        ] = lambda x: ciso8601.parse_datetime_as_naive(x)
+            use_cols = self.use_cols
+            if use_cols is not None and isinstance(use_cols[0], str):
+                self.use_cols = [cols.index(col) for col in self.use_cols]
 
-                stream.seek(0)
-            except (IndexError, ValueError):
-                if line.strip() == "":
-                    content = "".join(stream.readlines()).strip()
-                    if len(content) > 0:
-                        raise SerializationError(
-                            f"specified heder line {self.header_line} is empty"
-                        )
-                    else:
-                        raise EmptyResult()
+            # convert keys of converters to int
+            converters = {cols.index(k): v for k, v in self.converters.items()}
+
+            self.converters = converters
+
+            if isinstance(self.parse_date, str):
+                parse_date = cols.index(self.parse_date)
+                if parse_date in self.converters.keys():
+                    logger.warning(
+                        "specify duplicated converter in both parse_date and converters for col %s, use converters.",
+                        self.parse_date,
+                    )
+                else:  # 增加parse_date到converters
+                    self.converters[
+                        parse_date
+                    ] = lambda x: ciso8601.parse_datetime_as_naive(x)
+
+            stream.seek(0)
+        except (IndexError, ValueError):
+            if line.strip() == "":
+                content = "".join(stream.readlines()).strip()
+                if len(content) > 0:
+                    raise SerializationError(
+                        f"specified heder line {self.header_line} is empty"
+                    )
                 else:
-                    raise SerializationError(f"bad header[{self.header_line}]: {line}")
+                    raise EmptyResult()
+            else:
+                raise SerializationError(f"bad header[{self.header_line}]: {line}")
 
     def __call__(self, data: bytes) -> np.ndarray:
         if self.encoding and isinstance(data, bytes):

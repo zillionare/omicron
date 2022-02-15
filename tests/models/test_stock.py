@@ -1,23 +1,14 @@
 import datetime
 import unittest
-from collections import defaultdict
-from tkinter import Frame
 from unittest import mock
 
 import arrow
 import cfg4py
 import numpy as np
-import pandas as pd
-from coretypes import (
-    FrameType,
-    SecurityType,
-    bars_cols,
-    bars_dtype,
-    bars_with_limit_cols,
-    bars_with_limit_dtype,
-)
+from coretypes import FrameType, SecurityType, bars_dtype, bars_with_limit_dtype
 
 import omicron
+from omicron.core.constants import TRADE_PRICE_LIMITS
 from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions import numpy_append_fields
@@ -904,6 +895,31 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         np.testing.assert_array_equal(expected["frame"], actual["frame"])
 
+        # 取当天的限价
+        dt = arrow.get("2022-01-10").date()
+        field_high = f"{code}.high_limit"
+        field_low = f"{code}.low_limit"
+
+        await cache._security_.hmset(
+            TRADE_PRICE_LIMITS, field_high, 19.83, field_low, 17.32
+        )
+        with mock.patch("arrow.now", return_value=dt):
+            actual = await Stock.get_limits_in_range(code, start, dt)
+            expected = np.array(
+                [
+                    (datetime.date(2022, 1, 6), 18.83, 15.41),
+                    (datetime.date(2022, 1, 7), 18.83, 15.41),
+                    (dt, 19.83, 17.32),
+                ],
+                dtype=[
+                    ("frame", "O"),
+                    ("high_limit", "<f8"),
+                    ("low_limit", "<f8"),
+                ],
+            )
+            for col in ["high_limit", "low_limit"]:
+                np.testing.assert_array_almost_equal(expected[col], actual[col])
+
     async def test_batch_get_cached_bars(self):
         codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
         stop = ranges_1m["cache_stop"]
@@ -925,3 +941,111 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         result = await Stock._batch_get_cached_bars(codes, stop, 10, ft)
         self.assertEqual(3, len(result))
         self.assertEqual(0, result["000003.XSHE"].size)
+
+    def test_qfq(self):
+        # 000001.XSHE, 2021-5-14, week bars
+        # 注意通过jq.get_bars获取的前复权数据与expected有差异。其一，最后一个bar的数据，在前复权情况下，应该等于未复权数据，即现价。jq给出的数据是不一致的；其二，它的成交量复权，与我们的计算结果不一致。但同一公式用来计算其它字段复权则是对的。
+        bars = np.array(
+            [
+                (
+                    datetime.date(2021, 4, 30),
+                    23.87,
+                    24.23,
+                    22.78,
+                    23.29,
+                    3.11350520e08,
+                    7.24329575e09,
+                    120.769436,
+                ),
+                (
+                    datetime.date(2021, 5, 7),
+                    23.1,
+                    24.3,
+                    23.1,
+                    24.05,
+                    1.30250943e08,
+                    3.10329398e09,
+                    120.769436,
+                ),
+                (
+                    datetime.date(2021, 5, 14),
+                    24.0,
+                    24.04,
+                    22.6,
+                    23.32,
+                    2.80536547e08,
+                    6.54642212e09,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        expected = np.array(
+            [
+                (
+                    datetime.date(2021, 4, 30),
+                    23.68,
+                    24.04,
+                    22.6,
+                    23.11,
+                    3.08921267e08,
+                    7.24329575e09,
+                    120.769436,
+                ),
+                (
+                    datetime.date(2021, 5, 7),
+                    22.92,
+                    24.11,
+                    22.92,
+                    23.86,
+                    1.29234685e08,
+                    3.10329398e09,
+                    120.769436,
+                ),
+                (
+                    datetime.date(2021, 5, 14),
+                    24.0,
+                    24.04,
+                    22.6,
+                    23.32,
+                    2.80536547e08,
+                    6.54642212e09,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        actual = Stock.qfq(bars)
+        assert_bars_equal(expected, actual)
+
+    async def test_batch_get_bars(self):
+        codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
+
+        end = arrow.get("2022-02-10 10:06:00").naive
+        ft = FrameType.MIN30
+        bars = await Stock.batch_get_bars(codes, 10, ft, end, fq=False, unclosed=True)
+
+        self.assertEqual(3, len(bars))
+        self.assertEqual(10, bars["000001.XSHE"].size)
+        self.assertEqual(10, bars["000002.XSHE"].size)
+        self.assertEqual(0, bars["000003.XSHE"].size)
+
+        code = "000001.XSHE"
+        from_persist = bars_from_csv(code, "30m", 94, 101)
+        from_cache = bars_from_csv(code, "1m", 66, 101)
+        from_cache = Stock.resample(from_cache, FrameType.MIN1, ft)
+
+        assert_bars_equal(from_persist, bars[code][:-2])
+        assert_bars_equal(from_cache, bars[code][8:])
+
+        # all in cache
+        bars = await Stock.batch_get_bars(codes, 1, ft, end, fq=False)
+        self.assertEqual(3, len(bars))
+        assert_bars_equal(from_cache[:1], bars[code])
+
+        # fq = true, unclosed = true
+        bars = await Stock.batch_get_bars(codes, 10, ft, end, fq=True)
+        self.assertEqual(3, len(bars))
+        self.assertEqual(10, bars[code].size)

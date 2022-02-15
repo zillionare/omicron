@@ -9,16 +9,9 @@ import cfg4py
 import ciso8601
 import numpy as np
 import pandas as pd
-from coretypes import (
-    Frame,
-    FrameType,
-    SecurityType,
-    bars_cols,
-    bars_dtype,
-    bars_with_limit_cols,
-    bars_with_limit_dtype,
-)
+from coretypes import Frame, FrameType, SecurityType, bars_cols, bars_dtype
 
+from omicron.core.constants import TRADE_PRICE_LIMITS
 from omicron.core.errors import BadParameterError, DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
@@ -35,11 +28,11 @@ cfg = cfg4py.get_instance()
 
 
 def ciso8601_parse_date(x):
-    ciso8601.parse_datetime(x).date()
+    return ciso8601.parse_datetime(x).date()
 
 
 def ciso8601_parse_naive(x):
-    ciso8601.parse_datetime_as_naive(x)
+    return ciso8601.parse_datetime_as_naive(x)
 
 
 class Stock:
@@ -256,12 +249,13 @@ class Stock:
     @staticmethod
     def qfq(bars: np.ndarray) -> np.ndarray:
         """对行情数据执行前复权操作"""
+        # todo: 这里可以优化
         if bars.size == 0:
             return bars
 
         last = bars[-1]["factor"]
         for field in ["open", "high", "low", "close", "volume"]:
-            bars[field] = (bars[field] / last) * bars["factor"]
+            bars[field] = bars[field] * (bars["factor"] / last)
 
         return bars
 
@@ -351,29 +345,34 @@ class Stock:
         """
         end = end or arrow.now().floor("minute").naive
 
-        part1_start = TimeFrame.first_min_frame(end, frame_type)
-        part1_closed = TimeFrame.floor(end, frame_type)
+        part2_start = TimeFrame.first_min_frame(end, frame_type)
+        part2_closed = TimeFrame.floor(end, frame_type)
 
-        n1 = TimeFrame.count_frames(part1_start, part1_closed, frame_type)
-        if end != part1_closed and unclosed:
-            n1 += 1
+        n2 = TimeFrame.count_frames(part2_start, part2_closed, frame_type)
+        if end != part2_closed and unclosed:
+            # 如果end指定了非帧对齐时间，且不是属于最后一帧，这里的逻辑可能有问题。但这种场景不应该出现。
+            n2 += 1
 
-        part1 = await cls._batch_get_cached_bars(codes, end, n1, frame_type, unclosed)
+        part2 = await cls._batch_get_cached_bars(codes, end, n2, frame_type, unclosed)
 
-        if n1 == n:
+        if n2 == n:
             if fq:
-                return {code: cls.qfq(bars) for code, bars in part1.items()}
+                return {code: cls.qfq(bars) for code, bars in part2.items()}
             else:
-                return part1
+                return part2
 
-        part2 = await cls._batch_get_persisted_bars(codes, frame_type, n - n1, end=end)
+        # part2可能部分品种有数据，部分没有。因此，part1的长度仍设置为n，且从end开始起向前取数据。这样，两部分加起来的结果可能大于n,需要在返回前进行截断。
+        begin = TimeFrame.shift(part2_closed, -n, frame_type)
+        part1 = await cls._batch_get_persisted_bars(
+            codes, frame_type, begin=begin, n=n, end=end
+        )
 
         result = {}
         for code in codes:
             part1_bars = part1.get(code, np.empty((0,), dtype=bars_dtype))
             part2_bars = part2.get(code, np.empty((0,), dtype=bars_dtype))
 
-            bars = np.concatenate([part2_bars, part1_bars])
+            bars = np.concatenate([part1_bars, part2_bars])[-n:]
             if fq:
                 bars = cls.qfq(bars)
             result[code] = bars
@@ -499,10 +498,8 @@ class Stock:
             skip_rows=1,
             use_cols=keep_cols,
             converters={
-                # fixme: to use name like "_time" instead of index 3
-                3: _time_converter,
+                "_time": _time_converter,
             },
-            parse_date=None,
         )
 
         url = cfg.influxdb.url
@@ -518,15 +515,13 @@ class Stock:
         cls,
         codes: List[str],
         frame_type: FrameType,
+        begin: Frame,
         n: int = None,
-        begin: Frame = None,
         end: Frame = None,
     ) -> Dict[str, np.array]:
         """从持久化存储中获取`codes`指定的一批股票在时间范围内的数据。
 
-        `begin`和`n`必须指定至少一个。如果`end`未指定，则取当前时间。当`begin`和`n`都指定时，将只返回在`[begin, end]`范围内的最多`n`条数据。
-
-        如果`frame_type == FrameType.DAY`，则返回的数据类型是`bars_with_limit_dtype`，否则返回的数据类型是`bars_dtype`。
+        如果`end`未指定，则取当前时间。当`n`指定时，将只返回在`[begin, end]`范围内的最多`n`条数据,且为递增排序的最后`n`条数据（即最接近于`end`的数据）。
 
         返回的数据按`frame`进行升序排列。
 
@@ -537,12 +532,12 @@ class Stock:
         Args:
             codes : 证券代码列表
             frame_type : the frame_type to query
-            n : 返回结果数量
             begin : begin timestamp of returned results
+            n : 返回结果数量
             end : end timestamp of returned results
 
         Returns:
-            以`code`为key, 行情数据为value的字典。
+            以`code`为key, 行情数据（dtype为bars_dtype的numpy数组）为value的字典
         """
         if n is None:
             assert begin is not None, "must specify `begin` or `n`"
@@ -589,13 +584,27 @@ class Stock:
 
         # 将查询结果转换为dict,并且进行排序
         result = {}
+        if frame_type in TimeFrame.day_level_frames:
+            convertor = cls._pd_timestamp_to_date
+        else:
+            convertor = cls._pd_timestamp_to_datetime
+
         for code, group in result_df.groupby("code"):
             df = group[return_cols].sort_values("frame")
             bars = df.to_records(index=False).astype(bars_dtype)
-            bars["frame"] = [x.to_pydatetime() for x in df["frame"]]
+            bars["frame"] = [convertor(x) for x in df["frame"]]
             result[code] = bars
 
         return result
+
+    @classmethod
+    def _pd_timestamp_to_date(cls, ts: pd.Timestamp) -> datetime.date:
+        """将pd.Timestamp转换为date"""
+        return ts.to_pydatetime().date()
+
+    @classmethod
+    def _pd_timestamp_to_datetime(cls, ts: pd.Timestamp) -> datetime.datetime:
+        return ts.to_pydatetime()
 
     @classmethod
     async def batch_cache_bars(cls, frame_type: FrameType, bars: Dict[str, np.ndarray]):
@@ -629,7 +638,7 @@ class Stock:
     @classmethod
     async def batch_cache_unclosed_bars(
         cls, frame_type: FrameType, bars: Dict[str, np.ndarray]
-    ):
+    ):  # pragma: no cover
         """缓存未收盘的5、15、30、60分钟线及日线
 
         Note:
@@ -806,6 +815,9 @@ class Stock:
 
             min_bars = cls._deserialize_cached_bars(r1, FrameType.MIN1)
 
+            if min_bars.size == 0:
+                return min_bars
+
             if frame_type == FrameType.MIN1:
                 return min_bars[-n:]
 
@@ -863,11 +875,11 @@ class Stock:
     @classmethod
     async def cache_unclosed_bars(
         cls, code: str, frame_type: FrameType, bars: np.ndarray
-    ):
+    ):  # pragma: no cover
         """将未结束的行情数据缓存
 
         Note:
-            考虑到resample的性能高，所以当前并没有将未结束的行情数据缓存 -- 这需要有一个程序以每分钟一次的频率，对全市场数据进行resample并缓存。
+            考虑到resample的性能高，所以当前并没有将未结束的行情数据缓存 -- 这需要有一个程序以每分钟一次的频率，对全市场数据进行resample并缓存。因此这个函数当前并没有被使用。
 
         未结束的行情数据缓存在以`bars:{frame_type.value}:unclosed`为key, {code}为field的hashmap中。
 
@@ -908,12 +920,11 @@ class Stock:
         bars数据应该属于同一个frame_type,并且列字段由`coretypes.bars_dtype` + ("code", "O")构成。
 
         Args:
-            code: the full qualified code of a security or index
             frame_type: the frame type of the bars
             bars: the bars to be persisted
 
         Raises:
-
+            InfluxDBWriteError: if influxdb write failed
         """
         client = InfluxClient(
             cfg.influxdb.url,
@@ -1034,14 +1045,14 @@ class Stock:
     async def _get_persisted_trade_limit_prices(
         cls, code: str, begin: Frame, end: Frame
     ) -> np.ndarray:
-        """从influxdb中获取个股的涨跌停价。
+        """从influxdb中获取个股在[begin, end]之间的涨跌停价。
 
         涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY
 
         Args:
-            code : [description]
-            begin : [description]
-            end : [description]
+            code : 个股代码
+            begin : 开始日期
+            end : 结束日期
 
         Returns:
             dtype为[('code', 'O'), ('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
@@ -1070,8 +1081,7 @@ class Stock:
             dtype,
             use_cols=["_time", "high_limit", "low_limit"],
             converters={
-                # fixme: to use name like "_time" instead of index 3
-                3: lambda x: ciso8601.parse_datetime(x).date(),
+                "_time": lambda x: ciso8601.parse_datetime(x).date(),
             },
             # since we ask parse date in convertors, so we have to disable parse_date
             parse_date=None,
@@ -1084,18 +1094,23 @@ class Stock:
     async def get_limits_in_range(
         cls, code: str, begin: datetime.date, end: datetime.date
     ) -> np.array:
-        """获取股票的涨跌停价"""
-        now = datetime.datetime.now().date()
+        """获取股票的涨跌停价
+
+        Args:
+            code: 股票代码
+            begin: 开始日期,必须指定为交易日
+            end: 结束日期,必须指定为交易日
+        """
+        now = TimeFrame.day_shift(arrow.now(), 0)
         end = min(now, end)
-        assert begin < now, "begin time should NOT be great than now"
-        assert begin < end, "begin time should NOT be great than end time"
+        assert begin <= end, "begin time should NOT be great than end time"
 
         part1 = await cls._get_persisted_trade_limit_prices(code, begin, end)
 
-        if end == now:
+        if end == now:  # 当天的数据在缓存中
             pl = cache._security_.pipeline()
-            pl.hget("high_low_limit", f"{code}.high_limit")
-            pl.hget("high_low_limit", f"{code}.low_limit")
+            pl.hget(TRADE_PRICE_LIMITS, f"{code}.high_limit")
+            pl.hget(TRADE_PRICE_LIMITS, f"{code}.low_limit")
 
             hl, ll = await pl.execute()
             if hl or ll:
