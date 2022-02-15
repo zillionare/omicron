@@ -18,7 +18,7 @@ class Flux(object):
         """初始化Flux对象
 
         Args:
-            enable_pivot : 是否自动将查询列字段组装成行. Defaults to True.
+            auto_pivot : 是否自动将查询列字段组装成行. Defaults to True.
         """
         self._cols = None
         self.expressions = defaultdict(list)
@@ -72,7 +72,7 @@ class Flux(object):
             expr.append(
                 "\n".join(
                     [
-                        ' |> top(n: 10, columns: ["_time"])',
+                        f' |> top(n: {self._last_n}, columns: ["_time"])',
                         ' |> sort(columns: ["_time"], desc: false)',
                     ]
                 )
@@ -214,7 +214,7 @@ class Flux(object):
             '1978-07-08T00:00:01Z'
 
         Args:
-            end : 待格式化的时间
+            tm : 待格式化的时间
             precision: 时间精度，可选值为：'s', 'ms', 'us'
             shift_forward: 如果为True，则将end向前偏移一个精度
 
@@ -253,7 +253,7 @@ class Flux(object):
         Examples:
             >>> flux = Flux()
             >>> flux.tags({"code": ["000001", "000002"], "name": ["浦发银行"]}).expressions["tags"]
-            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001","000002"]) or contains(value: r["name"], set: ["浦发银行"]))
+            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001","000002"]) or contains(value: r["name"], set: ["浦发银行"]))'
 
 
         Returns:
@@ -317,9 +317,9 @@ class Flux(object):
 
 
         Args:
-            row_keys: 惟一确定输出中一行数据的列名字。
-            cols: 待转换的列名称列表, 默认为["_time"]
+            row_keys: 惟一确定输出中一行数据的列名字, 默认为["_time"]
             column_keys: 列名称列表，默认为["_field"]
+            value_column: 值列名，默认为"_value"
 
         Returns:
             Flux对象，以便进行管道操作
@@ -441,32 +441,18 @@ class Flux(object):
         return self
 
     @property
-    def cols(self):
-        """the columns in the return records
+    def cols(self) -> List[str]:
+        """the columns or the return records
 
         the implementation is buggy. Influx doesn't tell us in which order these columns are.
 
 
         Returns:
-            [description]
+            the columns name of the return records
         """
         # fixme: if keep in expression, then return group key + tag key + value key
         # if keep not in expression, then stream, table, _time, ...
         return sorted(self._cols)
-
-    def order_columns(self, cols_in, cols_out):
-        """re-order columns according `self.cols`
-
-        当Flux语句指定后，输出记录的字段个数及顺序也就指定了。但是，Influx输出的csv的字段顺序并不是应用层指定的顺序，需要进行顺序转换（比如，如果deserializer为NumpyDeserializer，则通过use_cols来进行重排序）。
-
-        Args:
-            cols_in: the columns in the return records
-            cols_out: the columns in the return records
-
-        Returns:
-            [description]
-        """
-        raise NotImplementedError
 
     def delete(
         self,
@@ -487,8 +473,7 @@ class Flux(object):
             stop : [description]
             tags : 按tags和匹配的值进行删除。传入的tags中，key为tag名称，value为tag要匹配的取值，可以为str或者List[str]。
             start : 起始时间。如果省略，则使用EPOCH_START.
-            timespec: 时间精度，应该与创建记录时保持一致, 取值为["s", "ms", "us"]。默认为秒。
-
+            precision : 时间精度。可以为“s”，“ms”，“us”
         Returns:
             删除语句
         """

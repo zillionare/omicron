@@ -166,7 +166,6 @@ class InfluxClient:
         Args:
             line_protocol: 待写入的数据，以line-protocol数组形式存在
 
-        Raises:
         """
         # todo: add raise error declaration
         if self._enable_compress:
@@ -200,7 +199,7 @@ class InfluxClient:
         ,_result,0,2019-01-01T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000
         ```
 
-        上述`result`中，事先通过Flux.keep()限制了返回的字段为_time,code,amount,close,factor,high,low,open,volume。influxdb查询返回结果时，字段不会按查询时[keep][omicron.dal.flux.Flux.keep]指定的顺序排列，而总是按照字段名称升序排列。此外，总是会额外地返回_result, table两个字段。
+        上述`result`中，事先通过Flux.keep()限制了返回的字段为_time,code,amount,close,factor,high,low,open,volume。influxdb查询返回结果时，字段不会按查询时[keep][omicron.dal.influx.flux.Flux.keep]指定的顺序排列，而总是按照字段名称升序排列。此外，总是会额外地返回_result, table两个字段。
 
         如果传入了deserializer，则会调用deserializer将其解析成为python对象。否则，返回bytes数据。
 
@@ -240,8 +239,6 @@ class InfluxClient:
 
         调用此方法后，实际上该measurement仍然存在，只是没有数据。
 
-        Raises:
-
         """
         # todo: add raise error declaration
         await self.delete(measurement, arrow.now().naive)
@@ -256,13 +253,13 @@ class InfluxClient:
     ):
         """删除influxdb中指定时间段内的数据
 
-        关于参数，请参见[Flux.delete][omicron.dal.flux.Flux.delete]。
+        关于参数，请参见[Flux.delete][omicron.dal.influx.flux.Flux.delete]。
 
         Args:
-            start: 开始时间
-            stop: 结束时间
-            measurement: 指定measurement
-            tag: 指定tag
+            measurement: 指定measurement名字
+            stop: 待删除记录的结束时间
+            start: 待删除记录的开始时间，如果未指定，则使用EPOCH_START
+            tags: 按tag进行过滤的条件
             precision: 用以格式化起始和结束时间。
 
         Raises:

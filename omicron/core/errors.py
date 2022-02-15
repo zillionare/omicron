@@ -68,4 +68,7 @@ class EmptyResult(Error):
         Error : [description]
     """
 
+    def __init__(self, msg="return empty result"):
+        super().__init__(msg)
+
     pass

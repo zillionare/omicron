@@ -5737,7 +5737,10 @@ def assert_bars_equal(exp, actual):
     for field, _ in bars_dtype:
         if field == "frame":
             continue
-        assert_array_almost_equal(exp[field], actual[field], decimal=2)
+
+        decimal = 2 if field != "volume" else 0
+        # 经过前复权后，成交量可能略有误差
+        assert_array_almost_equal(exp[field], actual[field], decimal)
 
 
 def test_dir():

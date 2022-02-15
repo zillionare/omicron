@@ -127,10 +127,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             encoding="utf-8",
             skip_rows=1,
             use_cols=keep_cols,
-            converters={
-                # fixme: to use name like "_time" instead of index 3
-                3: lambda x: ciso8601.parse_datetime(x).date()
-            },
+            converters={"_time": lambda x: ciso8601.parse_datetime(x).date()},
             parse_date=None,
         )
 
@@ -344,7 +341,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         des = NumpyDeserializer(
             bars_dtype,
             parse_date=None,
-            converters={3: lambda x: ciso8601.parse_datetime(x).date()},
+            converters={"_time": lambda x: ciso8601.parse_datetime(x).date()},
             use_cols=["_time"] + bars_cols[1:],
         )
         actual = await self.client.query(query, des)
