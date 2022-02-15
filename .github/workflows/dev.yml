@@ -80,7 +80,7 @@ jobs:
         run: |
           docker run -d -p 8086:8086 --name my_influxdb influxdb
           sleep 3
-          docker exec -i my_influxdb bash -c 'influx setup --username my-user --password my-password --org my-org --bucket my-bucket --retention 168d --token my-token --force'
+          docker exec -i my_influxdb bash -c 'influx setup --username my-user --password my-password --org my-org --bucket my-bucket --token my-token --force'
 
       - name: test with tox
         run:
