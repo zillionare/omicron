@@ -914,6 +914,18 @@ class Stock:
         cls._set_cached(today)
 
     @classmethod
+    def _get_influx_client(cls):
+        client = InfluxClient(
+            cfg.influxdb.url,
+            cfg.influxdb.token,
+            cfg.influxdb.bucket_name,
+            cfg.influxdb.org,
+            enable_compress=cfg.influxdb.enable_compress,
+        )
+
+        return client
+
+    @classmethod
     async def persist_bars(cls, frame_type: FrameType, bars: pd.DataFrame):
         """将行情数据持久化
 
@@ -926,13 +938,7 @@ class Stock:
         Raises:
             InfluxDBWriteError: if influxdb write failed
         """
-        client = InfluxClient(
-            cfg.influxdb.url,
-            cfg.influxdb.token,
-            cfg.influxdb.bucket_name,
-            cfg.influxdb.org,
-            enable_compress=cfg.influxdb.enable_compress,
-        )
+        client = cls._get_influx_client()
 
         measurement = cls._measurement_name(frame_type)
 
@@ -1042,7 +1048,7 @@ class Stock:
         raise NotImplementedError
 
     @classmethod
-    async def _get_persisted_trade_limit_prices(
+    async def _get_persisted_trade_price_limits(
         cls, code: str, begin: Frame, end: Frame
     ) -> np.ndarray:
         """从influxdb中获取个股在[begin, end]之间的涨跌停价。
@@ -1057,17 +1063,11 @@ class Stock:
         Returns:
             dtype为[('code', 'O'), ('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
         """
-        url, token, org, bucket = (
-            cfg.influxdb.url,
-            cfg.influxdb.token,
-            cfg.influxdb.org,
-            cfg.influxdb.bucket_name,
-        )
-        client = InfluxClient(url, token, bucket, org)
+        client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
-            .bucket(bucket)
+            .bucket(client._bucket)
             .measurement(measurement)
             .range(begin, end)
             .fields(["high_limit", "low_limit"])
@@ -1091,10 +1091,10 @@ class Stock:
         return result
 
     @classmethod
-    async def get_limits_in_range(
+    async def get_trade_price_limits(
         cls, code: str, begin: datetime.date, end: datetime.date
     ) -> np.array:
-        """获取股票的涨跌停价
+        """获取股票在`[begin, end]`期间的涨跌停价
 
         Args:
             code: 股票代码
@@ -1105,7 +1105,7 @@ class Stock:
         end = min(now, end)
         assert begin <= end, "begin time should NOT be great than end time"
 
-        part1 = await cls._get_persisted_trade_limit_prices(code, begin, end)
+        part1 = await cls._get_persisted_trade_price_limits(code, begin, end)
 
         if end == now:  # 当天的数据在缓存中
             pl = cache._security_.pipeline()
@@ -1119,3 +1119,35 @@ class Stock:
 
         else:
             return part1
+
+    @classmethod
+    async def save_trade_price_limits(cls, price_limits: np.ndarray, to_cache: bool):
+        """保存涨跌停价
+
+        Args:
+            price_limits: numpy structured array of dtype [('frame', 'O'), ('code', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4')]
+            to_cache: 是保存到缓存中，还是保存到持久化存储中
+        """
+        if len(price_limits) == 0:
+            return
+
+        if to_cache:
+            pl = cache._security_.pipeline()
+            for row in price_limits:
+                pl.hset(
+                    TRADE_PRICE_LIMITS, f"{row['code']}.high_limit", row["high_limit"]
+                )
+                pl.hset(
+                    TRADE_PRICE_LIMITS, f"{row['code']}.low_limit", row["low_limit"]
+                )
+            await pl.execute()
+
+        else:
+            # to influxdb
+            client = cls._get_influx_client()
+            await client.save(
+                price_limits,
+                cls._measurement_name(FrameType.DAY),
+                tag_keys="code",
+                time_key="frame",
+            )

@@ -790,7 +790,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         expected = bars_from_csv("000001.XSHE", "30m")[-10:]
         assert_bars_equal(expected, data["000001.XSHE"])
 
-    async def test_get_persisted_trade_limit_prices(self):
+    async def test_get_persisted_trade_price_limits(self):
         measurement = "stock_bars_1d"
 
         # fill in data
@@ -827,7 +827,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             global_tags={"code": "000001.XSHE"},
         )
 
-        result = await Stock._get_persisted_trade_limit_prices(
+        result = await Stock._get_persisted_trade_price_limits(
             "000001.XSHE", start, end
         )
 
@@ -876,7 +876,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         start = datetime.date(2022, 1, 6)
         end = datetime.date(2022, 1, 7)
-        actual = await Stock.get_limits_in_range(code, start, end)
+        actual = await Stock.get_trade_price_limits(code, start, end)
 
         expected = np.array(
             [
@@ -904,7 +904,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             TRADE_PRICE_LIMITS, field_high, 19.83, field_low, 17.32
         )
         with mock.patch("arrow.now", return_value=dt):
-            actual = await Stock.get_limits_in_range(code, start, dt)
+            actual = await Stock.get_trade_price_limits(code, start, dt)
             expected = np.array(
                 [
                     (datetime.date(2022, 1, 6), 18.83, 15.41),
