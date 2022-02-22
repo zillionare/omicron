@@ -4,7 +4,7 @@ import numpy as np
 
 from omicron.talib.metrics import (
     alpha_beta,
-    annualized_return,
+    annual_return,
     calmar_ratio,
     cumulative_return,
     downside_risk,
@@ -111,17 +111,17 @@ class MetricsTest(unittest.TestCase):
     def test_annualized_return(self):
         returns = mixed_returns
 
-        actual = annualized_return(returns, annual_factor=252 / len(returns))
+        actual = annual_return(returns, annual_factor=252 / len(returns))
         self.assertAlmostEqual(actual, 1.913592, places=3)
 
-        actual = annualized_return(returns, annual_factor=252 / len(returns))
+        actual = annual_return(returns, annual_factor=252 / len(returns))
         self.assertAlmostEqual(actual, 1.913592, places=3)
 
-        actual = annualized_return(returns, annual_factor=252 / 5)
+        actual = annual_return(returns, annual_factor=252 / 5)
         self.assertAlmostEqual(actual, 5.854, places=3)
 
         returns = 0.03893109170048037
-        actual = annualized_return(returns, annual_factor=252 / 9)
+        actual = annual_return(returns, annual_factor=252 / 9)
         self.assertAlmostEqual(actual, 1.913592, places=3)
 
     def test_sharpe_ratio(self):
@@ -138,11 +138,11 @@ class MetricsTest(unittest.TestCase):
         actual = sharpe_ratio(mixed_returns)
         self.assertAlmostEqual(actual, 1.724, places=3)
 
-        actual = sharpe_ratio(mixed_returns, simple_benchmark)
-        self.assertAlmostEqual(actual, 0.34111411441060574)
-
         actual = sharpe_ratio(positive_returns, rf=0.0)
         self.assertAlmostEqual(actual, 52.915026221291804)
+
+        actual = sharpe_ratio(mixed_returns, rf=0.03)
+        self.assertAlmostEqual(actual, 1.6910259410055302)
 
         actual = sharpe_ratio(negative_returns, rf=0.0)
         self.assertAlmostEqual(actual, -24.406808633910085)
@@ -168,8 +168,8 @@ class MetricsTest(unittest.TestCase):
         actual = sortino_ratio(mixed_returns)
         self.assertAlmostEqual(actual, 2.605531251673693)
 
-        actual = sortino_ratio(mixed_returns, flat_line_1)
-        self.assertAlmostEqual(actual, -1.3934779588919977)
+        actual = sortino_ratio(mixed_returns, rf=0.03)
+        self.assertAlmostEqual(actual, 2.552234598077831)
 
         actual = sortino_ratio(positive_returns)
         self.assertTrue(np.isinf(actual))

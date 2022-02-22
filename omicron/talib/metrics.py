@@ -13,7 +13,7 @@ def max_drawdown(returns: np.ndarray) -> Tuple:
 
     [代码引用](https://stackoverflow.com/a/22607546)
     Args:
-        returns ([]): 每日收益率（而不是资产净值）
+        returns : 收益率（而不是资产净值）
 
     Returns:
         [Tuple]: mdd, start, send
@@ -32,23 +32,23 @@ def max_drawdown(returns: np.ndarray) -> Tuple:
 
 
 def sharpe_ratio(
-    returns: np.ndarray, rf: float = 0.0, annual_factor: int = 252
+    returns: np.ndarray, rf: float = 0.0, annual_factor: int = APPROX_BDAYS_PER_YEAR
 ) -> float:
     """计算夏普比率(年化)
 
     平均超额收益（即收益减去无风险利率）除以标准差，即夏普比率。
 
-    夏普比率是以年化计算的，因此`rf`(无风险利率)也应该以年化利率提供。
+    `rf`(risk-free利率)为年化无风险利率。
 
-    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annualized_return]中的定义。
+    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annual_return]中的定义。
 
     Note:
         See [this article](https://towardsdatascience.com/sharpe-ratio-sorino-ratio-and-calmar-ratio-252b0cddc328) for more details.
 
     Args:
-        returns ([np.ndarray]): 回报率(一维数组).
-        rf (float, optional): risk free returns(年化). Defaults to 0.0.
-        annual_factor: 年化因子，默认为252
+        returns: 回报率(一维数组).
+        rf: risk free returns(年化). Defaults to 0.0.
+        annual_factor: 年化因子，默认为`APPROX_BDAYS_PER_YEAR`。如果`returns`为日收益率，则`annual_factor`可使用默认值；否则，应该使用根据returns取得的周期，传入对应的年化因子。
 
     Raise:
         ValueError: 如果`returns`中的收益率少于1个有效值。
@@ -58,20 +58,20 @@ def sharpe_ratio(
     if remove_nan(returns).size <= 1:
         raise ValueError("returns must have at least two valid values")
 
-    adj_returns = returns - rf
+    adj_returns = returns - rf / APPROX_BDAYS_PER_YEAR
     return (np.nanmean(adj_returns) * np.sqrt(annual_factor)) / np.nanstd(
         adj_returns, ddof=1
     )
 
 
 def sortino_ratio(
-    returns: np.ndarray, rf: float = 0.0, annual_factor: int = 252
+    returns: np.ndarray, rf: float = 0.0, annual_factor: int = APPROX_BDAYS_PER_YEAR
 ) -> float:
     """计算Sortino比率
 
     Sortina比率是将收益与负收益的标准差进行比较。在这里，我们并非使用负收益的标准差，而是使用了一种称为[downside risk][omicron.talib.metrics.downside_risk]的方法，这种方法与[investopedia](https://www.investopedia.com/terms/s/sortinoratio.asp)、[Quantopian empyrical](https://github.com/quantopian/empyrical/blob/master/empyrical/stats.py)及[this article](https://towardsdatascience.com/sharpe-ratio-sorino-ratio-and-calmar-ratio-252b0cddc328)保持一致。
 
-    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annualized_return]中的定义。
+    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annual_return]中的定义。
 
     Args:
         returns : 收益率
@@ -84,7 +84,7 @@ def sortino_ratio(
     if remove_nan(returns).size <= 1:
         raise ValueError("returns must have at least two valid values")
 
-    adj_returns = returns - rf
+    adj_returns = returns - rf / annual_factor
 
     annualized_dr = downside_risk(adj_returns, annual_factor)
     if annualized_dr == 0:
@@ -121,7 +121,7 @@ def calmar_ratio(returns: np.ndarray, annual_factor: int = 1) -> float:
 
     Calmar比率是绝对收益与最大回撤的比率，再进行年化的结果。
 
-    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annualized_return]中的定义。
+    关于年化因子，请参见[年化收益率][omicron.talib.metrics.annual_return]中的定义。
 
     Examples:
         >>> returns = np.array([np.nan, 1., 10., -4., 2., 3., 2., 1., -10.]) / 100
@@ -139,7 +139,7 @@ def calmar_ratio(returns: np.ndarray, annual_factor: int = 1) -> float:
     mdd, *_ = max_drawdown(returns)
 
     if mdd < 0:
-        return annualized_return(returns, annual_factor) / abs(mdd)
+        return annual_return(returns, annual_factor) / abs(mdd)
     else:
         return np.inf
 
@@ -153,7 +153,7 @@ def volatility(
 
     如果收益率包含`np.nan`，这种情况是允许的。
 
-    请注意，此处的年化因子与**[年化收益率][omicron.talib.metrics.annualized_return]中定义的不同**。如果不需要年化（或者数据周期已经是按年为单位），则可以使用默认的年化因子。否则，年化因子 = 年交易日 / 周期长度（以日为单位）。比如，如果周期为日，则年化因子为252，如果为周，则为52。
+    请注意，此处的年化因子与**[年化收益率][omicron.talib.metrics.annual_return]中定义的不同**。如果不需要年化（或者数据周期已经是按年为单位），则可以使用默认的年化因子。否则，年化因子 = 年交易日 / 周期长度（以日为单位）。比如，如果周期为日，则年化因子为252，如果为周，则为52。
 
     Examples:
         >>> returns = np.array([np.nan, 1., 10., -4., 2., 3., 2., 1., -10.]) / 100
@@ -219,7 +219,7 @@ def cumulative_return(returns: Iterable) -> float:
     return np.nanprod(np.array(returns) + 1) - 1
 
 
-def annualized_return(returns: Union[float, np.array], annual_factor: int = 1) -> float:
+def annual_return(returns: Union[float, np.array], annual_factor: int = 1) -> float:
     """从日收益率(数组)计算年化收益率
 
     `returns`如果为数组，表示每次交易所取得的收益（非累进收益），允许出现`nan`。如果为浮点数，则表示期间所取得的累进收益。
@@ -232,12 +232,12 @@ def annualized_return(returns: Union[float, np.array], annual_factor: int = 1) -
         >>> # 通过日收益率数组计算年化。由于资产持有时间等于数组长度，所以我们可以不传入
         >>> # `n_hold_days`参数。
         >>> returns = np.array([np.nan, 1., 10., -4., 2., 3., 2., 1., -10.]) / 100
-        >>> round(annualized_return(returns, annual_factor=252/len(returns)), 3)
+        >>> round(annual_return(returns, annual_factor=252/len(returns)), 3)
         1.914
 
         >>> # 已知9天的累进收益，计算年化收益率
         >>> returns = 0.03893109170048037
-        >>> round(annualized_return(returns, annual_factor=252/9), 3)
+        >>> round(annual_return(returns, annual_factor=252/9), 3)
         1.914
 
     Args:

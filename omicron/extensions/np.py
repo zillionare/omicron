@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
-from numpy.typing import ArrayLike
-
-if TYPE_CHECKING:
-    from pandas import DataFrame
-
 from numpy.lib.stride_tricks import sliding_window_view
+from numpy.typing import ArrayLike
+from pandas import DataFrame
 
 
 def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
@@ -36,7 +33,7 @@ def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
 
 
 def dataframe_to_structured_array(
-    df: "DataFrame", dtypes: List[Tuple] = None
+    df: DataFrame, dtypes: List[Tuple] = None
 ) -> ArrayLike:
     """convert dataframe (with all columns, and index possibly) to numpy structured arrays
 
@@ -285,7 +282,9 @@ def join_by_left(key, r1, r2, mask=True):
     return ret
 
 
-def numpy_append_fields(base, names, data, dtypes):
+def numpy_append_fields(
+    base: np.ndarray, names: Union[str, List[str]], data: List, dtypes: List
+):
     """给现有的数组`base`增加新的字段
 
     实现了`numpy.lib.recfunctions.rec_append_fields`的功能。因为`rec_append_fields`不能处
@@ -309,7 +308,7 @@ def numpy_append_fields(base, names, data, dtypes):
 
     Args:
         base ([numpy.array]): 基础数组
-        name ([type]): 新增字段的名字，可以是字符串（单字段的情况），也可以是字符串列表
+        names ([type]): 新增字段的名字，可以是字符串（单字段的情况），也可以是字符串列表
         data (list): 增加的字段的数据，list类型
         dtypes ([type]): 新增字段的dtype
     """

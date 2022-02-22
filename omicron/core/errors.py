@@ -23,3 +23,52 @@ class DataNotReadyError(Error):
     """数据未就绪错误，比如依赖的数据还未下载到本地，或者未加载到内存中"""
 
     pass
+
+
+class InfluxDBWriteError(Error):
+    """写influx db错误"""
+
+    pass
+
+
+class InfluxDBQueryError(Error):
+    """查询influx db错误"""
+
+    pass
+
+
+class InfluxDeleteError(Error):
+    """删除influx db错误"""
+
+    pass
+
+
+class DuplicateOperationError(Error):
+    """重复操作错误。"""
+
+    pass
+
+
+class SerializationError(Error):
+    """序列化错误。"""
+
+    pass
+
+
+class BadParameterError(Error):
+    """函数传入了错误的参数、参数个数或者参数值。"""
+
+    pass
+
+
+class EmptyResult(Error):
+    """返回了空的查询结果
+
+    Args:
+        Error : [description]
+    """
+
+    def __init__(self, msg="return empty result"):
+        super().__init__(msg)
+
+    pass
