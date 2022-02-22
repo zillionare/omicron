@@ -1,6 +1,7 @@
 """Unit test package for omicron."""
 import logging
 import os
+from typing import Union
 
 import aioredis
 import arrow
@@ -5809,7 +5810,7 @@ def read_csv(fname, start=None, end=None):
 
 
 def bars_from_csv(
-    code: str, ft: FrameType, start_line: int = None, end_line: int = None
+    code: str, ft: Union[str, FrameType], start_line: int = None, end_line: int = None
 ):
     ft = FrameType(ft)
 

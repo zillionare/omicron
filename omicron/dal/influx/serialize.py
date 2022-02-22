@@ -574,7 +574,7 @@ class NumpyDeserializer(Serializer):
             ), "parse_date must be an integer if data contains no header"
 
             assert use_cols is None or isinstance(
-                use_cols[0], str
+                use_cols[0], int
             ), "use_cols must be a list of integers if data contains no header"
 
             if len(self.converters) > 1:

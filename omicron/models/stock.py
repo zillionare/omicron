@@ -282,7 +282,7 @@ class Stock:
             返回一个字典，key为证券代码，value为行情数据。value是一个dtype为`bars_dtype`的一维numpy数组。
         """
         closed_end = TimeFrame.floor(end, frame_type)
-        n = TimeFrame.count_frames(begin, closed_end)
+        n = TimeFrame.count_frames(begin, closed_end, frame_type)
         if closed_end < end and unclosed:
             n += 1
 
@@ -926,10 +926,14 @@ class Stock:
         return client
 
     @classmethod
-    async def persist_bars(cls, frame_type: FrameType, bars: pd.DataFrame):
+    async def persist_bars(
+        cls,
+        frame_type: FrameType,
+        bars: Union[Dict[str, np.ndarray], np.ndarray, pd.DataFrame],
+    ):
         """将行情数据持久化
 
-        bars数据应该属于同一个frame_type,并且列字段由`coretypes.bars_dtype` + ("code", "O")构成。
+        如果`bars`类型为Dict,则key为`code`，value为`bars`。如果其类型为np.ndarray或者pd.DataFrame，则`bars`各列字段应该为`coretypes.bars_dtype` + ("code", "O")构成。
 
         Args:
             frame_type: the frame type of the bars
@@ -942,12 +946,18 @@ class Stock:
 
         measurement = cls._measurement_name(frame_type)
 
-        await client.save(
-            bars,
-            measurement,
-            tag_keys=["code"],
-            time_key="frame",
-        )
+        if isinstance(bars, dict):
+            for code, value in bars.items():
+                await client.save(
+                    value, measurement, global_tags={"code": code}, time_key="frame"
+                )
+        else:
+            await client.save(
+                bars,
+                measurement,
+                tag_keys=["code"],
+                time_key="frame",
+            )
 
     @classmethod
     def resample(
@@ -1134,11 +1144,16 @@ class Stock:
         if to_cache:
             pl = cache._security_.pipeline()
             for row in price_limits:
+                # .item convert np.float64 to python float
                 pl.hset(
-                    TRADE_PRICE_LIMITS, f"{row['code']}.high_limit", row["high_limit"]
+                    TRADE_PRICE_LIMITS,
+                    f"{row['code']}.high_limit",
+                    row["high_limit"].item(),
                 )
                 pl.hset(
-                    TRADE_PRICE_LIMITS, f"{row['code']}.low_limit", row["low_limit"]
+                    TRADE_PRICE_LIMITS,
+                    f"{row['code']}.low_limit",
+                    row["low_limit"].item(),
                 )
             await pl.execute()
 

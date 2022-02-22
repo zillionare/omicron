@@ -756,6 +756,21 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         expected = bars_from_csv(code, "1d")
         assert_bars_equal(expected, actual)
 
+        await self.client.drop_measurement("stock_bars_1d")
+        # test with multiple codes
+        data = {
+            code: bars_from_csv(code, "1d", 90)
+            for code in ["000001.XSHE", "000002.XSHE"]
+        }
+
+        start = data["000001.XSHE"][0][0]
+        await Stock.persist_bars(FrameType.DAY, data)
+        actual = await Stock._batch_get_persisted_bars(
+            list(data.keys()), FrameType.DAY, start, end=end
+        )
+        for code in data.keys():
+            assert_bars_equal(data[code], actual[code])
+
     async def test_batch_get_persisted_bars(self):
         codes = []
         start = ranges_30m["db_start"]
@@ -1049,3 +1064,81 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         bars = await Stock.batch_get_bars(codes, 10, ft, end, fq=True)
         self.assertEqual(3, len(bars))
         self.assertEqual(10, bars[code].size)
+
+    async def test_save_trade_price_limits(self):
+        limits = np.array(
+            [
+                (datetime.date(2022, 1, 6), "000001.XSHE", 18.83, 15.41),
+                (datetime.date(2022, 1, 7), "000002.XSHE", 18.83, 15.41),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("code", "O"),
+                ("high_limit", "<f8"),
+                ("low_limit", "<f8"),
+            ],
+        )
+
+        await Stock.save_trade_price_limits(limits, True)
+
+        start = datetime.date(2022, 1, 6)
+        end = datetime.date(2022, 1, 6)
+
+        with mock.patch("arrow.now", return_value=start):
+            actual = await Stock.get_trade_price_limits("000001.XSHE", start, end)
+            self.assertAlmostEqual(18.83, actual[0]["high_limit"])
+
+        await Stock.save_trade_price_limits(limits, False)
+        with mock.patch("arrow.now", return_value=datetime.date(1900, 1, 1)):
+            actual = await Stock.get_trade_price_limits("000001.XSHE", start, end)
+            self.assertAlmostEqual(18.83, actual[0]["high_limit"])
+
+    async def test_get_bars_in_range(self):
+        code = "000001.XSHE"
+        start = datetime.datetime(2022, 2, 9, 10)
+        end = datetime.datetime(2022, 2, 10, 10, 6)
+
+        bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start, end)
+        self.assertEqual(10, len(bars))
+        self.assertEqual(datetime.datetime(2022, 2, 9, 10), bars[0]["frame"])
+        self.assertEqual(datetime.datetime(2022, 2, 10, 10, 6), bars[-1]["frame"])
+
+        bars = await Stock.get_bars_in_range(
+            code, FrameType.MIN30, start, end, unclosed=False
+        )
+        self.assertEqual(9, len(bars))
+        self.assertEqual(datetime.datetime(2022, 2, 9, 10), bars[0]["frame"])
+        self.assertEqual(datetime.datetime(2022, 2, 10, 10), bars[-1]["frame"])
+
+    async def test_batch_get_bars_in_range(self):
+        codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
+        start = datetime.datetime(2022, 2, 9, 10)
+        end = datetime.datetime(2022, 2, 10, 10, 6)
+
+        actual = await Stock.batch_get_bars_in_range(
+            codes, FrameType.MIN30, start, end, fq=False
+        )
+        self.assertEqual(3, len(actual))
+        self.assertEqual(10, len(actual["000001.XSHE"]))
+        self.assertEqual(0, len(actual["000003.XSHE"]))
+
+        self.assertEqual(
+            datetime.datetime(2022, 2, 9, 10), actual["000001.XSHE"][0]["frame"]
+        )
+        self.assertEqual(
+            datetime.datetime(2022, 2, 10, 10, 6), actual["000001.XSHE"][-1]["frame"]
+        )
+
+        actual = await Stock.batch_get_bars_in_range(
+            codes, FrameType.MIN30, start, end, unclosed=False, fq=False
+        )
+
+        self.assertEqual(3, len(actual))
+        self.assertEqual(9, len(actual["000001.XSHE"]))
+        self.assertEqual(0, len(actual["000003.XSHE"]))
+        self.assertEqual(
+            datetime.datetime(2022, 2, 9, 10), actual["000001.XSHE"][0]["frame"]
+        )
+        self.assertEqual(
+            datetime.datetime(2022, 2, 10, 10), actual["000001.XSHE"][-1]["frame"]
+        )

@@ -213,13 +213,15 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
                 header_line=None,
             )
 
+        with self.assertRaises(AssertionError):
             des = NumpyDeserializer(
                 bars_dtype,
                 parse_date=None,
                 use_cols=["_time"] + bars_dtype[1:],
                 converters={"_time": lambda x: arrow.get(x).date()},
+                header_line=None,
             )
-            des(data)
+
         # content is empty
         data = "\r\n"
         des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_dtype[1:])
