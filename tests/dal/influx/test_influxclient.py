@@ -116,7 +116,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .bucket(self.client._bucket)
             .measurement(measurement)
             .range(start, end)
-            .keep(keep_cols)
             .tags({"code": code})
         )
 
@@ -154,7 +153,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .measurement(measurement)
             .tags({"code": "000002.XSHE"})
             .range(datetime.date(2019, 1, 5), datetime.date(2019, 1, 6))
-            .keep(keep_cols)
         )
 
         actual = await self.client.query(query, des)
@@ -169,7 +167,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .range(Flux.EPOCH_START, arrow.now().datetime)
             .bucket(self.client._bucket)
             .pivot()
-            .keep(["open", "close", "code", "name"])
         )
 
         data = await self.client.query(flux)
@@ -197,7 +194,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .range(Flux.EPOCH_START, datetime.datetime(2019, 1, 1, 9, 30))
             .bucket(self.client._bucket)
             .pivot()
-            .keep(["open", "close", "code", "name"])
         )
 
         # given deserializer
@@ -214,8 +210,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .tags({"code": "000001.XSHE", "name": ["平安银行", "中国银行"]})
             .range(Flux.EPOCH_START, datetime.datetime(2019, 1, 1, 9, 35))
             .bucket(self.client._bucket)
-            .pivot()
-            .keep(["open", "close", "code", "name"])
         )
 
         ds = DataframeDeserializer()
@@ -230,8 +224,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .tags({"code": ["000001.XSHE"]})
             .bucket(self.client._bucket)
             .range(Flux.EPOCH_START, datetime.datetime(2019, 1, 1, 9, 30))
-            .pivot()
-            .keep(["open", "close", "code", "name"])
         )
 
         actual = await self.client.query(flux, ds)
@@ -251,14 +243,11 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
                 await self.client.query(flux, ds)
 
     async def test_delete(self):
-        cols = ["open", "close", "code", "name"]
-
         q = (
             Flux()
             .bucket(self.client._bucket)
             .measurement("ut_test_query")
             .range(Flux.EPOCH_START, arrow.now().datetime)
-            .keep(cols)
         )
 
         ds = DataframeDeserializer()
@@ -335,7 +324,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .measurement(measurement)
             .bucket(self.client._bucket)
             .range(start, end)
-            .keep(bars_cols)
         )
 
         des = NumpyDeserializer(

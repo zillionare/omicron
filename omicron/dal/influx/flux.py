@@ -14,16 +14,18 @@ class Flux(object):
 
     EPOCH_START = datetime.datetime(1970, 1, 1, 0, 0, 0)
 
-    def __init__(self, auto_pivot=True):
+    def __init__(self, auto_pivot=True, no_sys_cols=True):
         """初始化Flux对象
 
         Args:
             auto_pivot : 是否自动将查询列字段组装成行. Defaults to True.
+            drop_sys_columns: 是否自动将系统字段删除. Defaults to True.请参考[drop_sys_cols][omicron.dal.influx.flux.Flux.drop_sys_cols]
         """
         self._cols = None
         self.expressions = defaultdict(list)
         self._auto_pivot = auto_pivot
         self._last_n = None
+        self.no_sys_cols = no_sys_cols
 
     def __str__(self):
         return self._compose()
@@ -50,6 +52,12 @@ class Flux(object):
         if self.expressions.get("fields"):
             expr.append(self.expressions["fields"])
 
+        if "drop" not in self.expressions and self.no_sys_cols:
+            self.drop_sys_cols()
+
+        if self.expressions.get("drop"):
+            expr.append(self.expressions["drop"])
+
         if self._auto_pivot and "pivot" not in self.expressions:
             self.pivot()
 
@@ -68,6 +76,7 @@ class Flux(object):
         if self.expressions.get("limit"):
             expr.append(self.expressions["limit"])
 
+        # 根据测试，influxdb默认并不会按时间顺序返回结果。因此，在取last_n的情况下，必须进行排序。
         if self._last_n:
             expr.append(
                 "\n".join(
@@ -498,3 +507,38 @@ class Flux(object):
         }
 
         return command
+
+    def drop(self, cols: List[str]) -> "Flux":
+        """use this to drop columns before return result
+
+        Args:
+            cols : the name of columns to be dropped
+
+        Returns:
+            Flux object, to support pipe operation
+        """
+        if "drop" in self.expressions:
+            raise DuplicateOperationError("drop opertaion has been set aleady")
+
+        # add surrounding quotes
+        _cols = [f'"{c}"' for c in cols]
+        self.expressions["drop"] = f"  |> drop(columns: [{','.join(_cols)}])"
+
+        return self
+
+    def drop_sys_cols(self, cols: List[str] = None) -> "Flux":
+        """use this to drop ["_start", "_stop", "_measurement"], plus columns specified in `cols`, before return query result
+
+        please be noticed, after drop sys columns, there's still two sys colums left, which is "_time" and "table", and "_time" should usually be kept, "table" is one we're not able to removed. If you don't like _time in return result, you can specify it in `cols` parameter.
+
+        Args:
+            cols : the extra columns to be dropped
+
+        Returns:
+            Flux query object
+        """
+        _cols = ["_start", "_stop", "_measurement"]
+        if cols is not None:
+            _cols.extend(cols)
+
+        return self.drop(_cols)

@@ -32,6 +32,7 @@ cfg4py.update_config(
             "bucket_name": bucket,
             "token": token,
             "url": url,
+            "enable_compress": True,
         }
     }
 )
@@ -42,15 +43,21 @@ print(cfg.influxdb.url)
 async def main():
     t0 = time.time()
     print("running test since ", datetime.datetime.now())
-    data = await Stock._batch_get_persisted_bars(
-        [], FrameType.MIN1, begin=start, end=end
-    )
-    try:
-        print(f"total {len(data)} bars")
-        print(f'{len(data.get("000001.XSHE"))} in each')
-    except Exception as e:
-        print(e)
-    print("query cost", round(time.time() - t0, 1), "seconds")
+
+    from unittest import mock
+
+    with mock.patch(
+        "omicron.models.stock.Stock._measurement_name", return_value="stock_min1"
+    ):
+        data = await Stock._batch_get_persisted_bars(
+            [], FrameType.MIN1, begin=start, end=end
+        )
+        try:
+            print(f"total {len(data)} bars")
+            print(f'{len(data.get("000001.XSHE"))} in each')
+        except Exception as e:
+            print(e)
+        print("query cost", round(time.time() - t0, 1), "seconds")
 
 
 asyncio.run(main())
