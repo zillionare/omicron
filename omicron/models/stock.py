@@ -477,7 +477,6 @@ class Stock:
             .bucket(cfg.influxdb.bucket_name)
             .range(begin, end)
             .measurement(measurement)
-            .keep(keep_cols)
             .tags({"code": code})
         )
 
@@ -560,7 +559,6 @@ class Stock:
             .bucket(cfg.influxdb.bucket_name)
             .range(begin, end)
             .measurement(measurement)
-            .keep(keep_cols)
         )
 
         if len(codes) > 0:
@@ -574,12 +572,7 @@ class Stock:
             names=names, usecols=keep_cols, encoding="utf-8", time_col="frame"
         )
 
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        bucket = cfg.influxdb.bucket_name
-        org = cfg.influxdb.org
-
-        client = InfluxClient(url, token, bucket, org, enable_compress=True)
+        client = cls._get_influx_client()
         result_df = await client.query(flux, deserializer)
 
         # 将查询结果转换为dict,并且进行排序
@@ -1082,7 +1075,6 @@ class Stock:
             .range(begin, end)
             .fields(["high_limit", "low_limit"])
             .tags({"code": code})
-            .keep(["_time", "high_limit", "low_limit"])
             .sort("_time")
         )
 

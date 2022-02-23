@@ -142,6 +142,7 @@ class FluxTest(unittest.TestCase):
             '  |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")',
             '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))',
             '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
+            '  |> drop(columns: ["_start","_stop","_measurement"])',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
             '  |> keep(columns: ["close","high","low","open","_time"])',
             '  |> group(columns: ["code"])',
@@ -220,3 +221,25 @@ class FluxTest(unittest.TestCase):
         expected = [1644282123, 1644282123000, 1644282123000000]
         for i, p in enumerate(["s", "ms", "us"]):
             self.assertEqual(expected[i], Flux.to_timestamp(tm, p))
+
+    def test_drop(self):
+        start = datetime.datetime(2019, 1, 1)
+        end = datetime.datetime(2019, 1, 2)
+        flux = (
+            Flux()
+            .bucket("my-bucket")
+            .measurement("stock_bars_1d")
+            .drop_sys_cols()
+            .range(start, end)
+        )
+
+        exp = [
+            'from(bucket: "my-bucket")',
+            "  |> range(start: 2019-01-01T00:00:00Z, stop: 2019-01-02T00:00:01Z)",
+            '  |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")',
+            '  |> drop(columns: ["_start","_stop","_measurement"])',
+            '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
+        ]
+
+        actual = str(flux).split("\n")
+        self.assertListEqual(exp, actual)
