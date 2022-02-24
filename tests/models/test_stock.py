@@ -22,6 +22,7 @@ ranges_1m = {"cache_start": None, "cache_stop": None, "db_start": None, "db_stop
 
 ranges_30m = ranges_1m.copy()
 ranges_1d = ranges_1m.copy()
+ranges_1w = ranges_1m.copy()
 
 
 class StockTest(unittest.IsolatedAsyncioTestCase):
@@ -54,10 +55,11 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         await self.client.drop_measurement("stock_bars_1d")
         await self.client.drop_measurement("stock_bars_1m")
         await self.client.drop_measurement("stock_bars_30m")
+        await self.client.drop_measurement("stock_bars_1w")
 
         for ranges, ft in zip(
-            (ranges_1m, ranges_30m, ranges_1d),
-            (FrameType.MIN1, FrameType.MIN30, FrameType.DAY),
+            (ranges_1m, ranges_30m, ranges_1d, ranges_1w),
+            (FrameType.MIN1, FrameType.MIN30, FrameType.DAY, FrameType.WEEK),
         ):
             for code in (1, 2, 4):
                 code = f"00000{code}.XSHE"
@@ -1066,6 +1068,13 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(3, len(bars))
         self.assertEqual(10, bars[code].size)
 
+        # 周线
+        end = arrow.get("2021-12-24").date()
+        bars = await Stock.batch_get_bars(codes, 8, FrameType.WEEK, end, fq=False)
+        from_persist = bars_from_csv(code, "1w", 94, 101)
+        self.assertEqual(3, len(bars))
+        self.assertEqual(8, bars[code].size)
+
     async def test_save_trade_price_limits(self):
         limits = np.array(
             [
@@ -1143,3 +1152,14 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             datetime.datetime(2022, 2, 10, 10), actual["000001.XSHE"][-1]["frame"]
         )
+
+    async def test_batch_cache_unclosed_bars(self):
+        data = {
+            "000001.XSHE": bars_from_csv("000001.XSHE", "1d", 101, 101),
+        }
+        await Stock.batch_cache_unclosed_bars(FrameType.DAY, data)
+        data = await Stock.batch_get_bars(
+            ["000001.XSHE"], 1, FrameType.DAY, unclosed=True
+        )
+        self.assertEqual(1, len(data))
+        self.assertEqual(datetime.date(2022, 2, 8), data["000001.XSHE"][0]["frame"])

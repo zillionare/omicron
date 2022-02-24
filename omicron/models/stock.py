@@ -345,15 +345,24 @@ class Stock:
         """
         end = end or arrow.now().floor("minute").naive
 
-        part2_start = TimeFrame.first_min_frame(end, frame_type)
-        part2_closed = TimeFrame.floor(end, frame_type)
+        if frame_type in TimeFrame.minute_level_frames:
+            part2_start = TimeFrame.first_min_frame(end, frame_type)
+            part2_closed = TimeFrame.floor(end, frame_type)
 
-        n2 = TimeFrame.count_frames(part2_start, part2_closed, frame_type)
-        if end != part2_closed and unclosed:
-            # 如果end指定了非帧对齐时间，且不是属于最后一帧，这里的逻辑可能有问题。但这种场景不应该出现。
-            n2 += 1
+            n2 = TimeFrame.count_frames(part2_start, part2_closed, frame_type)
+            if end != part2_closed and unclosed:
+                # 如果end指定了非帧对齐时间，且不是属于最后一帧，这里的逻辑可能有问题。但这种场景不应该出现。
+                n2 += 1
 
-        part2 = await cls._batch_get_cached_bars(codes, end, n2, frame_type, unclosed)
+            part2 = await cls._batch_get_cached_bars(
+                codes, end, n2, frame_type, unclosed
+            )
+        elif frame_type == FrameType.DAY and unclosed:
+            return await cls._batch_get_cached_bars(codes, end, 1, frame_type, unclosed)
+        else:
+            part2 = {}
+            part2_closed = end
+            n2 = 0
 
         if n2 == n:
             if fq:
@@ -654,12 +663,12 @@ class Stock:
         )
 
         for code, bar in bars.items():
-            val = [*bar]
-            val[0] = convert(bar["frame"])  # 时间转换
+            val = [*bar[0]]
+            val[0] = convert(bar["frame"][0])  # 时间转换
             pl.hset(key, code, ",".join(map(str, val)))
-        await pl.execute()
+            cls._set_cached(bar[0]["frame"])
 
-        cls._set_cached(bars[0]["frame"])
+        await pl.execute()
 
     @classmethod
     async def reset_cache(cls):
@@ -789,10 +798,17 @@ class Stock:
         returns:
             元素类型为`coretypes.bars_dtype`的一维numpy数组。如果没有数据，则返回空ndarray。
         """
-        ff = cls._get_cached_first_frame(frame_type)
+        if frame_type == FrameType.DAY and unclosed:
+            # only available after 15:00, 如果在盘中，则都从1m数据resample
+            raw = await cache.security.hmget(f"bars:{frame_type.value}:unclosed", code)
+            bars = cls._deserialize_cached_bars(raw, FrameType.DAY)
+            if len(bars) != 0:
+                return bars
+
+        ff = cls._get_cached_first_frame(FrameType.MIN1)
         end = TimeFrame.floor(end, FrameType.MIN1)
 
-        if ff is None or end < ff:
+        if ff is None or end < ff:  # cache 中还没有分钟线数据，或者结束时间早于cache
             return np.empty((0,), dtype=bars_dtype)
 
         if (
