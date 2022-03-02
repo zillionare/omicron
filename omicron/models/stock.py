@@ -86,7 +86,7 @@ class Stock:
 
             _stocks = _stocks[
                 (_stocks["type"] == "stock") | (_stocks["type"] == "index")
-            ]
+                ]
 
             _stocks["ipo"] = [arrow.get(x).date() for x in _stocks["ipo"]]
             _stocks["end"] = [arrow.get(x).date() for x in _stocks["end"]]
@@ -123,12 +123,12 @@ class Stock:
 
     @classmethod
     def choose(
-        cls,
-        types: List[str] = ["stock", "index"],
-        exclude_exit=True,
-        exclude_st=True,
-        exclude_300=False,
-        exclude_688=True,
+            cls,
+            types: List[str] = ["stock", "index"],
+            exclude_exit=True,
+            exclude_st=True,
+            exclude_300=False,
+            exclude_688=True,
     ) -> list:
         """选择证券标的
 
@@ -158,6 +158,20 @@ class Stock:
             result = [rec for rec in result if not rec["code"].startswith("688")]
         if exclude_st:
             result = [rec for rec in result if rec["display_name"].find("ST") == -1]
+        result = np.array(result, dtype=cls.stock_info_dtype)
+        return result["code"].tolist()
+
+    @classmethod
+    def choose_listed(cls, dt: datetime.date,
+                      types: List[str] = ["stock", "index"]):
+        cond = np.array([False] * len(cls._stocks))
+
+        for type_ in types:
+            cond |= cls._stocks["type"] == type_
+        result = cls._stocks[cond]
+        result = result[result["end"] > dt]
+        result = result[result["ipo"] <= dt]
+
         result = np.array(result, dtype=cls.stock_info_dtype)
         return result["code"].tolist()
 
@@ -261,13 +275,13 @@ class Stock:
 
     @classmethod
     async def batch_get_bars_in_range(
-        cls,
-        codes: Iterable[str],
-        frame_type: FrameType,
-        begin: Frame,
-        end: Frame,
-        fq=True,
-        unclosed: bool = True,
+            cls,
+            codes: Iterable[str],
+            frame_type: FrameType,
+            begin: Frame,
+            end: Frame,
+            fq=True,
+            unclosed: bool = True,
     ) -> Dict[str, np.ndarray]:
         """获取在`[start, stop]`间的行情数据。
 
@@ -290,13 +304,13 @@ class Stock:
 
     @classmethod
     async def get_bars_in_range(
-        cls,
-        code: str,
-        frame_type: FrameType,
-        start: Frame,
-        end: Frame,
-        fq=True,
-        unclosed=True,
+            cls,
+            code: str,
+            frame_type: FrameType,
+            start: Frame,
+            end: Frame,
+            fq=True,
+            unclosed=True,
     ) -> np.ndarray:
         """获取指定证券（`code`）在[`start`, `end`]期间帧类型为`frame_type`的行情数据。
 
@@ -318,13 +332,13 @@ class Stock:
 
     @classmethod
     async def batch_get_bars(
-        cls,
-        codes: Iterable[str],
-        n: int,
-        frame_type: FrameType,
-        end: Frame = None,
-        fq: bool = True,
-        unclosed: bool = False,
+            cls,
+            codes: Iterable[str],
+            n: int,
+            frame_type: FrameType,
+            end: Frame = None,
+            fq: bool = True,
+            unclosed: bool = False,
     ) -> Dict[str, np.ndarray]:
         """获取多支股票（指数）的最近的`n`个行情数据。
 
@@ -390,13 +404,13 @@ class Stock:
 
     @classmethod
     async def get_bars(
-        cls,
-        code: str,
-        n: int,
-        frame_type: FrameType,
-        end: Frame = None,
-        fq=True,
-        unclosed=True,
+            cls,
+            code: str,
+            n: int,
+            frame_type: FrameType,
+            end: Frame = None,
+            fq=True,
+            unclosed=True,
     ) -> np.ndarray:
         """获取到`end`为止的`n`个行情数据。
 
@@ -450,12 +464,12 @@ class Stock:
 
     @classmethod
     async def _get_persisted_bars(
-        cls,
-        code: str,
-        frame_type: FrameType,
-        begin: Frame,
-        end: Frame = None,
-        n: int = None,
+            cls,
+            code: str,
+            frame_type: FrameType,
+            begin: Frame,
+            end: Frame = None,
+            n: int = None,
     ) -> np.array:
         """从influxdb中获取数据
 
@@ -483,10 +497,10 @@ class Stock:
         measurement = cls._measurement_name(frame_type)
         flux = (
             Flux()
-            .bucket(cfg.influxdb.bucket_name)
-            .range(begin, end)
-            .measurement(measurement)
-            .tags({"code": code})
+                .bucket(cfg.influxdb.bucket_name)
+                .range(begin, end)
+                .measurement(measurement)
+                .tags({"code": code})
         )
 
         if n is not None:
@@ -520,12 +534,12 @@ class Stock:
 
     @classmethod
     async def _batch_get_persisted_bars(
-        cls,
-        codes: List[str],
-        frame_type: FrameType,
-        begin: Frame,
-        n: int = None,
-        end: Frame = None,
+            cls,
+            codes: List[str],
+            frame_type: FrameType,
+            begin: Frame,
+            n: int = None,
+            end: Frame = None,
     ) -> Dict[str, np.array]:
         """从持久化存储中获取`codes`指定的一批股票在时间范围内的数据。
 
@@ -565,9 +579,9 @@ class Stock:
         measurement = cls._measurement_name(frame_type)
         flux = (
             Flux()
-            .bucket(cfg.influxdb.bucket_name)
-            .range(begin, end)
-            .measurement(measurement)
+                .bucket(cfg.influxdb.bucket_name)
+                .range(begin, end)
+                .measurement(measurement)
         )
 
         if len(codes) > 0:
@@ -639,7 +653,7 @@ class Stock:
 
     @classmethod
     async def batch_cache_unclosed_bars(
-        cls, frame_type: FrameType, bars: Dict[str, np.ndarray]
+            cls, frame_type: FrameType, bars: Dict[str, np.ndarray]
     ):  # pragma: no cover
         """缓存未收盘的5、15、30、60分钟线及日线
 
@@ -756,7 +770,7 @@ class Stock:
 
     @classmethod
     async def _batch_get_cached_bars(
-        cls, codes: List[str], end: Frame, n: int, frame_type: FrameType, unclosed=True
+            cls, codes: List[str], end: Frame, n: int, frame_type: FrameType, unclosed=True
     ) -> Dict[str, np.ndarray]:
         """批量获取在cache中截止`end`的`n`个bars。
 
@@ -779,7 +793,7 @@ class Stock:
 
     @classmethod
     async def _get_cached_bars(
-        cls, code: str, end: Frame, n: int, frame_type: FrameType, unclosed=True
+            cls, code: str, end: Frame, n: int, frame_type: FrameType, unclosed=True
     ) -> np.ndarray:
         """从缓存中获取指定代码的行情数据
 
@@ -812,9 +826,9 @@ class Stock:
             return np.empty((0,), dtype=bars_dtype)
 
         if (
-            frame_type in TimeFrame.minute_level_frames
-            or frame_type == FrameType.DAY
-            and unclosed
+                frame_type in TimeFrame.minute_level_frames
+                or frame_type == FrameType.DAY
+                and unclosed
         ):
             # 取1分钟数据，再进行resample
             key = f"bars:{FrameType.MIN1.value}:{code}"
@@ -883,7 +897,7 @@ class Stock:
 
     @classmethod
     async def cache_unclosed_bars(
-        cls, code: str, frame_type: FrameType, bars: np.ndarray
+            cls, code: str, frame_type: FrameType, bars: np.ndarray
     ):  # pragma: no cover
         """将未结束的行情数据缓存
 
@@ -936,9 +950,9 @@ class Stock:
 
     @classmethod
     async def persist_bars(
-        cls,
-        frame_type: FrameType,
-        bars: Union[Dict[str, np.ndarray], np.ndarray, pd.DataFrame],
+            cls,
+            frame_type: FrameType,
+            bars: Union[Dict[str, np.ndarray], np.ndarray, pd.DataFrame],
     ):
         """将行情数据持久化
 
@@ -970,7 +984,7 @@ class Stock:
 
     @classmethod
     def resample(
-        cls, bars: np.ndarray, from_frame: FrameType, to_frame: FrameType
+            cls, bars: np.ndarray, from_frame: FrameType, to_frame: FrameType
     ) -> np.ndarray:
         """将原来为`from_frame`的行情数据转换为`to_frame`的行情数据
 
@@ -1068,7 +1082,7 @@ class Stock:
 
     @classmethod
     async def _get_persisted_trade_price_limits(
-        cls, code: str, begin: Frame, end: Frame
+            cls, code: str, begin: Frame, end: Frame
     ) -> np.ndarray:
         """从influxdb中获取个股在[begin, end]之间的涨跌停价。
 
@@ -1086,12 +1100,12 @@ class Stock:
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
-            .bucket(client._bucket)
-            .measurement(measurement)
-            .range(begin, end)
-            .fields(["high_limit", "low_limit"])
-            .tags({"code": code})
-            .sort("_time")
+                .bucket(client._bucket)
+                .measurement(measurement)
+                .range(begin, end)
+                .fields(["high_limit", "low_limit"])
+                .tags({"code": code})
+                .sort("_time")
         )
 
         dtype = [("frame", "O"), ("high_limit", "f8"), ("low_limit", "f8")]
@@ -1110,7 +1124,7 @@ class Stock:
 
     @classmethod
     async def get_trade_price_limits(
-        cls, code: str, begin: datetime.date, end: datetime.date
+            cls, code: str, begin: datetime.date, end: datetime.date
     ) -> np.array:
         """获取股票在`[begin, end]`期间的涨跌停价
 
