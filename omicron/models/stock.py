@@ -371,6 +371,7 @@ class Stock:
             part2 = await cls._batch_get_cached_bars(
                 codes, end, n2, frame_type, unclosed
             )
+            n2 = len(max(part2.values(), key=len))
         elif frame_type == FrameType.DAY and unclosed:
             return await cls._batch_get_cached_bars(codes, end, 1, frame_type, unclosed)
         else:
