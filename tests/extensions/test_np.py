@@ -10,6 +10,7 @@ from omicron.extensions.np import (
     find_runs,
     floor,
     join_by_left,
+    math_round,
     numpy_append_fields,
     remove_nan,
     replace_zero,
@@ -233,3 +234,14 @@ class NpTest(unittest.TestCase):
         ]
         for i, bins in enumerate([1, 2, 3, 5, 10]):
             self.assertListEqual(expected[i], bin_cut(arr, bins))
+
+    def test_math_round(self):
+        raw = [i / 10 for i in range(10)]
+        arr = np.array(raw)
+
+        exp_raw = [0] * 5 + [1] * 5
+
+        np.testing.assert_array_equal(np.array(exp_raw), math_round(arr, 0))
+
+        actual = math_round(raw, 0)
+        np.testing.assert_array_equal(np.array(exp_raw), actual)
