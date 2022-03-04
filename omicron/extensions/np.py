@@ -10,6 +10,8 @@ from numpy.lib.stride_tricks import sliding_window_view
 from numpy.typing import ArrayLike
 from pandas import DataFrame
 
+import omicron.extensions.decimals as decimals
+
 
 def dict_to_numpy_array(d: dict, dtype: List[Tuple]) -> np.array:
     """convert dictionary to numpy array
@@ -448,3 +450,19 @@ def bin_cut(arr: list, n: int):
         result[i % n].append(e)
 
     return [e for e in result if len(e)]
+
+
+def math_round(arr: ArrayLike, digits: int) -> np.ndarray:
+    """将一维数组arr的数据进行四舍五入
+
+    numpy.around的函数并不是数学上的四舍五入，对1.5和2.5进行round的结果都会变成2，在金融领域计算中，我们必须使用数学意义上的四舍五入。
+
+    Args:
+        arr (ArrayLike): 输入数组
+        digits (int):
+
+    Returns:
+        np.ndarray: 四舍五入后的一维数组
+    """
+    f = np.vectorize(lambda x: decimals.math_round(x, digits))
+    return f(arr)
