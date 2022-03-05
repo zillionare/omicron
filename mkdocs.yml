@@ -13,6 +13,7 @@ nav:
     - triggers: api/triggers.md
     - stock: api/stock.md
     - metrics: api/metrics.md
+    - talib: api/talib.md
     - dal:
       - Flux: api/dal/flux.md
       - InfluxClient: api/dal/influxclient.md
