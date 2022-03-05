@@ -162,6 +162,19 @@ class Stock:
         return result["code"].tolist()
 
     @classmethod
+    def choose_listed(cls, dt: datetime.date, types: List[str] = ["stock", "index"]):
+        cond = np.array([False] * len(cls._stocks))
+
+        for type_ in types:
+            cond |= cls._stocks["type"] == type_
+        result = cls._stocks[cond]
+        result = result[result["end"] > dt]
+        result = result[result["ipo"] <= dt]
+
+        result = np.array(result, dtype=cls.stock_info_dtype)
+        return result["code"].tolist()
+
+    @classmethod
     def choose_cyb(cls):
         """选择创业板股票"""
         return [rec["code"] for rec in cls._stocks if rec["code"].startswith("300")]
@@ -357,6 +370,7 @@ class Stock:
             part2 = await cls._batch_get_cached_bars(
                 codes, end, n2, frame_type, unclosed
             )
+            n2 = len(max(part2.values(), key=len))
         elif frame_type == FrameType.DAY and unclosed:
             return await cls._batch_get_cached_bars(codes, end, 1, frame_type, unclosed)
         else:

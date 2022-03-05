@@ -540,6 +540,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         # 6. 当cache为空时，应该返回空数组
         await Stock.reset_cache()
+        await cache._sys_.delete("second_data_source")
 
         bars = await Stock._get_cached_bars(
             "000001.XSHE", lf.naive, 10, FrameType.MIN1, unclosed=True
@@ -1162,3 +1163,20 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(1, len(data))
         self.assertEqual(datetime.date(2022, 2, 8), data["000001.XSHE"][0]["frame"])
+
+    def test_choose_by_date(self):
+        # 测试获取股票，过滤掉还没上市的股票
+        codes = Stock.choose_listed(
+            arrow.get("2000-01-01").date(), [SecurityType.STOCK.value]
+        )
+        self.assertEqual(
+            codes,
+            ["000001.XSHE", "000406.XSHE", "000005.XSHE", "600000.XSHG", "000007.XSHE"],
+        )
+        # 测试获取股票，过滤掉没上市和已经退市的股票
+        codes = Stock.choose_listed(
+            arrow.get("2007-01-01").date(), [SecurityType.STOCK.value]
+        )
+        self.assertEqual(
+            codes, ["000001.XSHE", "000005.XSHE", "600000.XSHG", "000007.XSHE"]
+        )
