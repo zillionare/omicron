@@ -60,7 +60,7 @@ async def main():
         print("query cost", round(time.time() - t0, 1), "seconds")
 
 
-asyncio.run(main())
+# asyncio.run(main())
 
 """
 ----------- test results:
