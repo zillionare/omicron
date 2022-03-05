@@ -127,7 +127,7 @@ class TaLibTest(unittest.TestCase):
         err, (a, b) = ta.polyfit(ts, deg=1)
         self.assertTrue(err < 1e-13)
         self.assertAlmostEquals(1, a)
-        self.assertEqual(0, b)
+        self.assertAlmostEqual(0, b)
 
         ts = np.array([0.2 * i ** 2 + 2 * i + 3 for i in range(5)])
         err, (a, b, c), (x, y) = ta.polyfit(ts)
