@@ -25,24 +25,6 @@ class DataNotReadyError(Error):
     pass
 
 
-class InfluxDBWriteError(Error):
-    """写influx db错误"""
-
-    pass
-
-
-class InfluxDBQueryError(Error):
-    """查询influx db错误"""
-
-    pass
-
-
-class InfluxDeleteError(Error):
-    """删除influx db错误"""
-
-    pass
-
-
 class DuplicateOperationError(Error):
     """重复操作错误。"""
 

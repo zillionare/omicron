@@ -9,17 +9,15 @@ import numpy as np
 from aiohttp import ClientSession
 from pandas import DataFrame
 
-from omicron.core.errors import (
+from omicron.core.errors import BadParameterError
+from omicron.dal.influx.errors import (
     InfluxDBQueryError,
     InfluxDBWriteError,
     InfluxDeleteError,
+    InfluxSchemaError,
 )
 from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.serialize import (
-    DataframeSerializer,
-    NumpyDeserializer,
-    NumpySerializer,
-)
+from omicron.dal.influx.serialize import DataframeSerializer, NumpySerializer
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +48,8 @@ class InfluxClient:
         self._bucket = bucket
         self._enable_compress = enable_compress
         self._org = org
+        self._org_id = None  # 需要时通过查询获取，此后不再更新
+        self._token = token
 
         # influxdb 2.0起支持的时间精度有：ns, us, ms, s。本客户端只支持s, ms和us
         self._precision = precision.lower()
@@ -287,3 +287,165 @@ class InfluxClient:
                     raise InfluxDeleteError(
                         f"influxdb delete failed, status code: {err['message']}"
                     )
+
+    async def list_buckets(self) -> List[Dict]:
+        """列出influxdb中对应token能看到的所有的bucket
+
+        Returns:
+            list of buckets, each bucket is a dict with keys:
+            ```
+            id
+            orgID, a 16 bytes hex string
+            type, system or user
+            description
+            name
+            retentionRules
+            createdAt
+            updatedAt
+            links
+            labels
+        ```
+        """
+        url = f"{self._url}/api/v2/buckets"
+        headers = {"Authorization": f"Token {self._token}"}
+        async with ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    err = await resp.json()
+                    raise InfluxSchemaError(
+                        f"influxdb list bucket failed, status code: {err['message']}"
+                    )
+                else:
+                    return (await resp.json())["buckets"]
+
+    async def delete_bucket(self, bucket_id: str = None):
+        """删除influxdb中指定bucket
+
+        Args:
+            bucket_id: 指定bucket的id。如果为None，则会删除本client对应的bucket。
+        """
+        if bucket_id is None:
+            buckets = await self.list_buckets()
+            for bucket in buckets:
+                if bucket["type"] == "user" and bucket["name"] == self._bucket:
+                    bucket_id = bucket["id"]
+                    break
+            else:
+                raise BadParameterError(
+                    "bucket_id is None, and we can't find bucket with name: %s"
+                    % self._bucket
+                )
+
+        url = f"{self._url}/api/v2/buckets/{bucket_id}"
+        headers = {"Authorization": f"Token {self._token}"}
+        async with ClientSession() as session:
+            async with session.delete(url, headers=headers) as resp:
+                if resp.status != 204:
+                    err = await resp.json()
+                    logger.warning(
+                        "influxdb delete bucket error: %s when processin command %s",
+                        err["message"],
+                        bucket_id,
+                    )
+                    raise InfluxSchemaError(
+                        f"influxdb delete bucket failed, status code: {err['message']}"
+                    )
+
+    async def create_bucket(
+        self, description=None, retention_rules: List[Dict] = None, org_id: str = None
+    ) -> str:
+        """创建influxdb中指定bucket
+
+        Args:
+            bucket_id: 指定bucket的名字
+            description: 指定bucket的描述
+            org_id: 指定bucket所属的组织id，如果未指定，则使用本client对应的组织id。
+
+        Raises:
+            InfluxSchemaError: 当influxdb返回错误时，比如重复创建bucket等，会抛出此异常
+        Returns:
+            新创建的bucket的id
+        """
+        if org_id is None:
+            org_id = await self.query_org_id()
+
+        url = f"{self._url}/api/v2/buckets"
+        headers = {"Authorization": f"Token {self._token}"}
+        data = {
+            "name": self._bucket,
+            "orgID": org_id,
+            "description": description,
+            "retentionRules": retention_rules,
+        }
+        async with ClientSession() as session:
+            async with session.post(
+                url, data=json.dumps(data), headers=headers
+            ) as resp:
+                if resp.status != 201:
+                    err = await resp.json()
+                    logger.warning(
+                        "influxdb create bucket error: %s when processin command %s",
+                        err["message"],
+                        data,
+                    )
+                    raise InfluxSchemaError(
+                        f"influxdb create bucket failed, status code: {err['message']}"
+                    )
+                else:
+                    result = await resp.json()
+                    return result["id"]
+
+    async def list_organizations(self, offset: int = 0, limit: int = 100) -> List[Dict]:
+        """列出本客户端允许查询的所组织
+
+        Args:
+            offset : 分页起点
+            limit : 每页size
+
+        Raises:
+            InfluxSchemaError: influxdb返回的错误
+
+        Returns:
+            list of organizations, each organization is a dict with keys:
+            ```
+            id      : the id of the org
+            links
+            name    : the name of the org
+            description
+            createdAt
+            updatedAt
+            ```
+        """
+        url = f"{self._url}/api/v2/orgs?offset={offset}&limit={limit}"
+        headers = {"Authorization": f"Token {self._token}"}
+
+        async with ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    err = await resp.json()
+                    logger.warning("influxdb query orgs err: %s", err["message"])
+                    raise InfluxSchemaError(
+                        f"influxdb query orgs failed, status code: {err['message']}"
+                    )
+                else:
+                    return (await resp.json())["orgs"]
+
+    async def query_org_id(self, name: str = None) -> str:
+        """通过组织名查找组织id
+
+        只能查的本客户端允许查询的组织。如果name未提供，则使用本客户端创建时传入的组织名。
+
+        Args:
+            name: 指定组织名
+
+        Returns:
+            组织id
+        """
+        if name is None:
+            name = self._org
+        orgs = await self.list_organizations()
+        for org in orgs:
+            if org["name"] == name:
+                return org["id"]
+
+        raise BadParameterError(f"can't find org with name: {name}")

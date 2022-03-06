@@ -1,5 +1,6 @@
 import datetime
 import unittest
+import uuid
 from unittest import mock
 
 import arrow
@@ -7,14 +8,10 @@ import cfg4py
 import ciso8601
 import numpy as np
 import pandas as pd
-from coretypes import FrameType, bars_cols, bars_dtype
+from coretypes import bars_cols, bars_dtype
 
 import omicron
-from omicron.core.errors import (
-    InfluxDBQueryError,
-    InfluxDBWriteError,
-    InfluxDeleteError,
-)
+from omicron.dal.influx.errors import *
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import (
@@ -388,3 +385,32 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
                     time_key="frame",
                     global_tags={"code": "000001.XSHE"},
                 )
+
+    async def test_bucket_crud(self):
+        name = "ut_test_bucket"
+        token = cfg.influxdb.token
+
+        org = cfg.influxdb.org
+        client = InfluxClient(cfg.influxdb.url, token, name, org)
+        orgs = await client.list_organizations()
+        self.assertEqual(len(orgs), 1)
+        self.assertEqual(orgs[0]["name"], org)
+
+        org_id = await client.query_org_id()
+
+        # 查询bucket
+        buckets = await client.list_buckets()
+        self.assertTrue(len(buckets) > 0)
+
+        for bucket in buckets:
+            if bucket["name"] == "ut_test_bucket":
+                await client.delete_bucket(bucket["id"])
+
+        # 创建bucket
+        await client.create_bucket("this is ut_test_bucket", org_id=org_id)
+
+        with self.assertRaises(InfluxSchemaError):
+            await client.create_bucket(org, "this is ut_test_bucket")
+
+        # 删除bucket by bucket name
+        await client.delete_bucket()
