@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -75,35 +75,6 @@ def dataframe_to_structured_array(
 
 def numpy_array_to_dict(arr: np.array, key: str, value: str) -> dict:
     return {item[key]: item[value] for item in arr}
-
-
-def find_runs(x):
-    """Find runs of consecutive items in an array."""
-
-    # ensure array
-    x = np.asanyarray(x)
-    if x.ndim != 1:
-        raise ValueError("only 1D array supported")
-    n = x.shape[0]
-
-    # handle empty array
-    if n == 0:
-        return np.array([]), np.array([]), np.array([])
-
-    else:
-        # find run starts
-        loc_run_start = np.empty(n, dtype=bool)
-        loc_run_start[0] = True
-        np.not_equal(x[:-1], x[1:], out=loc_run_start[1:])
-        run_starts = np.nonzero(loc_run_start)[0]
-
-        # find run values
-        run_values = x[loc_run_start]
-
-        # find run lengths
-        run_lengths = np.diff(np.append(run_starts, n))
-
-        return run_values, run_starts, run_lengths
 
 
 def count_between(arr, start, end):
@@ -328,7 +299,7 @@ def numpy_append_fields(
     return result
 
 
-def remove_nan(ts: np.array) -> np.array:
+def remove_nan(ts: np.ndarray) -> np.ndarray:
     """从`ts`中去除NaN
 
     Args:
@@ -340,7 +311,7 @@ def remove_nan(ts: np.array) -> np.array:
     return ts[~np.isnan(ts.astype(float))]
 
 
-def fill_nan(ts: np.array):
+def fill_nan(ts: np.ndarray):
     """将ts中的NaN替换为其前值
 
     如果ts起头的元素为NaN，则用第一个非NaN元素替换。
@@ -376,7 +347,7 @@ def fill_nan(ts: np.array):
     return ts[idx]
 
 
-def replace_zero(ts: np.array, replacement=None) -> np.array:
+def replace_zero(ts: np.ndarray, replacement=None) -> np.ndarray:
     """将ts中的0替换为前值, 处理volume数据时常用用到
 
     如果提供了replacement, 则替换为replacement
@@ -398,25 +369,10 @@ def replace_zero(ts: np.array, replacement=None) -> np.array:
     return ts[idx]
 
 
-def top_n_argpos(ts: np.array, n: int) -> np.array:
-    """get top n (max->min) elements and return argpos which its value ordered in descent
-
-    Example:
-        >>> top_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
-        array([2, 3])
-
-    Args:
-        ts (np.array): [description]
-        n (int): [description]
-
-    Returns:
-        np.array: [description]
-    """
-    return np.argsort(ts)[-n:][::-1]
-
-
 def rolling(x, win, func):
-    """对序列`x`进行窗口滑动计算
+    """对序列`x`进行窗口滑动计算。
+
+    如果`func`要实现的功能是argmax, argmin, max, mean, median, min, rank, std, sum, var等，move_argmax，请使用bottleneck中的move_argmin, move_max, move_mean, move_median, move_min move_rank, move_std, move_sum, move_var。这些函数的性能更好。
 
     Args:
         x ([type]): [description]

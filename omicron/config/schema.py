@@ -48,3 +48,10 @@ class Config(object):
 
         class urls:
             quotes_server: Optional[str] = None
+
+    class notify:
+        mail_from: Optional[str] = None
+
+        mail_to: Optional[str] = None
+
+        mail_server: Optional[str] = None
