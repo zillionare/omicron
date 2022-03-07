@@ -2,18 +2,7 @@ import unittest
 
 import numpy as np
 
-from omicron.talib.metrics import (
-    alpha_beta,
-    annual_return,
-    calmar_ratio,
-    cumulative_return,
-    downside_risk,
-    max_drawdown,
-    omega_ratio,
-    sharpe_ratio,
-    sortino_ratio,
-    volatility,
-)
+from omicron.talib import *
 
 rand = np.random.RandomState(1337)
 
@@ -257,3 +246,19 @@ class MetricsTest(unittest.TestCase):
 
         actual = omega_ratio(negative_returns, 0.01, 0.0)
         self.assertAlmostEqual(actual, 0)
+
+    def test_mean_absolute_error(self):
+        y = np.array([i for i in range(5)])
+        y_hat = y.copy()
+        y_hat[4] = 0
+
+        self.assertEqual(0, mean_absolute_error(y, y))
+        self.assertAlmostEquals(0.8, mean_absolute_error(y, y_hat))
+        self.assertAlmostEquals(0.8, mean_absolute_error(y_hat, y))
+
+    def test_relative_error(self):
+        y = np.arange(5)
+        y_hat = y.copy()
+        y_hat[4] = 0
+
+        print(relative_error(y, y_hat))

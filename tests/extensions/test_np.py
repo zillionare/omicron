@@ -7,7 +7,6 @@ from omicron.extensions.np import (
     count_between,
     dataframe_to_structured_array,
     fill_nan,
-    find_runs,
     floor,
     join_by_left,
     math_round,
@@ -16,7 +15,6 @@ from omicron.extensions.np import (
     replace_zero,
     rolling,
     shift,
-    top_n_argpos,
 )
 from omicron.models.timeframe import TimeFrame
 
@@ -112,22 +110,7 @@ class NpTest(unittest.TestCase):
         self.assertEqual(3, floor(a, 4))
         self.assertEqual(9, floor(a, 10))
 
-    def test_find_runs(self):
-        a = [
-            1,
-            1,
-            2,
-            2,
-            3,
-            3,
-            3,
-        ]
-        value, pos, length = find_runs(a)
-        self.assertListEqual([1, 2, 3], value.tolist())
-        self.assertListEqual([0, 2, 4], pos.tolist())
-        self.assertListEqual([2, 2, 3], length.tolist())
-
-    def test_filter_nan(self):
+    def test_remove_nan(self):
         a = np.array([1, 2, np.nan, 3, np.nan, 4, 5, 6])
         actual = remove_nan(a)
         exp = [1, 2, 3, 4, 5, 6]
@@ -173,12 +156,6 @@ class NpTest(unittest.TestCase):
 
         arr = np.array([1, 2, 0, 4, 5])
         self.assertListEqual([1, 2, 0.001, 4, 5], replace_zero(arr, 0.001).tolist())
-
-    def test_top_n_argpos(self):
-        arr = [4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
-        actual = top_n_argpos(arr, 2)
-        exp = [2, 3]
-        self.assertListEqual(exp, actual.tolist())
 
     def test_rolling(self):
         arr = np.arange(10)
