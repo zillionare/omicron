@@ -28,5 +28,4 @@ Zillionare-Omicron采用以下技术构建:
 
 * [Cookiecutter](https://github.com/audreyr/cookiecutter)
 * [Cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage)
----
-![JetBrains Logo (Main) logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg)
+* ![JetBrains Black Box Logo logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_square.svg) [Pycharm开源项目支持计划](https://www.jetbrains.com/?from=zillionare-omega)
