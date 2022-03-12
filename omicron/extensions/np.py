@@ -408,7 +408,7 @@ def bin_cut(arr: list, n: int):
     return [e for e in result if len(e)]
 
 
-def math_round(arr: ArrayLike, digits: int) -> np.ndarray:
+def math_round(arr: Union[float, ArrayLike], digits: int) -> np.ndarray:
     """将一维数组arr的数据进行四舍五入
 
     numpy.around的函数并不是数学上的四舍五入，对1.5和2.5进行round的结果都会变成2，在金融领域计算中，我们必须使用数学意义上的四舍五入。
@@ -420,5 +420,9 @@ def math_round(arr: ArrayLike, digits: int) -> np.ndarray:
     Returns:
         np.ndarray: 四舍五入后的一维数组
     """
+    # 如果是单个元素，则直接返回
+    if isinstance(arr, float):
+        return decimals.math_round(arr, digits)
+
     f = np.vectorize(lambda x: decimals.math_round(x, digits))
     return f(arr)

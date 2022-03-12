@@ -222,3 +222,6 @@ class NpTest(unittest.TestCase):
 
         actual = math_round(raw, 0)
         np.testing.assert_array_equal(np.array(exp_raw), actual)
+
+        self.assertEqual(0.16, math_round(0.155, 2))
+        self.assertEqual(0.15, math_round(0.154, 2))
