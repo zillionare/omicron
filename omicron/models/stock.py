@@ -1094,7 +1094,7 @@ class Stock:
             end : 结束日期
 
         Returns:
-            dtype为[('code', 'O'), ('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
+            dtype为[('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
         """
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
@@ -1132,6 +1132,10 @@ class Stock:
             code: 股票代码
             begin: 开始日期,必须指定为交易日
             end: 结束日期,必须指定为交易日
+
+        Returns:
+            dtype为[('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
+
         """
         now = TimeFrame.day_shift(arrow.now(), 0)
         end = min(now, end)
