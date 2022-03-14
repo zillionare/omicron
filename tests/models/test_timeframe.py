@@ -956,3 +956,13 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
 
         year_frames = [20221230, 20230209]
         self.assertListEqual(year_frames, TimeFrame.year_frames.tolist())
+
+    def test_service_degrade(self):
+        for k in ["day_frames", "week_frames", "month_frames"]:
+            setattr(TimeFrame, k, [])
+
+        TimeFrame.service_degrade()
+
+        for k in ["day_frames", "week_frames", "month_frames"]:
+            v = getattr(TimeFrame, k)
+            self.assertTrue(len(v) > 0)

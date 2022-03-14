@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import datetime
 import itertools
+import json
 import logging
+import os
 from typing import TYPE_CHECKING, Iterable, List, Tuple, Union
 
 import arrow
 
 if TYPE_CHECKING:
     from arrow import Arrow
-
 
 import numpy as np
 from coretypes import Frame, FrameType
@@ -70,6 +71,19 @@ class TimeFrame:
     month_frames = None
     quarter_frames = None
     year_frames = None
+
+    @classmethod
+    def service_degrade(cls):
+        """当cache中不存在日历时，启用随omicron版本一起发行时自带的日历。
+
+        注意：随omicron版本一起发行时自带的日历很可能不是最新的，并且可能包含错误。比如，存在这样的情况，在本版本的omicron发行时，日历更新到了2021年12月31日，在这之前的日历都是准确的，但在此之后的日历，则有可能出现错误。因此，只应该在特殊的情况下（比如测试）调用此方法，以获得一个降级的服务。
+        """
+        _dir = os.path.dirname(__file__)
+        file = os.path.join(_dir, "..", "config", "calendar.json")
+        with open(file, "r") as f:
+            data = json.load(f)
+            for k, v in data.items():
+                setattr(cls, k, np.array(v))
 
     @classmethod
     async def _load_calendar(cls):
