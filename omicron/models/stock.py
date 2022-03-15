@@ -496,10 +496,11 @@ class Stock:
 
         measurement = cls._measurement_name(frame_type)
         flux = (
-            Flux()
+            Flux(no_sys_cols=False)
             .bucket(cfg.influxdb.bucket_name)
             .range(begin, end)
             .measurement(measurement)
+            .keep(keep_cols)
             .tags({"code": code})
         )
 
@@ -578,10 +579,11 @@ class Stock:
 
         measurement = cls._measurement_name(frame_type)
         flux = (
-            Flux()
+            Flux(no_sys_cols=False)
             .bucket(cfg.influxdb.bucket_name)
             .range(begin, end)
             .measurement(measurement)
+            .keep(keep_cols)
         )
 
         if len(codes) > 0:
@@ -1099,12 +1101,13 @@ class Stock:
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
-            Flux()
+            Flux(no_sys_cols=False)
             .bucket(client._bucket)
             .measurement(measurement)
             .range(begin, end)
             .fields(["high_limit", "low_limit"])
             .tags({"code": code})
+            .keep(["_time", "high_limit", "low_limit"])
             .sort("_time")
         )
 

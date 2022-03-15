@@ -1,10 +1,13 @@
 import datetime
+import os
+import pickle
 import unittest
 from unittest import mock
 
 import arrow
 import cfg4py
 import numpy as np
+import pandas as pd
 from coretypes import FrameType, SecurityType, bars_dtype, bars_with_limit_dtype
 
 import omicron
@@ -14,7 +17,7 @@ from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions import numpy_append_fields
 from omicron.models.stock import Stock
 from omicron.models.timeframe import TimeFrame
-from tests import assert_bars_equal, bars_from_csv, init_test_env
+from tests import assert_bars_equal, bars_from_csv, init_test_env, test_dir
 
 cfg = cfg4py.get_instance()
 
@@ -73,6 +76,20 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     bars, "code", [code] * len(bars), [("code", "O")]
                 )
                 await Stock.persist_bars(ft, bars)
+
+        # merge test data from backtest, which help find failed to deserialize data with high/low_limits issue
+        for ft in (FrameType.MIN1, FrameType.DAY):
+            file = os.path.join(test_dir(), f"data/bars_{ft.value}.pkl")
+            with open(file, "rb") as f:
+                bars = pickle.load(f)
+                await Stock.persist_bars(ft, bars)
+
+        df = pd.read_csv(
+            os.path.join(test_dir(), "data/limits.csv"), sep="\t", parse_dates=["time"]
+        )
+        limits = df.to_records(index=False)
+        limits.dtype.names = ["frame", "code", "high_limit", "low_limit"]
+        await Stock.save_trade_price_limits(limits, False)
 
         return super().setUp()
 
