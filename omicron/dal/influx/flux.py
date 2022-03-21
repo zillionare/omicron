@@ -251,7 +251,7 @@ class Flux(object):
 
         此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。
 
-        在实现上，既可以使用`contains`语法，也可以使用`or`语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`)。出于性能考虑，我们使用`contains`语法，这样在查询多个tag时，构建的flux语句会更短，从而节省语句构建时间、传输时间和服务器查询时间（possibly)。
+        在实现上，既可以使用`contains`语法，也可以使用`or`语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`)。经验证，contains语法会始终先将所有符合条件的记录检索出来，再进行过滤。这样的效率比较低，特别是当tags的数量较少时，会远远比使用or语法慢。
 
         Raises:
             DuplicateOperationError: 一个查询中只允许执行一次，如果tag filter表达式已经存在，则抛出异常
@@ -262,7 +262,7 @@ class Flux(object):
         Examples:
             >>> flux = Flux()
             >>> flux.tags({"code": ["000001", "000002"], "name": ["浦发银行"]}).expressions["tags"]
-            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001","000002"]) or contains(value: r["name"], set: ["浦发银行"]))'
+            '  |> filter(fn: (r) => r["code"] == "000001" or r["code"] == "000002" or r["name"] == "浦发银行")'
 
 
         Returns:
@@ -275,10 +275,10 @@ class Flux(object):
         for tag, values in tags.items():
             assert values, f"tag {tag} bind with no value"
             if isinstance(values, str):
-                filters.append(f'r["{tag}"] == "{values}"')
-            else:
-                set_values = ",".join([f'"{v}"' for v in values])
-                filters.append(f'contains(value: r["{tag}"], set: [{set_values}])')
+                values = [values]
+
+            for v in values:
+                filters.append(f'r["{tag}"] == "{v}"')
 
         op_expression = " or ".join(filters)
 

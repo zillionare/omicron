@@ -32,7 +32,7 @@ class FluxTest(unittest.TestCase):
         flux = Flux()
 
         # default
-        expected = '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))'
+        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE")'
 
         actual = flux.tags({"code": ["000001.XSHE", "000002.XSHE"]}).expressions["tags"]
         self.assertEqual(expected, actual)
@@ -44,9 +44,7 @@ class FluxTest(unittest.TestCase):
         # with only one value
         actual = Flux().tags({"code": ["000001.XSHE"]}).expressions["tags"]
 
-        expected = (
-            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE"]))'
-        )
+        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE")'
         self.assertEqual(expected, actual)
 
         # with only one value, represented in str
@@ -60,7 +58,7 @@ class FluxTest(unittest.TestCase):
             .tags({"code": ["000001.XSHE", "000002.XSHE"], "name": "浦发银行"})
             .expressions["tags"]
         )
-        expected = '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]) or r["name"] == "浦发银行")'
+        expected = '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE" or r["name"] == "浦发银行")'
 
         self.assertEqual(expected, actual)
 
@@ -140,7 +138,7 @@ class FluxTest(unittest.TestCase):
             'from(bucket: "my-bucket")',
             "  |> range(start: 2019-01-01T00:00:00Z, stop: 2019-01-02T00:00:01Z)",
             '  |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")',
-            '  |> filter(fn: (r) => contains(value: r["code"], set: ["000001.XSHE","000002.XSHE"]))',
+            '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE")',
             '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
             '  |> drop(columns: ["_start","_stop","_measurement"])',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',

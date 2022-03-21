@@ -5,7 +5,9 @@ repos:
     -   id: forbid-crlf
     -   id: remove-crlf
     -   id: forbid-tabs
+        exclude_types: [csv]
     -   id: remove-tabs
+        exclude_types: [csv]
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
