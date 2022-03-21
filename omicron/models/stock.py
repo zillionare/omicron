@@ -651,8 +651,6 @@ class Stock:
                 pl.hset(key, frame, ",".join(map(str, val)))
         await pl.execute()
 
-        cls._set_cached(bars[0]["frame"])
-
     @classmethod
     async def batch_cache_unclosed_bars(
         cls, frame_type: FrameType, bars: Dict[str, np.ndarray]
@@ -682,7 +680,6 @@ class Stock:
             val = [*bar[0]]
             val[0] = convert(bar["frame"][0])  # 时间转换
             pl.hset(key, code, ",".join(map(str, val)))
-            cls._set_cached(bar[0]["frame"])
 
         await pl.execute()
 
@@ -697,43 +694,6 @@ class Stock:
                     await cache.security.delete(*keys)
         finally:
             cls._is_cache_empty = True
-
-    @classmethod
-    def _get_cached_first_frame(cls, frame_type: FrameType) -> Frame:
-        """获取各frame_type类型的缓存的第一个时间点。
-
-        我们需要单独记录此信息，是因为未到每个帧的收盘时间，可能缓存中并不存在相应数据。
-
-        Args:
-            frame_type : [description]
-
-        Returns:
-            [description]
-        """
-        # todo: rename the func at _x
-        if cls._is_cache_empty:
-            return None
-
-        return cls._cached_frames_start.get(frame_type, None)
-
-    @classmethod
-    def _set_cached(cls, frame: Frame):
-        """当某帧数据被缓存时，记录其被缓存的状态。
-
-        Args:
-            frame : [description]
-        """
-        if cls._is_cache_empty:
-            dt = arrow.get(frame).date()
-
-            for ft in TimeFrame.minute_level_frames:
-                frame = TimeFrame.first_min_frame(dt, ft)
-                cls._cached_frames_start[ft] = frame
-            cls._cached_frames_start[FrameType.DAY] = dt
-
-            cls._is_cache_empty = False
-        else:
-            return
 
     @classmethod
     def _deserialize_cached_bars(cls, raw: List[str], ft: FrameType) -> np.ndarray:
@@ -821,7 +781,7 @@ class Stock:
             if len(bars) != 0:
                 return bars
 
-        ff = cls._get_cached_first_frame(FrameType.MIN1)
+        ff = TimeFrame.combine_time(end, 9, 31)
         end = TimeFrame.floor(end, FrameType.MIN1)
 
         if ff is None or end < ff:  # cache 中还没有分钟线数据，或者结束时间早于cache
@@ -834,7 +794,7 @@ class Stock:
         ):
             # 取1分钟数据，再进行resample
             key = f"bars:{FrameType.MIN1.value}:{code}"
-            start = cls._get_cached_first_frame(FrameType.MIN1)
+            start = TimeFrame.combine_time(end, 9, 31)
             frames = map(str, TimeFrame.get_frames(start, end, FrameType.MIN1))
             r1 = await cache.security.hmget(key, *frames)
 
@@ -878,7 +838,6 @@ class Stock:
             RedisError: if redis operation failed, see documentation of aioredis
 
         """
-        today = bars[0]["frame"]
         # 转换时间为int
         convert = (
             TimeFrame.time2int
@@ -894,8 +853,6 @@ class Stock:
             pl.hset(key, val[0], ",".join(map(str, val)))
 
         await pl.execute()
-
-        cls._set_cached(today)
 
     @classmethod
     async def cache_unclosed_bars(
@@ -919,7 +876,6 @@ class Stock:
             RedisError: if redis operation failed, see documentation of aioredis
 
         """
-        today = bars[0]["frame"]
         converter = (
             TimeFrame.time2int
             if frame_type in TimeFrame.minute_level_frames
@@ -936,7 +892,6 @@ class Stock:
             pl.hset(key, code, ",".join(map(str, val)))
 
         await pl.execute()
-        cls._set_cached(today)
 
     @classmethod
     def _get_influx_client(cls):
@@ -1025,6 +980,14 @@ class Stock:
         """
         if bars[0]["frame"].minute != 31:
             raise ValueError("resampling from 1min must start from 9:31")
+
+        if to_frame not in (
+            FrameType.MIN5,
+            FrameType.MIN15,
+            FrameType.MIN30,
+            FrameType.MIN60,
+        ):
+            raise ValueError(f"unsupported to_frame: {to_frame}")
 
         bins_len = {
             FrameType.MIN5: 5,
