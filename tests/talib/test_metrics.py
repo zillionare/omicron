@@ -115,11 +115,6 @@ class MetricsTest(unittest.TestCase):
 
     def test_sharpe_ratio(self):
         # test data from https://github.com/quantopian/empyrical/blob/40f61b4f229df10898d46d08f7b1bdc543c0f99c/empyrical/tests/test_stats.py#L68
-        with self.assertRaises(ValueError):
-            actual = sharpe_ratio(empty_returns)
-
-        with self.assertRaises(ValueError):
-            actual = sharpe_ratio(one_return)
 
         actual = sharpe_ratio(mixed_returns, np.nan)
         self.assertTrue(np.isnan(actual))
@@ -140,12 +135,6 @@ class MetricsTest(unittest.TestCase):
         self.assertAlmostEqual(actual, np.inf)
 
     def test_sortino_ratio(self):
-        with self.assertRaises(ValueError):
-            actual = sortino_ratio(empty_returns)
-
-        with self.assertRaises(ValueError):
-            actual = sortino_ratio(one_return)
-
         actual = sortino_ratio(mixed_returns, np.nan)
         self.assertTrue(np.isnan(actual))
 

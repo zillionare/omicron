@@ -4,8 +4,6 @@ import numpy as np
 from bottleneck import nanmean
 from scipy import stats as scipy_stats
 
-from omicron.extensions.np import remove_nan
-
 APPROX_BDAYS_PER_YEAR = 252
 
 
@@ -103,9 +101,6 @@ def sharpe_ratio(
     Returns:
         夏普比率。
     """
-    if remove_nan(returns).size <= 1:
-        raise ValueError("returns must have at least two valid values")
-
     adj_returns = returns - rf / APPROX_BDAYS_PER_YEAR
     return (np.nanmean(adj_returns) * np.sqrt(annual_factor)) / np.nanstd(
         adj_returns, ddof=1
@@ -129,9 +124,6 @@ def sortino_ratio(
     Returns:
         [float]: Sortino比率
     """
-    if remove_nan(returns).size <= 1:
-        raise ValueError("returns must have at least two valid values")
-
     adj_returns = returns - rf / annual_factor
 
     annualized_dr = downside_risk(adj_returns, annual_factor)
@@ -259,11 +251,6 @@ def cumulative_return(returns: Iterable) -> float:
     Returns:
         float: [description]
     """
-    returns = remove_nan(np.array(returns))
-
-    if len(returns) == 0:
-        raise ValueError("bad parameters: returns contains no valid data")
-
     return np.nanprod(np.array(returns) + 1) - 1
 
 
