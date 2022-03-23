@@ -6,7 +6,7 @@ import numpy as np
 from scipy.linalg import norm
 from scipy.signal import savgol_filter
 
-from omicron.talib.metrics import mean_absolute_error, relative_error
+from omicron.talib.metrics import mean_absolute_error, pct_error
 
 
 class CrossFlag(IntEnum):
@@ -55,7 +55,7 @@ def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
         elif loss_func == "mae":
             error = mean_absolute_error(ts, ts_hat)
         else:  # defaults to relative error
-            error = relative_error(ts, ts_hat)
+            error = pct_error(ts, ts_hat)
 
         if deg == 2:
             a, b, c = z[0], z[1], z[2]
