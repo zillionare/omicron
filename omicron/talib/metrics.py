@@ -35,7 +35,7 @@ def pct_error(y: np.array, y_hat: np.array) -> float:
         >>> y = np.arange(5)
         >>> y_hat = np.arange(5)
         >>> y_hat[4] = 0
-        >>> relative_error(y, y_hat)
+        >>> pct_error(y, y_hat)
         0.4
 
     Args:
