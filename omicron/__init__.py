@@ -1,6 +1,10 @@
 """Omicron提供数据持久化、时间（日历、triggers)、行情数据model、基础运算和基础量化因子"""
 
+import importlib
 import logging
+import os
+import pkgutil
+from typing import List
 
 import cfg4py
 import gino
@@ -48,4 +52,21 @@ async def close():
         pass
 
 
+def export(subpackages: List[str]):
+    for sub in subpackages:
+        path = [os.path.join(os.path.dirname(__file__), sub)]
+
+        for mod_info in pkgutil.walk_packages(path, f"omicron.{sub}."):
+            mod = importlib.import_module(mod_info.name)
+
+            try:
+                names = mod.__dict__["__all__"]
+            except KeyError:
+                names = [k for k in mod.__dict__ if not k.startswith("_")]
+
+            globals().update({k: getattr(mod, k) for k in names})
+
+
 __all__ = ["tf", "cache", "db"]
+
+export(("talib", "extensions"))

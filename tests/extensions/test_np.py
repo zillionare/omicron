@@ -3,13 +3,13 @@ import unittest
 import numpy as np
 
 from omicron.extensions.np import (
+    array_math_round,
     bin_cut,
     count_between,
     dataframe_to_structured_array,
     fill_nan,
     floor,
     join_by_left,
-    math_round,
     numpy_append_fields,
     remove_nan,
     replace_zero,
@@ -218,10 +218,10 @@ class NpTest(unittest.TestCase):
 
         exp_raw = [0] * 5 + [1] * 5
 
-        np.testing.assert_array_equal(np.array(exp_raw), math_round(arr, 0))
+        np.testing.assert_array_equal(np.array(exp_raw), array_math_round(arr, 0))
 
-        actual = math_round(raw, 0)
+        actual = array_math_round(raw, 0)
         np.testing.assert_array_equal(np.array(exp_raw), actual)
 
-        self.assertEqual(0.16, math_round(0.155, 2))
-        self.assertEqual(0.15, math_round(0.154, 2))
+        self.assertEqual(0.16, array_math_round(0.155, 2))
+        self.assertEqual(0.15, array_math_round(0.154, 2))

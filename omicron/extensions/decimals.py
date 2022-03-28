@@ -7,3 +7,16 @@ def math_round(x: float, digits: int):
 
     """
     return int(x * (10 ** digits) + 0.5) / (10 ** digits)
+
+
+def equal_price(x: float, y: float) -> bool:
+    """判断股价是否相等
+
+    Args:
+        x : 价格1
+        y : 价格2
+
+    Returns:
+        如果相等则返回True，否则返回False
+    """
+    return abs(math_round(x, 2) - math_round(y, 2)) < 1e-2

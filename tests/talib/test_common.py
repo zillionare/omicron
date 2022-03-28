@@ -21,19 +21,19 @@ class CommonTest(unittest.TestCase):
 
     def test_barssince(self):
         condition = [False, True]
-        self.assertEqual(0, barssince(condition))
+        self.assertEqual(0, bars_since(condition))
 
         condition = [True, False]
-        self.assertEqual(1, barssince(condition))
+        self.assertEqual(1, bars_since(condition))
 
         condition = [True, True, False]
-        self.assertEqual(1, barssince(condition))
+        self.assertEqual(1, bars_since(condition))
 
         condition = [True, True, False, True]
-        self.assertEqual(0, barssince(condition))
+        self.assertEqual(0, bars_since(condition))
 
         condition = [True, True, False, False]
-        self.assertEqual(2, barssince(condition))
+        self.assertEqual(2, bars_since(condition))
 
     def test_normalize(self):
         # unit_vector

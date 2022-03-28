@@ -6,13 +6,13 @@ import sklearn
 from sklearn.preprocessing import MaxAbsScaler, StandardScaler, minmax_scale
 
 
-def barssince(condition: Sequence[bool], default=None) -> int:
+def bars_since(condition: Sequence[bool], default=None) -> int:
     """
     Return the number of bars since `condition` sequence was last `True`,
     or if never, return `default`.
 
         >>> condition = [True, True, False]
-        >>> barssince(condition)
+        >>> bars_since(condition)
         1
     """
     return next(compress(range(len(condition)), reversed(condition)), default)
