@@ -520,6 +520,7 @@ class Stock:
             encoding="utf-8",
             skip_rows=1,
             use_cols=keep_cols,
+            parse_date=None,
             converters={
                 "_time": _time_converter,
             },

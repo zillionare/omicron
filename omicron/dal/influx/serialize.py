@@ -613,7 +613,7 @@ class NumpyDeserializer(Serializer):
             if isinstance(self.parse_date, str):
                 parse_date = cols.index(self.parse_date)
                 if parse_date in self.converters.keys():
-                    logger.warning(
+                    logger.debug(
                         "specify duplicated converter in both parse_date and converters for col %s, use converters.",
                         self.parse_date,
                     )
