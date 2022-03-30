@@ -30,6 +30,8 @@ def peaks_and_valleys(
     Returns:
         np.ndarray: 返回数组指示在该位置上是否为波峰或波谷。
     """
+    if ts.dtype != np.float64:
+        ts = ts.astype(np.float64)
     return peak_valley_pivots(ts, up_thresh, down_thresh)
 
 
