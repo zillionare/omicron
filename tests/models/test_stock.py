@@ -458,6 +458,25 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         actual = Stock.resample(bars, FrameType.MIN1, FrameType.MIN15)
         assert_bars_equal(exp, actual)
 
+        # resample to 1d
+        exp = np.array(
+            [
+                (
+                    datetime.date(2021, 4, 27),
+                    62.01,
+                    64.61,
+                    62.01,
+                    63.31,
+                    6154000,
+                    389424063.0,
+                    6.976547,
+                )
+            ],
+            dtype=bars_dtype,
+        )
+        actual = Stock.resample(bars, FrameType.MIN1, FrameType.DAY)
+        assert_bars_equal(exp, actual)
+
         # resample when input bars can be evenly divided
         actual = Stock.resample(bars[:-1], FrameType.MIN1, FrameType.MIN15)
         exp = np.array(
@@ -554,6 +573,25 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         tm = lf.naive
         bars = await Stock._get_cached_bars(code, tm, 36, FrameType.MIN1)
         self.assertEqual(36, len(bars))
+
+        # 如果为日线，且缓存中不存在日线，此时需要从分钟线中取
+        bars = await Stock._get_cached_bars("000001.XSHE", lf.date(), 10, FrameType.DAY)
+        exp = np.array(
+            [
+                (
+                    datetime.date(2022, 2, 10),
+                    16.77,
+                    16.91,
+                    16.67,
+                    16.88,
+                    20112800.0,
+                    3.37673812e08,
+                    121.71913,
+                )
+            ],
+            dtype=bars_dtype,
+        )
+        assert_bars_equal(exp, bars)
 
         # 6. 当cache为空时，应该返回空数组
         await Stock.reset_cache()
@@ -825,7 +863,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         expected = bars_from_csv("000001.XSHE", "30m")[-10:]
         assert_bars_equal(expected, data["000001.XSHE"])
 
-    async def test_get_persisted_trade_price_limits(self):
+    async def test_get_trade_price_limits(self):
         measurement = "stock_bars_1d"
 
         # fill in data
@@ -862,9 +900,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             global_tags={"code": "000001.XSHE"},
         )
 
-        result = await Stock._get_persisted_trade_price_limits(
-            "000001.XSHE", start, end
-        )
+        result = await Stock.get_trade_price_limits("000001.XSHE", start, end)
 
         for col in ["high_limit", "low_limit"]:
             np.testing.assert_array_almost_equal(trade_limits[col], result[col])
@@ -929,31 +965,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             np.testing.assert_array_almost_equal(expected[col], actual[col])
 
         np.testing.assert_array_equal(expected["frame"], actual["frame"])
-
-        # 取当天的限价
-        dt = arrow.get("2022-01-10").date()
-        field_high = f"{code}.high_limit"
-        field_low = f"{code}.low_limit"
-
-        await cache._security_.hmset(
-            TRADE_PRICE_LIMITS, field_high, 19.83, field_low, 17.32
-        )
-        with mock.patch("arrow.now", return_value=dt):
-            actual = await Stock.get_trade_price_limits(code, start, dt)
-            expected = np.array(
-                [
-                    (datetime.date(2022, 1, 6), 18.83, 15.41),
-                    (datetime.date(2022, 1, 7), 18.83, 15.41),
-                    (dt, 19.83, 17.32),
-                ],
-                dtype=[
-                    ("frame", "O"),
-                    ("high_limit", "<f8"),
-                    ("low_limit", "<f8"),
-                ],
-            )
-            for col in ["high_limit", "low_limit"]:
-                np.testing.assert_array_almost_equal(expected[col], actual[col])
 
     async def test_batch_get_cached_bars(self):
         codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
@@ -1106,14 +1117,8 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-        await Stock.save_trade_price_limits(limits, True)
-
         start = datetime.date(2022, 1, 6)
         end = datetime.date(2022, 1, 6)
-
-        with mock.patch("arrow.now", return_value=start):
-            actual = await Stock.get_trade_price_limits("000001.XSHE", start, end)
-            self.assertAlmostEqual(18.83, actual[0]["high_limit"])
 
         await Stock.save_trade_price_limits(limits, False)
         with mock.patch("arrow.now", return_value=datetime.date(1900, 1, 1)):

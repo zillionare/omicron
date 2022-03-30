@@ -782,11 +782,15 @@ class Stock:
             if len(bars) != 0:
                 return bars
 
-        ff = TimeFrame.combine_time(end, 9, 31)
+        # 在盘中时，没有日线缓存数据，需要将end转换为datetime
+        if frame_type == FrameType.DAY and getattr(end, "date", None) is None:
+            end = TimeFrame.combine_time(end, 15)
+
+        start = TimeFrame.combine_time(end, 9, 31)
         end = TimeFrame.floor(end, FrameType.MIN1)
 
-        if ff is None or end < ff:  # cache 中还没有分钟线数据，或者结束时间早于cache
-            return np.empty((0,), dtype=bars_dtype)
+        if end < start:
+            return np.empty(0, dtype=bars_dtype)
 
         if (
             frame_type in TimeFrame.minute_level_frames
@@ -795,7 +799,7 @@ class Stock:
         ):
             # 取1分钟数据，再进行resample
             key = f"bars:{FrameType.MIN1.value}:{code}"
-            start = TimeFrame.combine_time(end, 9, 31)
+
             frames = map(str, TimeFrame.get_frames(start, end, FrameType.MIN1))
             r1 = await cache.security.hmget(key, *frames)
 
@@ -951,12 +955,12 @@ class Stock:
         如果`from_frame`为1分钟线，则必须从9：31起。
 
         Args:
-            bars (np.ndarray): [description]
-            from_frame (FrameType): [description]
-            to_frame (FrameType): [description]
+            bars (np.ndarray): 行情数据
+            from_frame (FrameType): 转换前的FrameType
+            to_frame (FrameType): 转换后的FrameType
 
         Returns:
-            np.ndarray: [description]
+            np.ndarray: 转换后的行情数据
         """
         if from_frame == FrameType.MIN1:
             return cls._resample_from_min1(bars, to_frame)
@@ -987,6 +991,7 @@ class Stock:
             FrameType.MIN15,
             FrameType.MIN30,
             FrameType.MIN60,
+            FrameType.DAY,
         ):
             raise ValueError(f"unsupported to_frame: {to_frame}")
 
@@ -995,6 +1000,7 @@ class Stock:
             FrameType.MIN15: 15,
             FrameType.MIN30: 30,
             FrameType.MIN60: 60,
+            FrameType.DAY: 240,
         }[to_frame]
 
         bins = len(bars) // bins_len
@@ -1030,6 +1036,9 @@ class Stock:
         cols = ["frame", "close", "factor"]
         resampled[cols] = bars[close_pos][cols]
 
+        if to_frame == FrameType.DAY:
+            resampled["frame"] = bars[-1]["frame"].date()
+
         return resampled
 
     @classmethod
@@ -1047,7 +1056,7 @@ class Stock:
         raise NotImplementedError
 
     @classmethod
-    async def _get_persisted_trade_price_limits(
+    async def get_trade_price_limits(
         cls, code: str, begin: Frame, end: Frame
     ) -> np.ndarray:
         """从influxdb中获取个股在[begin, end]之间的涨跌停价。
@@ -1088,40 +1097,6 @@ class Stock:
 
         result = await client.query(flux, ds)
         return result
-
-    @classmethod
-    async def get_trade_price_limits(
-        cls, code: str, begin: datetime.date, end: datetime.date
-    ) -> np.array:
-        """获取股票在`[begin, end]`期间的涨跌停价
-
-        Args:
-            code: 股票代码
-            begin: 开始日期,必须指定为交易日
-            end: 结束日期,必须指定为交易日
-
-        Returns:
-            dtype为[('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
-
-        """
-        now = TimeFrame.day_shift(arrow.now(), 0)
-        end = min(now, end)
-        assert begin <= end, "begin time should NOT be great than end time"
-
-        part1 = await cls._get_persisted_trade_price_limits(code, begin, end)
-
-        if end == now:  # 当天的数据在缓存中
-            pl = cache._security_.pipeline()
-            pl.hget(TRADE_PRICE_LIMITS, f"{code}.high_limit")
-            pl.hget(TRADE_PRICE_LIMITS, f"{code}.low_limit")
-
-            hl, ll = await pl.execute()
-            if hl or ll:
-                part2 = np.array([(end, hl, ll)], dtype=part1.dtype)
-                return np.concatenate((part1, part2))
-
-        else:
-            return part1
 
     @classmethod
     async def save_trade_price_limits(cls, price_limits: np.ndarray, to_cache: bool):
