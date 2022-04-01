@@ -26,7 +26,7 @@ def moving_average(ts: Sequence, win: int, padding=True) -> np.ndarray:
     if padding:
         return ma
     else:
-        return ma[len(ts) - win :]
+        return ma[win - 1 :]
 
 
 def weighted_moving_average(ts: np.array, win: int) -> np.array:
