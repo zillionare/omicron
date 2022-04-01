@@ -32,6 +32,7 @@ def peaks_and_valleys(
     """
     if ts.dtype != np.float64:
         ts = ts.astype(np.float64)
+
     return peak_valley_pivots(ts, up_thresh, down_thresh)
 
 
@@ -68,6 +69,9 @@ def support_resist_lines(
     Returns:
         返回支撑线和阻力线的计算函数，如果没有支撑线或阻力线，则返回None
     """
+    if ts.dtype != np.float64:
+        ts = ts.astype(np.float64)
+
     pivots = peak_valley_pivots(ts, upthres, downthres)
 
     arg_max = np.where(pivots == 1)[0]
