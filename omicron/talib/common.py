@@ -1,8 +1,9 @@
 from itertools import compress
-from typing import Sequence
+from typing import Sequence, Tuple
 
 import numpy as np
 import sklearn
+from numpy.typing import ArrayLike
 from sklearn.preprocessing import MaxAbsScaler, StandardScaler, minmax_scale
 
 
@@ -18,8 +19,15 @@ def bars_since(condition: Sequence[bool], default=None) -> int:
     return next(compress(range(len(condition)), reversed(condition)), default)
 
 
-def find_runs(x):
-    """Find runs of consecutive items in an array."""
+def find_runs(x: ArrayLike) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Find runs of consecutive items in an array.
+
+    Args:
+        x: the sequence to find runs in
+
+    Returns:
+        A tuple of unique values, start indices, and length of runs
+    """
 
     # ensure array
     x = np.asanyarray(x)
