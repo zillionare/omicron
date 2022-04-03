@@ -109,9 +109,11 @@ def assert_bars_equal(exp, actual):
         if field == "frame":
             continue
 
-        decimal = 2 if field != "volume" else 0
-        # 经过前复权后，成交量可能略有误差
-        assert_array_almost_equal(exp[field], actual[field], decimal)
+        if field != "amount":
+            assert_array_almost_equal(exp[field], actual[field], 2)
+        else:
+            if not np.all(exp[field] / actual[field] - 1 < 1e-6):
+                raise AssertionError(f"{field} not equal")
 
 
 def test_dir():

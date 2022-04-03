@@ -658,6 +658,17 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             bars = await Stock.get_bars(code, n, ft, end, fq=True)
             mocked_qfq.assert_called()
 
+        # 5. ft == DAY, in trade time
+        with mock.patch.object(
+            arrow, "now", return_value=arrow.get(lf.shift(minutes=1))
+        ):
+            ft = FrameType.DAY
+            n = 2
+            bars = await Stock.get_bars(code, n, ft, end=lf.date(), fq=False)
+            self.assertEqual(n, bars.size)
+            exp = [datetime.date(2022, 2, 8), datetime.date(2022, 2, 9)]
+            self.assertListEqual(exp, bars["frame"])
+
     async def test_batch_cache_bars(self):
         data = {
             "000001.XSHE": np.array(
@@ -1202,3 +1213,271 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             codes, ["000001.XSHE", "000005.XSHE", "600000.XSHG", "000007.XSHE"]
         )
+
+    async def test_get_day_level_bars(self):
+        # 假设今天是2022-2-10日。cache中有到2/10日的分钟线数据，持久化中有2/7~2/9的日线数据和到1月28日的周线数据。
+        code = "000001.XSHE"
+        week_bars = np.array(
+            [
+                (
+                    datetime.date(2022, 1, 14),
+                    17.29,
+                    17.54,
+                    16.3,
+                    16.33,
+                    7.00645452e08,
+                    1.18874363e10,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 21),
+                    16.35,
+                    17.56,
+                    16.12,
+                    17.35,
+                    7.79793231e08,
+                    1.31486227e10,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 28),
+                    17.34,
+                    17.38,
+                    15.82,
+                    15.83,
+                    5.65323684e08,
+                    9.37250597e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 9),
+                    16.02,
+                    17.0,
+                    15.89,
+                    16.86,
+                    4.32133324e08,
+                    7.17636113e09,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        await self.client.drop_measurement("stock_bars_1w")
+        await self.client.drop_measurement("stock_bars_1d")
+        await Stock.persist_bars(FrameType.WEEK, {code: week_bars[:-1]})
+        day_bars = bars_from_csv(code, "1d", 100, 102)
+        await Stock.persist_bars(FrameType.DAY, {code: day_bars})
+
+        await Stock.reset_cache()
+        min_bars = bars_from_csv(code, "1m", 66, 101)
+        await Stock.cache_bars(code, FrameType.MIN1, min_bars)
+
+        # 1. 周线、仅从持久化中取
+        # if end is not at the boundary of week frame, this still works
+        actual = await Stock._get_day_level_bars(
+            code, 2, FrameType.WEEK, datetime.date(2022, 2, 9), unclosed=False
+        )
+        assert_bars_equal(week_bars[1:3], actual)
+
+        # 2. 日线、仅从持久化中取
+        actual = await Stock._get_day_level_bars(
+            code, 2, FrameType.DAY, datetime.date(2022, 2, 9), unclosed=False
+        )
+        assert_bars_equal(day_bars[1:], actual)
+
+        # 3. 日线，持久化 + cache
+        with mock.patch.object(
+            arrow, "now", return_value=arrow.get(datetime.datetime(2022, 2, 10, 10, 6))
+        ):
+            actual = await Stock._get_day_level_bars(
+                code, 3, FrameType.DAY, datetime.date(2022, 2, 10), unclosed=True
+            )
+            # get from jq.get_bars
+            exp = np.array(
+                [
+                    (
+                        datetime.date(2022, 2, 8),
+                        16.3,
+                        16.97,
+                        16.26,
+                        16.83,
+                        1.75469528e08,
+                        2.95030901e09,
+                        121.71913,
+                    ),
+                    (
+                        datetime.date(2022, 2, 9),
+                        16.92,
+                        17.0,
+                        16.71,
+                        16.86,
+                        1.05116166e08,
+                        1.77425364e09,
+                        121.71913,
+                    ),
+                    (
+                        datetime.date(2022, 2, 10),
+                        16.77,
+                        16.91,
+                        16.67,
+                        16.88,
+                        2.01128000e07,
+                        3.37673812e08,
+                        121.71913,
+                    ),
+                ],
+                dtype=bars_dtype,
+            )
+            assert_bars_equal(exp, actual)
+
+        # 4. 周线，持久化 + cache
+        with mock.patch.object(
+            arrow, "now", return_value=arrow.get(datetime.datetime(2022, 2, 10, 10, 6))
+        ):
+            actual = await Stock._get_day_level_bars(
+                code, 2, FrameType.WEEK, datetime.date(2022, 2, 10), unclosed=True
+            )
+            exp = np.array(
+                [
+                    (
+                        datetime.date(2022, 1, 28),
+                        17.34,
+                        17.38,
+                        15.82,
+                        15.83,
+                        5.65323684e08,
+                        9.37250597e09,
+                        121.71913,
+                    ),
+                    (
+                        datetime.date(2022, 2, 10),
+                        16.02,
+                        17.0,
+                        15.89,
+                        16.88,
+                        4.52246124e08,
+                        7.51403494e09,
+                        121.71913,
+                    ),
+                ],
+                dtype=bars_dtype,
+            )
+
+            assert_bars_equal(exp, actual)
+
+    def test_resample_from_day(self):
+        day_bars = np.array(
+            [
+                (
+                    datetime.date(2022, 1, 24),
+                    17.34,
+                    17.38,
+                    16.98,
+                    17.2,
+                    8.74770870e07,
+                    1.50139034e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 25),
+                    17.08,
+                    17.08,
+                    16.81,
+                    16.85,
+                    1.09328397e08,
+                    1.85199902e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 26),
+                    16.95,
+                    17.1,
+                    16.54,
+                    16.65,
+                    9.84975220e07,
+                    1.64638498e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 27),
+                    16.5,
+                    16.54,
+                    16.25,
+                    16.3,
+                    1.02464311e08,
+                    1.67726130e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 1, 28),
+                    16.39,
+                    16.45,
+                    15.82,
+                    15.83,
+                    1.67556367e08,
+                    2.69547033e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 7),
+                    16.02,
+                    16.41,
+                    15.89,
+                    16.39,
+                    1.51547630e08,
+                    2.45179848e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 8),
+                    16.3,
+                    16.97,
+                    16.26,
+                    16.83,
+                    1.75469528e08,
+                    2.95030901e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 9),
+                    16.92,
+                    17.0,
+                    16.71,
+                    16.86,
+                    1.05116166e08,
+                    1.77425364e09,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        week_bars = np.array(
+            [
+                (
+                    datetime.date(2022, 1, 28),
+                    17.34,
+                    17.38,
+                    15.82,
+                    15.83,
+                    5.65323684e08,
+                    9.37250597e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 9),
+                    16.02,
+                    17.0,
+                    15.89,
+                    16.86,
+                    4.32133324e08,
+                    7.17636113e09,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        actual = Stock._resample_from_day(day_bars, FrameType.WEEK)
+        assert_bars_equal(week_bars, actual)
