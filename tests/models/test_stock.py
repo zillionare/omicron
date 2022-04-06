@@ -11,21 +11,15 @@ import pandas as pd
 from coretypes import FrameType, SecurityType, bars_dtype, bars_with_limit_dtype
 
 import omicron
+from omicron import tf
 from omicron.core.constants import TRADE_PRICE_LIMITS
 from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.extensions import numpy_append_fields
 from omicron.models.stock import Stock
 from omicron.models.timeframe import TimeFrame
 from tests import assert_bars_equal, bars_from_csv, init_test_env, test_dir
 
 cfg = cfg4py.get_instance()
-
-ranges_1m = {"cache_start": None, "cache_stop": None, "db_start": None, "db_stop": None}
-
-ranges_30m = ranges_1m.copy()
-ranges_1d = ranges_1m.copy()
-ranges_1w = ranges_1m.copy()
 
 
 class StockTest(unittest.IsolatedAsyncioTestCase):
@@ -41,41 +35,38 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         self.client = InfluxClient(url, token, bucket, org)
 
-        # fill in cache
+        # 关于数据准备，请参阅: data/README.md
         await Stock.reset_cache()
+        await self.client.delete_bucket()
+        await self.client.create_bucket()
+
+        # feed 1 min data, last day goes to cache, others go to influxdb
         for i in (1, 2, 4):
             code = f"00000{i}.XSHE"
             bars = bars_from_csv(code, "1m")
-            lf = bars[-1]["frame"]
-            ff = TimeFrame.first_min_frame(lf, FrameType.MIN1)
-            ranges_1m["cache_start"] = ff
-            ranges_1m["cache_stop"] = lf
 
-            bars_ = bars[bars["frame"] >= ff]
-            await Stock.cache_bars(code, FrameType.MIN1, bars_)
+            cache_date = bars[-1]["frame"].date()
+            persist_date = tf.day_shift(cache_date, -1)
+            persist_end = tf.combine_time(persist_date, 15)
 
-        # fill in influxdb
-        await self.client.drop_measurement("stock_bars_1d")
-        await self.client.drop_measurement("stock_bars_1m")
-        await self.client.drop_measurement("stock_bars_30m")
-        await self.client.drop_measurement("stock_bars_1w")
+            cache_bars = bars[bars["frame"] > persist_end]
+            persist_bars = bars[bars["frame"] <= persist_end]
 
-        for ranges, ft in zip(
-            (ranges_1m, ranges_30m, ranges_1d, ranges_1w),
-            (FrameType.MIN1, FrameType.MIN30, FrameType.DAY, FrameType.WEEK),
-        ):
-            for code in (1, 2, 4):
-                code = f"00000{code}.XSHE"
-                bars = bars_from_csv(code, ft.value)
-                lf = bars[-1]["frame"]
-                ff = bars[0]["frame"]
-                ranges["db_start"] = ff
-                ranges["db_stop"] = lf
+            await Stock.cache_bars(code, FrameType.MIN1, cache_bars)
+            await Stock.persist_bars(FrameType.MIN1, {code: persist_bars})
 
-                bars = numpy_append_fields(
-                    bars, "code", [code] * len(bars), [("code", "O")]
-                )
-                await Stock.persist_bars(ft, bars)
+        # fill m30, day, week, month into in influxdb
+        # all these bars are closed
+        for ft in (FrameType.MIN30, FrameType.DAY, FrameType.WEEK, FrameType.MONTH):
+            for i in (1, 2, 4):
+                try:
+                    code = f"00000{i}.XSHE"
+                    bars = bars_from_csv(code, ft.value)
+
+                    await Stock.persist_bars(ft, {code: bars})
+                except FileNotFoundError:
+                    # no month bars for 000002/000004
+                    pass
 
         # merge test data from backtest, which help find failed to deserialize data with high/low_limits issue
         for ft in (FrameType.MIN1, FrameType.DAY):
@@ -512,62 +503,40 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         except ValueError as e:
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
-    async def test_get_cached_bars(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_get_cached_bars(self, mock_now):
         """cache_bars, cache_unclosed_bars are tested also"""
         # 1. end < ff, 返回空数组
         code = "000001.XSHE"
-        ff = arrow.get(ranges_1m["cache_start"])
-        lf = arrow.get(ranges_1m["cache_stop"])
+        ff = arrow.get("2022-02-09 09:31:00")
+        lf = arrow.get("2022-02-09 10:33:00")
+
         tm = ff.shift(minutes=-1).naive
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", tm, 10, FrameType.MIN1, unclosed=True
-        )
+        bars = await Stock._get_cached_bars("000001.XSHE", tm, 10, FrameType.MIN1)
         self.assertEqual(len(bars), 0)
 
-        # 2.1 end 刚大于 ff, unclosed为 False 只返回第一个bar
-        tm = ff.shift(minutes=15).naive
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", tm, 10, FrameType.MIN15, unclosed=False
-        )
-        self.assertEqual(len(bars), 1)
-        self.assertEqual(datetime.datetime(2022, 2, 10, 9, 45), bars["frame"][0])
-
-        # 2.2 end 刚大于 ff, unclosed为 True 返回两个bar
-        bars = await Stock._get_cached_bars("000001.XSHE", tm, 10, FrameType.MIN15)
+        # 2 end 刚大于 ff, 返回两个bar
+        tm = ff.shift(minutes=5).naive
+        bars = await Stock._get_cached_bars("000001.XSHE", tm, 10, FrameType.MIN5)
         self.assertEqual(len(bars), 2)
-        self.assertEqual(datetime.datetime(2022, 2, 10, 9, 46), bars["frame"][1])
+        self.assertEqual(datetime.datetime(2022, 2, 9, 9, 36), bars["frame"][1])
 
-        # 3.1 end > last frame in cache, unclosed = True
+        # 3.1 end > last frame in cache
         tm = lf.shift(minutes=15).naive
-        bars = await Stock._get_cached_bars("000001.XSHE", tm, 10, FrameType.MIN15)
+        bars = await Stock._get_cached_bars("000001.XSHE", tm, 10, FrameType.MIN5)
 
-        self.assertEqual(3, len(bars))
-        self.assertEqual(datetime.datetime(2022, 2, 10, 10, 6), bars["frame"][-1])
+        self.assertEqual(10, len(bars))
+        self.assertEqual(datetime.datetime(2022, 2, 9, 10, 33), bars["frame"][-1])
 
         # 3.2 check other fields are equal
-        m1_bars = bars_from_csv(code, "1m", 66, 101)
-        expected = Stock.resample(m1_bars, FrameType.MIN1, FrameType.MIN15)
-        assert_bars_equal(expected, bars)
-
-        # 3.3 let unclosed = False
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", tm, 10, FrameType.MIN15, unclosed=False
-        )
-        self.assertEqual(2, len(bars))
-        assert_bars_equal(expected[:-1], bars)
+        m1_bars = bars_from_csv(code, "1m", 242, 304)
+        expected = Stock.resample(m1_bars, FrameType.MIN1, FrameType.MIN5)
+        assert_bars_equal(expected[3:], bars)
 
         # 4. if n < len(cached bars)
-        ## 4.1 included unclosed
-        bars = await Stock._get_cached_bars(code, tm, 2, FrameType.MIN15)
+        bars = await Stock._get_cached_bars(code, tm, 2, FrameType.MIN5)
         self.assertEqual(2, len(bars))
-        assert_bars_equal(expected[1:], bars)
-
-        ## 4.2 not include unclosed
-        bars = await Stock._get_cached_bars(
-            code, tm, 2, FrameType.MIN15, unclosed=False
-        )
-        self.assertEqual(2, len(bars))
-        assert_bars_equal(expected[:-1], bars)
+        assert_bars_equal(expected[-2:], bars)
 
         # 5. FrameType == min1, no resample
         tm = lf.naive
@@ -575,17 +544,17 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(36, len(bars))
 
         # 如果为日线，且缓存中不存在日线，此时需要从分钟线中取
-        bars = await Stock._get_cached_bars("000001.XSHE", lf.date(), 10, FrameType.DAY)
+        bars = await Stock._get_cached_bars("000001.XSHE", lf.date(), 2, FrameType.DAY)
         exp = np.array(
             [
                 (
-                    datetime.date(2022, 2, 10),
-                    16.77,
-                    16.91,
-                    16.67,
-                    16.88,
-                    20112800.0,
-                    3.37673812e08,
+                    datetime.date(2022, 2, 9),
+                    16.92,
+                    17.0,
+                    16.78,
+                    16.84,
+                    49839100.0,
+                    843350578.0,
                     121.71913,
                 )
             ],
@@ -595,57 +564,48 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         # 6. 当cache为空时，应该返回空数组
         await Stock.reset_cache()
-        await cache._sys_.delete("second_data_source")
 
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", lf.naive, 10, FrameType.MIN1, unclosed=True
-        )
+        bars = await Stock._get_cached_bars("000001.XSHE", lf.naive, 10, FrameType.MIN1)
         self.assertEqual(bars.size, 0)
 
-        bars = await Stock._get_cached_bars(
-            "000001.XSHE", lf.naive, 10, FrameType.DAY, unclosed=False
-        )
-        self.assertEqual(len(bars), 0)
-
-    async def test_get_bars(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_get_bars(self, mock_now):
         code = "000001.XSHE"
         ft = FrameType.MIN1
 
-        lf = arrow.get(ranges_1m["cache_stop"])
-        ff = arrow.get(ranges_1m["cache_start"])
+        ff = arrow.get("2022-02-09 09:31:00")
+        lf = arrow.get("2022-02-09 10:33:00")
 
         # 1. end is None, 取当前时间作为end.
-        with mock.patch.object(
-            arrow, "now", return_value=arrow.get(lf.shift(minutes=1))
-        ):
-            end = None
-            n = 1
-            bars = await Stock.get_bars(code, n, ft, end, fq=False)
-            exp = bars_from_csv(code, "1m", 101, 101)
-            assert_bars_equal(exp, bars)
+        end = None
+        n = 1
+        bars = await Stock.get_bars(code, n, ft, end, fq=False)
+        exp = bars_from_csv(code, "1m", 304, 304)
+        assert_bars_equal(exp, bars)
 
         # 2. end < ff，仅从persistent中取
         tm = ff.shift(minutes=-1).naive
         n = 2
 
         bars = await Stock.get_bars(code, n, ft, tm, fq=False)
-        expected = bars_from_csv(code, "1m", 64, 65)
+        expected = bars_from_csv(code, "1m", 240, 241)
         assert_bars_equal(expected, bars)
 
         # 3.1 end > ff，从persistent和cache中取,不包含unclosed
         ft = FrameType.MIN30
-        tm = ff.shift(minutes=30).naive
-        n = 3
-        from_persist = bars_from_csv(code, "30m", 100, 101)
-        from_cache = bars_from_csv(code, "1m", 66, 96)
+        tm = ff.shift(minutes=32).naive
+        n = 2
+        from_persist = bars_from_csv(code, "30m")[-1:]
+        from_cache = bars_from_csv(code, "1m", 242, 274)
         from_cache = Stock.resample(from_cache, FrameType.MIN1, ft)
         bars = await Stock.get_bars(code, n, ft, tm, fq=False, unclosed=False)
 
-        self.assertEqual(n, bars.size)
-        assert_bars_equal(from_persist, bars[:2])
-        assert_bars_equal(from_cache[:-1], bars[2:])
+        self.assertEqual(2, bars.size)
+        assert_bars_equal(from_persist, bars[:1])
+        assert_bars_equal(from_cache[:-1], bars[1:])
 
         # 3.2 end > ff, 从persistent和cache中取,包含unclosed
+        n = 3
         bars = await Stock.get_bars(code, n, ft, tm, fq=False, unclosed=True)
         self.assertEqual(n, bars.size)
         assert_bars_equal(from_persist[-1:], bars[:1])
@@ -659,17 +619,39 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             mocked_qfq.assert_called()
 
         # 5. ft == DAY, in trade time
-        with mock.patch.object(
-            arrow, "now", return_value=arrow.get(lf.shift(minutes=1))
-        ):
-            ft = FrameType.DAY
-            n = 2
-            bars = await Stock.get_bars(code, n, ft, end=lf.date(), fq=False)
-            self.assertEqual(n, bars.size)
-            exp = [datetime.date(2022, 2, 8), datetime.date(2022, 2, 9)]
-            self.assertListEqual(exp, bars["frame"])
+        ft = FrameType.DAY
+        n = 2
+        bars = await Stock.get_bars(code, n, ft, end=lf.date(), fq=False)
+        exp = np.array(
+            [
+                (
+                    datetime.date(2022, 2, 8),
+                    16.3,
+                    16.97,
+                    16.26,
+                    16.83,
+                    1.75469528e08,
+                    2.95030901e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 9),
+                    16.92,
+                    17.0,
+                    16.78,
+                    16.84,
+                    4.98391000e07,
+                    8.43350578e08,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
 
-    async def test_batch_cache_bars(self):
+        assert_bars_equal(exp, bars)
+
+    @mock.patch.object(arrow, "now", return_value=datetime.datetime(2022, 1, 10, 9, 34))
+    async def test_batch_cache_bars(self, mock_now):
         data = {
             "000001.XSHE": np.array(
                 [
@@ -798,88 +780,69 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_persisted_bars(self):
         code = "000001.XSHE"
-        start = ranges_30m["db_start"]
-        end = ranges_30m["db_stop"]
+        start = arrow.get("2022-02-08 10:00:00").naive
+        end = arrow.get("2022-02-08 15:00:00")
 
         bars = await Stock._get_persisted_bars(code, FrameType.MIN30, begin=start)
 
-        self.assertEqual(bars.size, 100)
+        self.assertEqual(bars.size, 8)
         expected = bars_from_csv(code, "30m")
         assert_bars_equal(expected, bars)
 
         # test with end
         bars = await Stock._get_persisted_bars(
-            "000001.XSHE", FrameType.MIN30, n=10, begin=start, end=end
+            "000001.XSHE", FrameType.MIN30, n=8, begin=start, end=end
         )
 
-        self.assertEqual(len(bars), 10)
-        expected = bars_from_csv(code, "30m")[-10:]
+        self.assertEqual(len(bars), 8)
+        expected = bars_from_csv(code, "30m")
         assert_bars_equal(expected, bars)
 
         # test with FrameType.DAY, to see if it can handle date correctly
         ft = FrameType.DAY
-        start = ranges_1d["db_start"]
-        end = ranges_1d["db_stop"]
+        start = arrow.get("2022-02-08").date()
+        end = start
 
         actual = await Stock._get_persisted_bars(code, ft, start, end)
         expected = bars_from_csv(code, "1d")
-        assert_bars_equal(expected, actual)
+        assert_bars_equal(expected[1:], actual)
 
+    async def test_batch_get_persisted_bars(self):
         await self.client.drop_measurement("stock_bars_1d")
         # test with multiple codes
         data = {
-            code: bars_from_csv(code, "1d", 90)
-            for code in ["000001.XSHE", "000002.XSHE"]
+            code: bars_from_csv(code, "1d") for code in ["000001.XSHE", "000002.XSHE"]
         }
 
-        start = data["000001.XSHE"][0][0]
         await Stock.persist_bars(FrameType.DAY, data)
+
+        start = arrow.get("2021-09-03").date()
+        end = arrow.get("2022-02-08").date()
         actual = await Stock._batch_get_persisted_bars(
             list(data.keys()), FrameType.DAY, start, end=end
         )
         for code in data.keys():
             assert_bars_equal(data[code], actual[code])
 
-    async def test_batch_get_persisted_bars(self):
-        codes = []
-        start = ranges_30m["db_start"]
-        end = ranges_30m["db_stop"]
-        ft = FrameType.MIN30
+        await self.client.drop_measurement("stock_bars_30m")
+        data = {
+            code: bars_from_csv(code, "30m") for code in ["000001.XSHE", "000002.XSHE"]
+        }
+        await Stock.persist_bars(FrameType.MIN30, data)
 
-        data = await Stock._batch_get_persisted_bars(codes, ft, begin=start)
-        self.assertTrue(isinstance(data, dict))
-        self.assertEqual(3, len(data))
-
-        bars = data["000001.XSHE"]
-        self.assertEqual(bars.size, 100)
-        expected = bars_from_csv("000001.XSHE", "30m")
-        assert_bars_equal(expected, bars)
-
-        codes = ["000001.XSHE", "000002.XSHE"]
-        data = await Stock._batch_get_persisted_bars(codes, ft, begin=start)
-
-        self.assertEqual(2, len(data))
-        expected = bars_from_csv("000002.XSHE", "30m")
-        assert_bars_equal(expected, data["000002.XSHE"])
-
-        # test with end
-        data = await Stock._batch_get_persisted_bars(codes, ft, begin=start, end=end)
-        expected = bars_from_csv("000001.XSHE", "30m")
-        assert_bars_equal(expected, data["000001.XSHE"])
-
-        # test with n
-        data = await Stock._batch_get_persisted_bars(
-            codes, ft, begin=start, end=end, n=10
+        start = arrow.get("2022-01-17 13:30:00").naive
+        end = arrow.get("2022-02-09 15:00:00").naive
+        actual = await Stock._batch_get_persisted_bars(
+            list(data.keys()), FrameType.MIN30, start, end=end
         )
-        expected = bars_from_csv("000001.XSHE", "30m")[-10:]
-        assert_bars_equal(expected, data["000001.XSHE"])
+        for code in data.keys():
+            assert_bars_equal(data[code], actual[code])
 
     async def test_get_trade_price_limits(self):
         measurement = "stock_bars_1d"
 
         # fill in data
         start = datetime.date(2022, 1, 10)
-        end = ranges_1d["db_stop"]
 
         trade_limits = np.array(
             [
@@ -911,6 +874,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             global_tags={"code": "000001.XSHE"},
         )
 
+        end = arrow.get("2022-02-08").date()
         result = await Stock.get_trade_price_limits("000001.XSHE", start, end)
 
         for col in ["high_limit", "low_limit"]:
@@ -979,25 +943,26 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_batch_get_cached_bars(self):
         codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
-        stop = ranges_1m["cache_stop"]
 
         ft = FrameType.MIN1
         unclosed = True
 
-        for unclosed in (True, False):
-            # doesn't matter for 1min
-            result = await Stock._batch_get_cached_bars(codes, stop, 10, ft, unclosed)
-            self.assertEqual(10, result["000001.XSHE"].size)
-            self.assertEqual(10, result["000004.XSHE"].size)
-            self.assertEqual(stop, result["000001.XSHE"][-1]["frame"])
-            exp_start = arrow.get(stop).shift(minutes=-9).naive
-            self.assertEqual(exp_start, result["000001.XSHE"][0]["frame"])
+        end = arrow.get("2022-02-09 10:33:00").naive
+        with mock.patch.object(arrow, "now", return_value=end):
+            for unclosed in (True, False):
+                # doesn't matter for 1min
+                result = await Stock._batch_get_cached_bars(codes, end, 10, ft)
+                self.assertEqual(10, result["000001.XSHE"].size)
+                self.assertEqual(10, result["000004.XSHE"].size)
+                self.assertEqual(end, result["000001.XSHE"][-1]["frame"])
+                exp_start = arrow.get(end).shift(minutes=-9).naive
+                self.assertEqual(exp_start, result["000001.XSHE"][0]["frame"])
 
-        # if some code contains no bars
-        codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
-        result = await Stock._batch_get_cached_bars(codes, stop, 10, ft)
-        self.assertEqual(3, len(result))
-        self.assertEqual(0, result["000003.XSHE"].size)
+            # if some code contains no bars
+            codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
+            result = await Stock._batch_get_cached_bars(codes, end, 10, ft)
+            self.assertEqual(3, len(result))
+            self.assertEqual(0, result["000003.XSHE"].size)
 
     def test_qfq(self):
         # 000001.XSHE, 2021-5-14, week bars
@@ -1077,42 +1042,50 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         actual = Stock.qfq(bars)
         assert_bars_equal(expected, actual)
 
-    async def test_batch_get_bars(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_batch_get_bars(self, mocked_now):
         codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
 
-        end = arrow.get("2022-02-10 10:06:00").naive
+        # 30分钟线
+        end = arrow.get("2022-02-09 10:33:00").naive
         ft = FrameType.MIN30
-        bars = await Stock.batch_get_bars(codes, 10, ft, end, fq=False, unclosed=True)
+        bars = await Stock.batch_get_bars(codes, 11, ft, end, fq=False)
 
         self.assertEqual(3, len(bars))
-        self.assertEqual(10, bars["000001.XSHE"].size)
-        self.assertEqual(10, bars["000002.XSHE"].size)
+        self.assertEqual(11, bars["000001.XSHE"].size)
+        self.assertEqual(11, bars["000002.XSHE"].size)
         self.assertEqual(0, bars["000003.XSHE"].size)
 
         code = "000001.XSHE"
-        from_persist = bars_from_csv(code, "30m", 94, 101)
-        from_cache = bars_from_csv(code, "1m", 66, 101)
+        from_persist = bars_from_csv(code, "30m", 2, 9)
+        from_cache = bars_from_csv(code, "1m", 242, 304)
         from_cache = Stock.resample(from_cache, FrameType.MIN1, ft)
 
-        assert_bars_equal(from_persist, bars[code][:-2])
+        assert_bars_equal(from_persist, bars[code][:-3])
         assert_bars_equal(from_cache, bars[code][8:])
 
         # all in cache
-        bars = await Stock.batch_get_bars(codes, 1, ft, end, fq=False)
+        bars = await Stock.batch_get_bars(codes, 3, ft, end, fq=False)
         self.assertEqual(3, len(bars))
-        assert_bars_equal(from_cache[:1], bars[code])
+        assert_bars_equal(from_cache, bars[code])
 
-        # fq = true, unclosed = true
-        bars = await Stock.batch_get_bars(codes, 10, ft, end, fq=True)
+        # 日线
+        ft = FrameType.DAY
+        bars = await Stock.batch_get_bars(codes, 2, ft, end, fq=True)
         self.assertEqual(3, len(bars))
-        self.assertEqual(10, bars[code].size)
+        self.assertEqual(2, bars[code].size)
+        self.assertEqual(datetime.date(2022, 2, 8), bars[code][0]["frame"])
+        self.assertEqual(datetime.date(2022, 2, 9), bars[code][1]["frame"])
 
         # 周线
-        end = arrow.get("2021-12-24").date()
-        bars = await Stock.batch_get_bars(codes, 8, FrameType.WEEK, end, fq=False)
-        from_persist = bars_from_csv(code, "1w", 94, 101)
+        end = arrow.now().date()
+        bars = await Stock.batch_get_bars(
+            codes, 2, FrameType.WEEK, end, fq=False, unclosed=True
+        )
+        from_persist = bars_from_csv(code, "1w")
         self.assertEqual(3, len(bars))
-        self.assertEqual(8, bars[code].size)
+        self.assertEqual(2, bars[code].size)
+        self.assertEqual(from_persist[0]["frame"], bars[code][0]["frame"])
 
     async def test_save_trade_price_limits(self):
         limits = np.array(
@@ -1136,66 +1109,54 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             actual = await Stock.get_trade_price_limits("000001.XSHE", start, end)
             self.assertAlmostEqual(18.83, actual[0]["high_limit"])
 
-    async def test_get_bars_in_range(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_get_bars_in_range(self, mocked_now):
         code = "000001.XSHE"
-        start = datetime.datetime(2022, 2, 9, 10)
-        end = datetime.datetime(2022, 2, 10, 10, 6)
+        start = datetime.datetime(2022, 2, 8, 10)
+        end = mocked_now.return_value.naive
 
         bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start, end)
-        self.assertEqual(10, len(bars))
-        self.assertEqual(datetime.datetime(2022, 2, 9, 10), bars[0]["frame"])
-        self.assertEqual(datetime.datetime(2022, 2, 10, 10, 6), bars[-1]["frame"])
+        self.assertEqual(11, len(bars))
+        self.assertEqual(datetime.datetime(2022, 2, 8, 10), bars[0]["frame"])
+        self.assertEqual(datetime.datetime(2022, 2, 9, 10, 33), bars[-1]["frame"])
 
         bars = await Stock.get_bars_in_range(
             code, FrameType.MIN30, start, end, unclosed=False
         )
-        self.assertEqual(9, len(bars))
-        self.assertEqual(datetime.datetime(2022, 2, 9, 10), bars[0]["frame"])
-        self.assertEqual(datetime.datetime(2022, 2, 10, 10), bars[-1]["frame"])
+        self.assertEqual(10, len(bars))
+        self.assertEqual(datetime.datetime(2022, 2, 8, 10), bars[0]["frame"])
+        self.assertEqual(datetime.datetime(2022, 2, 9, 10, 30), bars[-1]["frame"])
 
-    async def test_batch_get_bars_in_range(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_batch_get_bars_in_range(self, mocked_now):
         codes = ["000001.XSHE", "000002.XSHE", "000003.XSHE"]
-        start = datetime.datetime(2022, 2, 9, 10)
-        end = datetime.datetime(2022, 2, 10, 10, 6)
+        start = datetime.datetime(2022, 2, 8, 10)
+        end = mocked_now.return_value.naive
 
         actual = await Stock.batch_get_bars_in_range(
             codes, FrameType.MIN30, start, end, fq=False
         )
         self.assertEqual(3, len(actual))
-        self.assertEqual(10, len(actual["000001.XSHE"]))
+        self.assertEqual(11, len(actual["000001.XSHE"]))
         self.assertEqual(0, len(actual["000003.XSHE"]))
 
         self.assertEqual(
-            datetime.datetime(2022, 2, 9, 10), actual["000001.XSHE"][0]["frame"]
+            datetime.datetime(2022, 2, 8, 10), actual["000001.XSHE"][0]["frame"]
         )
         self.assertEqual(
-            datetime.datetime(2022, 2, 10, 10, 6), actual["000001.XSHE"][-1]["frame"]
-        )
-
-        actual = await Stock.batch_get_bars_in_range(
-            codes, FrameType.MIN30, start, end, unclosed=False, fq=False
-        )
-
-        self.assertEqual(3, len(actual))
-        self.assertEqual(9, len(actual["000001.XSHE"]))
-        self.assertEqual(0, len(actual["000003.XSHE"]))
-        self.assertEqual(
-            datetime.datetime(2022, 2, 9, 10), actual["000001.XSHE"][0]["frame"]
-        )
-        self.assertEqual(
-            datetime.datetime(2022, 2, 10, 10), actual["000001.XSHE"][-1]["frame"]
+            datetime.datetime(2022, 2, 9, 10, 33), actual["000001.XSHE"][-1]["frame"]
         )
 
     async def test_batch_cache_unclosed_bars(self):
         data = {
-            "000001.XSHE": bars_from_csv("000001.XSHE", "1d", 101, 101),
+            "000001.XSHE": bars_from_csv("000001.XSHE", "1d"),
         }
         await Stock.batch_cache_unclosed_bars(FrameType.DAY, data)
         data = await Stock.batch_get_bars(
             ["000001.XSHE"], 1, FrameType.DAY, unclosed=True
         )
         self.assertEqual(1, len(data))
-        self.assertEqual(datetime.date(2022, 2, 8), data["000001.XSHE"][0]["frame"])
+        self.assertEqual(datetime.date(2022, 2, 7), data["000001.XSHE"][0]["frame"])
 
     def test_choose_by_date(self):
         # 测试获取股票，过滤掉还没上市的股票
@@ -1214,31 +1175,14 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             codes, ["000001.XSHE", "000005.XSHE", "600000.XSHG", "000007.XSHE"]
         )
 
-    async def test_get_day_level_bars(self):
+    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
+    async def test_get_day_level_bars(self, mocked_now):
         # 假设今天是2022-2-10日。cache中有到2/10日的分钟线数据，持久化中有2/7~2/9的日线数据和到1月28日的周线数据。
         code = "000001.XSHE"
-        week_bars = np.array(
+
+        # 1. 周线
+        expected = np.array(
             [
-                (
-                    datetime.date(2022, 1, 14),
-                    17.29,
-                    17.54,
-                    16.3,
-                    16.33,
-                    7.00645452e08,
-                    1.18874363e10,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 1, 21),
-                    16.35,
-                    17.56,
-                    16.12,
-                    17.35,
-                    7.79793231e08,
-                    1.31486227e10,
-                    121.71913,
-                ),
                 (
                     datetime.date(2022, 1, 28),
                     17.34,
@@ -1254,117 +1198,73 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     16.02,
                     17.0,
                     15.89,
-                    16.86,
-                    4.32133324e08,
-                    7.17636113e09,
+                    16.84,
+                    3.76856258e08,
+                    6.24545808e09,
                     121.71913,
                 ),
             ],
             dtype=bars_dtype,
         )
-
-        await self.client.drop_measurement("stock_bars_1w")
-        await self.client.drop_measurement("stock_bars_1d")
-        await Stock.persist_bars(FrameType.WEEK, {code: week_bars[:-1]})
-        day_bars = bars_from_csv(code, "1d", 100, 102)
-        await Stock.persist_bars(FrameType.DAY, {code: day_bars})
-
-        await Stock.reset_cache()
-        min_bars = bars_from_csv(code, "1m", 66, 101)
-        await Stock.cache_bars(code, FrameType.MIN1, min_bars)
-
-        # 1. 周线、仅从持久化中取
-        # if end is not at the boundary of week frame, this still works
         actual = await Stock._get_day_level_bars(
-            code, 2, FrameType.WEEK, datetime.date(2022, 2, 9), unclosed=False
+            code, 2, FrameType.WEEK, datetime.date(2022, 2, 9)
         )
-        assert_bars_equal(week_bars[1:3], actual)
+        assert_bars_equal(expected, actual)
 
-        # 2. 日线、仅从持久化中取
+        # 2. 日线
         actual = await Stock._get_day_level_bars(
-            code, 2, FrameType.DAY, datetime.date(2022, 2, 9), unclosed=False
+            code, 3, FrameType.DAY, datetime.date(2022, 2, 9)
         )
-        assert_bars_equal(day_bars[1:], actual)
+        expected = np.array(
+            [
+                (
+                    datetime.date(2022, 2, 7),
+                    16.02,
+                    16.41,
+                    15.89,
+                    16.39,
+                    1.51547630e08,
+                    2.45179848e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 8),
+                    16.3,
+                    16.97,
+                    16.26,
+                    16.83,
+                    1.75469528e08,
+                    2.95030901e09,
+                    121.71913,
+                ),
+                (
+                    datetime.date(2022, 2, 9),
+                    16.92,
+                    17.0,
+                    16.78,
+                    16.84,
+                    4.98391000e07,
+                    8.43350578e08,
+                    121.71913,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+        assert_bars_equal(expected, actual)
 
-        # 3. 日线，持久化 + cache
-        with mock.patch.object(
-            arrow, "now", return_value=arrow.get(datetime.datetime(2022, 2, 10, 10, 6))
-        ):
-            actual = await Stock._get_day_level_bars(
-                code, 3, FrameType.DAY, datetime.date(2022, 2, 10), unclosed=True
-            )
-            # get from jq.get_bars
-            exp = np.array(
-                [
-                    (
-                        datetime.date(2022, 2, 8),
-                        16.3,
-                        16.97,
-                        16.26,
-                        16.83,
-                        1.75469528e08,
-                        2.95030901e09,
-                        121.71913,
-                    ),
-                    (
-                        datetime.date(2022, 2, 9),
-                        16.92,
-                        17.0,
-                        16.71,
-                        16.86,
-                        1.05116166e08,
-                        1.77425364e09,
-                        121.71913,
-                    ),
-                    (
-                        datetime.date(2022, 2, 10),
-                        16.77,
-                        16.91,
-                        16.67,
-                        16.88,
-                        2.01128000e07,
-                        3.37673812e08,
-                        121.71913,
-                    ),
-                ],
-                dtype=bars_dtype,
-            )
-            assert_bars_equal(exp, actual)
+        # 3. 日线，unclosed已缓存
+        bars = bars_from_csv("000001.XSHE", "1d")[1:]
+        bars["frame"] = datetime.date(2022, 2, 9)
 
-        # 4. 周线，持久化 + cache
-        with mock.patch.object(
-            arrow, "now", return_value=arrow.get(datetime.datetime(2022, 2, 10, 10, 6))
-        ):
-            actual = await Stock._get_day_level_bars(
-                code, 2, FrameType.WEEK, datetime.date(2022, 2, 10), unclosed=True
-            )
-            exp = np.array(
-                [
-                    (
-                        datetime.date(2022, 1, 28),
-                        17.34,
-                        17.38,
-                        15.82,
-                        15.83,
-                        5.65323684e08,
-                        9.37250597e09,
-                        121.71913,
-                    ),
-                    (
-                        datetime.date(2022, 2, 10),
-                        16.02,
-                        17.0,
-                        15.89,
-                        16.88,
-                        4.52246124e08,
-                        7.51403494e09,
-                        121.71913,
-                    ),
-                ],
-                dtype=bars_dtype,
-            )
+        # 让cache中的数据更新为实际为2月8日数据，以证明当unclosed数据存在时，优先使用unclosed
+        expected[2] = bars
 
-            assert_bars_equal(exp, actual)
+        await Stock.cache_unclosed_bars("000001.XSHE", FrameType.DAY, bars)
+        actual = await Stock._get_day_level_bars(
+            code, 3, FrameType.DAY, datetime.date(2022, 2, 9)
+        )
+
+        assert_bars_equal(expected, actual)
 
     def test_resample_from_day(self):
         day_bars = np.array(
