@@ -1101,3 +1101,22 @@ class TimeFrame:
         for ft in cls.day_level_frames:
             key = f"calendar:{ft.value}"
             await cache.security.delete(key)
+
+    @classmethod
+    def is_bar_closed(cls, frame: Frame, ft: FrameType) -> bool:
+        """判断`frame`所代表的bar是否已经收盘（结束）
+
+        如果是日线，frame不为当天，则认为已收盘；或者当前时间在收盘时间之后，也认为已收盘。
+        如果是其它周期，则只有当frame正好在边界上，才认为是已收盘。这里有一个假设：我们不会在其它周期上，判断未来的某个frame是否已经收盘。
+
+        Args:
+            frame : bar所处的时间，必须小于当前时间
+            ft: bar所代表的帧类型
+        """
+        floor = cls.floor(frame, ft)
+
+        now = arrow.now()
+        if ft == FrameType.DAY:
+            return floor < now.date() or now.hour >= 15
+        else:
+            return floor == frame
