@@ -382,6 +382,9 @@ class Stock:
         Returns:
             一维numpy array, dtype为bars_dtype。如果数据不存在，则返回空数组。
         """
+        if n <= 0:
+            raise BadParameterError(f"n must be positive, got {n}")
+
         begin = tf.shift(end, -n + 1, frame_type)
         part1 = await cls._get_persisted_bars(code, frame_type, begin, end, n)
 
@@ -398,9 +401,12 @@ class Stock:
         day_start = tf.day_shift(tf.floor(end, frame_type), 1)
 
         m = tf.count_frames(day_start, end, FrameType.DAY)
-        persisted_day_bars = await cls._get_persisted_bars(
-            code, FrameType.DAY, day_start, end, m
-        )
+        if m <= 0:
+            persisted_day_bars = np.array([], dtype=bars_dtype)
+        else:
+            persisted_day_bars = await cls._get_persisted_bars(
+                code, FrameType.DAY, day_start, end, m
+            )
 
         day_bars = np.concatenate([persisted_day_bars, cached_day_bar])
         if day_bars.size >= 2 and day_bars[-1]["frame"] == day_bars[-2]["frame"]:
@@ -467,51 +473,58 @@ class Stock:
         Returns:
             返回dtype为`coretypes.bars_dtype`的一维numpy数组。
         """
-        if frame_type in tf.day_level_frames:
-            end = arrow.get(end).date() if end else arrow.now().date()
-            bars = await cls._get_day_level_bars(code, n, frame_type, end)
+        try:
+            if frame_type in tf.day_level_frames:
+                end = arrow.get(end).date() if end else arrow.now().date()
+                bars = await cls._get_day_level_bars(code, n, frame_type, end)
 
-            if not unclosed and not tf.is_bar_closed(bars[-1]["frame"], frame_type):
-                bars = bars[:-1]
+                if not unclosed and not tf.is_bar_closed(bars[-1]["frame"], frame_type):
+                    bars = bars[:-1]
+
+                if fq:
+                    bars = cls.qfq(bars)
+                return bars
+
+            # frame_type is minute level
+            end = end or arrow.now().floor("minute").naive
+            close_end = tf.floor(end, frame_type)
+
+            part2 = await cls._get_cached_bars(code, end, n, frame_type)
+
+            if not unclosed and not tf.is_bar_closed(part2[-1]["frame"], frame_type):
+                part2 = part2[:-1]
+
+            if part2.size == n:
+                part1 = np.array([], dtype=bars_dtype)
+            elif part2.size == 0:
+                n1 = n
+                part1_end = close_end
+                part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
+                part1 = await cls._get_persisted_bars(
+                    code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
+                )
+            else:
+                n1 = n - part2.size
+
+                # 可能多查询一个bar，但返回前通过limit进行了限制
+                part1_end = tf.shift(part2[0]["frame"], -1, frame_type)
+                part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
+                part1 = await cls._get_persisted_bars(
+                    code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
+                )
+
+            bars = np.concatenate([part1, part2])
 
             if fq:
                 bars = cls.qfq(bars)
+
             return bars
-
-        # frame_type is minute level
-        end = end or arrow.now().floor("minute").naive
-        close_end = tf.floor(end, frame_type)
-
-        part2 = await cls._get_cached_bars(code, end, n, frame_type)
-
-        if not unclosed and not tf.is_bar_closed(part2[-1]["frame"], frame_type):
-            part2 = part2[:-1]
-
-        if part2.size == n:
-            part1 = np.array([], dtype=bars_dtype)
-        elif part2.size == 0:
-            n1 = n
-            part1_end = close_end
-            part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
-            part1 = await cls._get_persisted_bars(
-                code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
+        except Exception as e:
+            logger.exception(e)
+            logger.warning(
+                "failed to get bars for %s, %s, %s, %s", code, n, frame_type, end
             )
-        else:
-            n1 = n - part2.size
-
-            # 可能多查询一个bar，但返回前通过limit进行了限制
-            part1_end = tf.shift(part2[0]["frame"], -1, frame_type)
-            part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
-            part1 = await cls._get_persisted_bars(
-                code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
-            )
-
-        bars = np.concatenate([part1, part2])
-
-        if fq:
-            bars = cls.qfq(bars)
-
-        return bars
+            raise
 
     @classmethod
     async def _get_persisted_bars(

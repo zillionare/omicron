@@ -230,7 +230,16 @@ class InfluxClient:
                     # auto-unzip
                     body = await resp.read()
                     if deserializer:
-                        return deserializer(body)
+                        try:
+                            return deserializer(body)
+                        except Exception as e:
+                            logger.exception(e)
+                            logger.warning(
+                                "failed to deserialize data: %s, the query is:%s",
+                                body,
+                                str(flux)[:100],
+                            )
+                            raise
                     else:
                         return body
 
