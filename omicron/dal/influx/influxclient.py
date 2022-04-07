@@ -220,7 +220,7 @@ class InfluxClient:
                 if resp.status != 200:
                     err = await resp.json()
                     logger.warning(
-                        f"influxdb query error: {err} when processing {flux[:100]}"
+                        f"influxdb query error: {err} when processing {flux[:500]}"
                     )
                     logger.debug("data caused error:%s", flux)
                     raise InfluxDBQueryError(
@@ -237,7 +237,7 @@ class InfluxClient:
                             logger.warning(
                                 "failed to deserialize data: %s, the query is:%s",
                                 body,
-                                str(flux)[:100],
+                                flux[:500],
                             )
                             raise
                     else:

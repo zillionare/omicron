@@ -64,9 +64,6 @@ class Flux(object):
         if self.expressions.get("pivot"):
             expr.append(self.expressions["pivot"])
 
-        if self.expressions.get("keep"):
-            expr.append(self.expressions["keep"])
-
         if self.expressions.get("group"):
             expr.append(self.expressions["group"])
 
@@ -286,7 +283,7 @@ class Flux(object):
 
         return self
 
-    def fields(self, fields: List) -> "Flux":
+    def fields(self, fields: List, reserve_time_stamp: bool = True) -> "Flux":
         """给查询添加field过滤条件
 
         此查询条件为过滤条件，用以指定哪些field会出现在查询结果中，并非必须。如果查询中没有指定tags，则会返回所有记录。
@@ -297,6 +294,7 @@ class Flux(object):
             DuplicateOperationError: 一个查询中只允许执行一次，如果filed filter表达式已经存在，则抛出异常
         Args:
             fields: 待查询的field列表
+            reserve_time_stamp: 是否保留时间戳`_time`，默认为True
 
         Returns:
             Flux对象，以便进行管道操作
@@ -304,9 +302,14 @@ class Flux(object):
         if "fields" in self.expressions:
             raise DuplicateOperationError("fields has been set")
 
-        self._cols = sorted(fields)
+        self._cols = fields.copy()
 
-        filters = [f'r["_field"] == "{name}"' for name in fields]
+        if reserve_time_stamp and "_time" not in self._cols:
+            self._cols.append("_time")
+
+        self._cols = sorted(self._cols)
+
+        filters = [f'r["_field"] == "{name}"' for name in self._cols]
 
         self.expressions["fields"] = f"  |> filter(fn: (r) => {' or '.join(filters)})"
 
@@ -342,46 +345,6 @@ class Flux(object):
         self.expressions[
             "pivot"
         ] = f'  |> pivot(columnKey: [{columns}], rowKey: [{rowkeys}], valueColumn: "{value_column}")'
-
-        return self
-
-    def keep(
-        self, columns: List[str] = None, reserve_time_stamp: bool = True
-    ) -> "Flux":
-        """指定查询中的哪些列被保留（即被传回客户端）
-
-        如果columns为None,则使用之前传入的fields,如果fields也为空，则raise Error.
-        如果reserve_time_stamp为True,则会在columns之上，再加上_time字段（此字段为缺省字段）。
-
-        如果一次查询中，不通过本函数对传回列进行限定，则一般可能会多出以下列：
-        `_start`,`_stop`,`_measurement`
-
-        注意，即使指定了keep，下列字段也会仍然会被传回：
-        `unnamed`,`result`(alias),`table`(seq no),`_time`
-
-
-        Args:
-            columns: 待保留的列名称列表
-            reserve_time_stamp: 是否保留_time字段，默认为True
-
-        Returns:
-            Flux对象，以便进行管道操作
-        """
-        if "keep" in self.expressions:
-            raise DuplicateOperationError("keep has been set")
-
-        if columns is not None:
-            self._cols = columns.copy()
-
-        if self._cols is None:
-            raise ValueError("columns和fields必须至少提供一个。")
-
-        if reserve_time_stamp and "_time" not in self._cols:
-            self._cols.append("_time")
-
-        columns_ = ",".join([f'"{name}"' for name in self._cols])
-
-        self.expressions["keep"] = f"  |> keep(columns: [{columns_}])"
 
         return self
 

@@ -71,7 +71,7 @@ class FluxTest(unittest.TestCase):
         flux = Flux()
         actual = flux.fields(fields).expressions["fields"]
 
-        exp = '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")'
+        exp = '  |> filter(fn: (r) => r["_field"] == "_time" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low" or r["_field"] == "open")'
         self.assertEqual(exp, actual)
 
         with self.assertRaises(DuplicateOperationError):
@@ -130,7 +130,7 @@ class FluxTest(unittest.TestCase):
             ["open", "close", "high", "low"]
         ).limit(
             10
-        ).pivot().keep().group(
+        ).pivot().group(
             "code"
         )
 
@@ -139,10 +139,9 @@ class FluxTest(unittest.TestCase):
             "  |> range(start: 2019-01-01T00:00:00Z, stop: 2019-01-02T00:00:01Z)",
             '  |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")',
             '  |> filter(fn: (r) => r["code"] == "000001.XSHE" or r["code"] == "000002.XSHE")',
-            '  |> filter(fn: (r) => r["_field"] == "open" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low")',
+            '  |> filter(fn: (r) => r["_field"] == "_time" or r["_field"] == "close" or r["_field"] == "high" or r["_field"] == "low" or r["_field"] == "open")',
             '  |> drop(columns: ["_start","_stop","_measurement"])',
             '  |> pivot(columnKey: ["_field"], rowKey: ["_time"], valueColumn: "_value")',
-            '  |> keep(columns: ["close","high","low","open","_time"])',
             '  |> group(columns: ["code"])',
             "  |> limit(n: 10)",
         ]
@@ -174,15 +173,6 @@ class FluxTest(unittest.TestCase):
             flux.tags({"code": ["000001.XSHE", "000002.XSHE"]}).tags(
                 {"code": "000001.XSHE"}
             )
-
-        with self.assertRaises(DuplicateOperationError):
-            flux.keep().keep()
-
-        # test if fields has been set, then keep will use field without passing columns
-        flux = Flux()
-        flux.fields(["open", "close", "high", "low"]).keep()
-        exp = ["_time", "close", "high", "low", "open"]
-        self.assertListEqual(exp, flux.cols)
 
     def test_delete(self):
         cmd = Flux().delete(
