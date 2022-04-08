@@ -1,6 +1,6 @@
 import unittest
 
-from omicron.extensions.decimals import equal_price, math_round
+from omicron.extensions.decimals import math_round, price_equal
 
 
 class TestDecimal(unittest.TestCase):
@@ -8,7 +8,7 @@ class TestDecimal(unittest.TestCase):
         self.assertEqual(1.0, math_round(0.5, 0))
         self.assertEqual(0.0, round(0.5, 0))
 
-    def test_equal_price(self):
-        self.assertTrue(equal_price(1.0, 1.0))
-        self.assertTrue(equal_price(1.01, 1.0098))
-        self.assertTrue(equal_price(1.01444, 1.0099555))
+    def test_price_equal(self):
+        self.assertTrue(price_equal(1.0, 1.0))
+        self.assertTrue(price_equal(1.01, 1.0098))
+        self.assertTrue(price_equal(1.01444, 1.0099555))

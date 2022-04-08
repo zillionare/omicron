@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging
 import re
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import arrow
 import cfg4py
@@ -17,11 +17,8 @@ from omicron.core.errors import BadParameterError, DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.dal.influx.serialize import (
-    DataframeDeserializer,
-    NumpyDeserializer,
-    NumpySerializer,
-)
+from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
+from omicron.extensions.np import array_math_round, array_price_equal
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
@@ -1128,8 +1125,16 @@ class Stock:
             end : 结束日期
 
         Returns:
-            dtype为[('frame', 'O'), ('high_limit', 'f8'), ('low_limit', 'f8')]的numpy数组
+            dtype为[('frame', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4'), ('factor', 'f4')]的numpy数组
         """
+        cols = ["_time", "high_limit", "low_limit", "factor"]
+        dtype = [
+            ("frame", "O"),
+            ("high_limit", "f4"),
+            ("low_limit", "f4"),
+            ("factor", "f4"),
+        ]
+
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
@@ -1138,14 +1143,13 @@ class Stock:
             .measurement(measurement)
             .range(begin, end)
             .tags({"code": code})
-            .fields(["_time", "high_limit", "low_limit"])
+            .fields(cols)
             .sort("_time")
         )
 
-        dtype = [("frame", "O"), ("high_limit", "f8"), ("low_limit", "f8")]
         ds = NumpyDeserializer(
             dtype,
-            use_cols=["_time", "high_limit", "low_limit"],
+            use_cols=cols,
             converters={
                 "_time": lambda x: ciso8601.parse_datetime(x).date(),
             },
@@ -1192,3 +1196,55 @@ class Stock:
                 tag_keys="code",
                 time_key="frame",
             )
+
+    @classmethod
+    async def trade_price_limit_flags(
+        cls, code: str, start: datetime.date, end: datetime.date
+    ) -> Tuple[List[bool]]:
+        """获取个股在[start, end]之间的涨跌停标志
+
+        Args:
+            code: 个股代码
+            start: 开始日期
+            end: 结束日期
+
+        Returns:
+            涨跌停标志列表(buy, sell)
+        """
+        cols = ["_time", "close", "high_limit", "low_limit"]
+        client = cls._get_influx_client()
+        measurement = cls._measurement_name(FrameType.DAY)
+        flux = (
+            Flux()
+            .bucket(client._bucket)
+            .measurement(measurement)
+            .range(start, end)
+            .tags({"code": code})
+            .fields(cols)
+            .sort("_time")
+        )
+
+        dtype = [
+            ("frame", "O"),
+            ("close", "f4"),
+            ("high_limit", "f4"),
+            ("low_limit", "f4"),
+        ]
+        ds = NumpyDeserializer(
+            dtype,
+            use_cols=["_time", "close", "high_limit", "low_limit"],
+            converters={
+                "_time": lambda x: ciso8601.parse_datetime(x).date(),
+            },
+            # since we ask parse date in convertors, so we have to disable parse_date
+            parse_date=None,
+        )
+
+        result = await client.query(flux, ds)
+        if result.size == 0:
+            return np.array([], dtype=dtype)
+
+        return (
+            array_price_equal(result["close"], result["high_limit"]),
+            array_price_equal(result["close"], result["low_limit"]),
+        )

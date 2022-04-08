@@ -426,3 +426,19 @@ def array_math_round(arr: Union[float, ArrayLike], digits: int) -> np.ndarray:
 
     f = np.vectorize(lambda x: decimals.math_round(x, digits))
     return f(arr)
+
+
+def array_price_equal(price1: ArrayLike, price2: ArrayLike) -> np.ndarray:
+    """判断两个价格数组是否相等
+
+    Args:
+        price1 (ArrayLike): 价格数组
+        price2 (ArrayLike): 价格数组
+
+    Returns:
+        np.ndarray: 判断结果
+    """
+    price1 = array_math_round(price1, 2)
+    price2 = array_math_round(price2, 2)
+
+    return abs(price1 - price2) < 1e-2

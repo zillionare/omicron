@@ -9,14 +9,13 @@ import cfg4py
 import numpy as np
 import pandas as pd
 from coretypes import FrameType, SecurityType, bars_dtype, bars_with_limit_dtype
+from numpy.testing import assert_array_equal
 
 import omicron
 from omicron import tf
-from omicron.core.constants import TRADE_PRICE_LIMITS
-from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
+from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock
-from omicron.models.timeframe import TimeFrame
 from tests import assert_bars_equal, bars_from_csv, init_test_env, test_dir
 
 cfg = cfg4py.get_instance()
@@ -650,6 +649,14 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         assert_bars_equal(exp, bars)
 
+        # error handling
+        with self.assertRaises(ValueError):
+            with mock.patch(
+                "omicron.models.stock.Stock._get_cached_bars",
+                side_effect=ValueError("test"),
+            ):
+                await Stock.get_bars(code, n, ft, end=lf.date(), fq=False)
+
     @mock.patch.object(arrow, "now", return_value=datetime.datetime(2022, 1, 10, 9, 34))
     async def test_batch_cache_bars(self, mock_now):
         data = {
@@ -843,28 +850,34 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         # fill in data
         start = datetime.date(2022, 1, 10)
+        dtype = [
+            ("frame", "O"),
+            ("high_limit", "<f4"),
+            ("low_limit", "<f4"),
+            ("factor", "<f4"),
+        ]
 
         trade_limits = np.array(
             [
-                (datetime.date(2022, 1, 10), 18.92, 15.48),
-                (datetime.date(2022, 1, 11), 18.91, 15.47),
-                (datetime.date(2022, 1, 12), 19.15, 15.67),
-                (datetime.date(2022, 1, 13), 18.7, 15.3),
-                (datetime.date(2022, 1, 14), 18.68, 15.28),
-                (datetime.date(2022, 1, 17), 17.96, 14.7),
-                (datetime.date(2022, 1, 18), 17.84, 14.6),
-                (datetime.date(2022, 1, 19), 18.17, 14.87),
-                (datetime.date(2022, 1, 20), 18.15, 14.85),
-                (datetime.date(2022, 1, 21), 19.06, 15.6),
-                (datetime.date(2022, 1, 24), 19.09, 15.62),
-                (datetime.date(2022, 1, 25), 18.92, 15.48),
-                (datetime.date(2022, 1, 26), 18.54, 15.17),
-                (datetime.date(2022, 1, 27), 18.32, 14.99),
-                (datetime.date(2022, 1, 28), 17.93, 14.67),
-                (datetime.date(2022, 2, 7), 17.41, 14.25),
-                (datetime.date(2022, 2, 8), 18.03, 14.75),
+                (datetime.date(2022, 1, 10), 18.92, 15.48, 1.0),
+                (datetime.date(2022, 1, 11), 18.91, 15.47, 1.1),
+                (datetime.date(2022, 1, 12), 19.15, 15.67, 1.11),
+                (datetime.date(2022, 1, 13), 18.7, 15.3, 1.12),
+                (datetime.date(2022, 1, 14), 18.68, 15.28, 1.13),
+                (datetime.date(2022, 1, 17), 17.96, 14.7, 1.14),
+                (datetime.date(2022, 1, 18), 17.84, 14.6, 1.15),
+                (datetime.date(2022, 1, 19), 18.17, 14.87, 1.15),
+                (datetime.date(2022, 1, 20), 18.15, 14.85, 1.15),
+                (datetime.date(2022, 1, 21), 19.06, 15.6, 1.15),
+                (datetime.date(2022, 1, 24), 19.09, 15.62, 1.15),
+                (datetime.date(2022, 1, 25), 18.92, 15.48, 1.15),
+                (datetime.date(2022, 1, 26), 18.54, 15.17, 1.16),
+                (datetime.date(2022, 1, 27), 18.32, 14.99, 1.17),
+                (datetime.date(2022, 1, 28), 17.93, 14.67, 1.18),
+                (datetime.date(2022, 2, 7), 17.41, 14.25, 1.19),
+                (datetime.date(2022, 2, 8), 18.03, 14.75, 1.2),
             ],
-            dtype=[("frame", "O"), ("high_limit", "<f4"), ("low_limit", "<f4")],
+            dtype=dtype,
         )
 
         await self.client.save(
@@ -926,13 +939,14 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         expected = np.array(
             [
-                (datetime.date(2022, 1, 6), 18.83, 15.41),
-                (datetime.date(2022, 1, 7), 18.83, 15.41),
+                (datetime.date(2022, 1, 6), 18.83, 15.41, 1.0),
+                (datetime.date(2022, 1, 7), 18.83, 15.41, 1.0),
             ],
             dtype=[
                 ("frame", "O"),
-                ("high_limit", "<f8"),
-                ("low_limit", "<f8"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+                ("factor", "<f4"),
             ],
         )
 
@@ -1090,24 +1104,155 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
     async def test_save_trade_price_limits(self):
         limits = np.array(
             [
-                (datetime.date(2022, 1, 6), "000001.XSHE", 18.83, 15.41),
-                (datetime.date(2022, 1, 7), "000002.XSHE", 18.83, 15.41),
+                (
+                    datetime.date(2022, 3, 22),
+                    3.0,
+                    3.14,
+                    2.7,
+                    3.14,
+                    1.64808427e08,
+                    4.86487509e08,
+                    1.0,
+                    3.14,
+                    2.57,
+                ),
+                (
+                    datetime.date(2022, 3, 23),
+                    3.45,
+                    3.45,
+                    3.45,
+                    3.45,
+                    3.83227050e07,
+                    1.32213332e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 3, 24),
+                    3.45,
+                    3.8,
+                    3.27,
+                    3.8,
+                    2.78554700e08,
+                    9.86430823e08,
+                    1.0,
+                    3.8,
+                    3.11,
+                ),
+                (
+                    datetime.date(2022, 3, 25),
+                    3.76,
+                    4.11,
+                    3.52,
+                    3.76,
+                    2.68746669e08,
+                    1.02163013e09,
+                    1.0,
+                    4.18,
+                    3.42,
+                ),
+                (
+                    datetime.date(2022, 3, 28),
+                    3.38,
+                    4.0,
+                    3.38,
+                    3.76,
+                    2.36926943e08,
+                    8.49636557e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 29),
+                    3.58,
+                    3.68,
+                    3.38,
+                    3.38,
+                    1.29861905e08,
+                    4.46620979e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 30),
+                    3.1,
+                    3.35,
+                    3.05,
+                    3.07,
+                    1.71553784e08,
+                    5.43805962e08,
+                    1.0,
+                    3.72,
+                    3.04,
+                ),
+                (
+                    datetime.date(2022, 3, 31),
+                    3.07,
+                    3.19,
+                    2.9,
+                    3.14,
+                    1.74144017e08,
+                    5.28782426e08,
+                    1.0,
+                    3.38,
+                    2.76,
+                ),
+                (
+                    datetime.date(2022, 4, 1),
+                    3.01,
+                    3.06,
+                    2.91,
+                    2.94,
+                    1.03947342e08,
+                    3.09315863e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
             ],
             dtype=[
                 ("frame", "O"),
-                ("code", "O"),
-                ("high_limit", "<f8"),
-                ("low_limit", "<f8"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
             ],
         )
 
-        start = datetime.date(2022, 1, 6)
-        end = datetime.date(2022, 1, 6)
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+
+        start = datetime.date(2022, 3, 23)
+        end = datetime.date(2022, 4, 6)
 
         await Stock.save_trade_price_limits(limits, False)
-        with mock.patch("arrow.now", return_value=datetime.date(1900, 1, 1)):
-            actual = await Stock.get_trade_price_limits("000001.XSHE", start, end)
-            self.assertAlmostEqual(18.83, actual[0]["high_limit"])
+        actual = await Stock.get_trade_price_limits(code, start, end)
+        self.assertAlmostEqual(3.45, actual[0]["high_limit"])
+
+        # save it to cache
+        await Stock.save_trade_price_limits(limits, True)
 
     @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
     async def test_get_bars_in_range(self, mocked_now):
@@ -1267,117 +1412,239 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         assert_bars_equal(expected, actual)
 
     def test_resample_from_day(self):
-        day_bars = np.array(
-            [
-                (
-                    datetime.date(2022, 1, 24),
-                    17.34,
-                    17.38,
-                    16.98,
-                    17.2,
-                    8.74770870e07,
-                    1.50139034e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 1, 25),
-                    17.08,
-                    17.08,
-                    16.81,
-                    16.85,
-                    1.09328397e08,
-                    1.85199902e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 1, 26),
-                    16.95,
-                    17.1,
-                    16.54,
-                    16.65,
-                    9.84975220e07,
-                    1.64638498e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 1, 27),
-                    16.5,
-                    16.54,
-                    16.25,
-                    16.3,
-                    1.02464311e08,
-                    1.67726130e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 1, 28),
-                    16.39,
-                    16.45,
-                    15.82,
-                    15.83,
-                    1.67556367e08,
-                    2.69547033e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 2, 7),
-                    16.02,
-                    16.41,
-                    15.89,
-                    16.39,
-                    1.51547630e08,
-                    2.45179848e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 2, 8),
-                    16.3,
-                    16.97,
-                    16.26,
-                    16.83,
-                    1.75469528e08,
-                    2.95030901e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 2, 9),
-                    16.92,
-                    17.0,
-                    16.71,
-                    16.86,
-                    1.05116166e08,
-                    1.77425364e09,
-                    121.71913,
-                ),
-            ],
-            dtype=bars_dtype,
-        )
-
-        week_bars = np.array(
-            [
-                (
-                    datetime.date(2022, 1, 28),
-                    17.34,
-                    17.38,
-                    15.82,
-                    15.83,
-                    5.65323684e08,
-                    9.37250597e09,
-                    121.71913,
-                ),
-                (
-                    datetime.date(2022, 2, 9),
-                    16.02,
-                    17.0,
-                    15.89,
-                    16.86,
-                    4.32133324e08,
-                    7.17636113e09,
-                    121.71913,
-                ),
-            ],
-            dtype=bars_dtype,
-        )
+        day_bars = bars_from_csv("000004.XSHE", "1d")
 
         actual = Stock._resample_from_day(day_bars, FrameType.WEEK)
-        assert_bars_equal(week_bars, actual)
+        expected_week_bars = np.array(
+            [
+                (
+                    datetime.date(2021, 9, 10),
+                    18.56,
+                    19.58,
+                    18.25,
+                    18.86,
+                    15651442.0,
+                    2.98069614e08,
+                    7.446,
+                ),
+                (
+                    datetime.date(2021, 9, 17),
+                    18.86,
+                    20.49,
+                    18.5,
+                    19.16,
+                    32686734.0,
+                    6.48175352e08,
+                    7.446,
+                ),
+                (
+                    datetime.date(2021, 9, 24),
+                    18.78,
+                    20.67,
+                    18.65,
+                    20.0,
+                    14061718.0,
+                    2.78599598e08,
+                    7.446,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+        print(actual)
+        assert_bars_equal(expected_week_bars, actual[1:4])
+
+        expected_month_bars = np.array(
+            [
+                (
+                    datetime.date(2021, 10, 29),
+                    19.05,
+                    20.5,
+                    16.2,
+                    16.79,
+                    48524039.0,
+                    9.14937381e08,
+                    7.446,
+                ),
+                (
+                    datetime.date(2021, 11, 30),
+                    16.78,
+                    20.58,
+                    16.28,
+                    18.82,
+                    84562100.0,
+                    1.57764758e09,
+                    7.446,
+                ),
+                (
+                    datetime.date(2021, 12, 31),
+                    19.0,
+                    19.99,
+                    18.02,
+                    19.42,
+                    67253473.0,
+                    1.28188833e09,
+                    7.446,
+                ),
+            ],
+            dtype=bars_dtype,
+        )
+
+        actual = Stock._resample_from_day(day_bars, FrameType.MONTH)
+        assert_bars_equal(expected_month_bars, actual[1:4])
+
+    async def test_trade_price_limit_flags(self):
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 3, 22),
+                    3.0,
+                    3.14,
+                    2.7,
+                    3.14,
+                    1.64808427e08,
+                    4.86487509e08,
+                    1.0,
+                    3.14,
+                    2.57,
+                ),
+                (
+                    datetime.date(2022, 3, 23),
+                    3.45,
+                    3.45,
+                    3.45,
+                    3.45,
+                    3.83227050e07,
+                    1.32213332e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 3, 24),
+                    3.45,
+                    3.8,
+                    3.27,
+                    3.8,
+                    2.78554700e08,
+                    9.86430823e08,
+                    1.0,
+                    3.8,
+                    3.11,
+                ),
+                (
+                    datetime.date(2022, 3, 25),
+                    3.76,
+                    4.11,
+                    3.52,
+                    3.76,
+                    2.68746669e08,
+                    1.02163013e09,
+                    1.0,
+                    4.18,
+                    3.42,
+                ),
+                (
+                    datetime.date(2022, 3, 28),
+                    3.38,
+                    4.0,
+                    3.38,
+                    3.76,
+                    2.36926943e08,
+                    8.49636557e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 29),
+                    3.58,
+                    3.68,
+                    3.38,
+                    3.38,
+                    1.29861905e08,
+                    4.46620979e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 30),
+                    3.1,
+                    3.35,
+                    3.05,
+                    3.07,
+                    1.71553784e08,
+                    5.43805962e08,
+                    1.0,
+                    3.72,
+                    3.04,
+                ),
+                (
+                    datetime.date(2022, 3, 31),
+                    3.07,
+                    3.19,
+                    2.9,
+                    3.14,
+                    1.74144017e08,
+                    5.28782426e08,
+                    1.0,
+                    3.38,
+                    2.76,
+                ),
+                (
+                    datetime.date(2022, 4, 1),
+                    3.01,
+                    3.06,
+                    2.91,
+                    2.94,
+                    1.03947342e08,
+                    3.09315863e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+
+        start = datetime.date(2022, 3, 23)
+        end = datetime.date(2022, 4, 6)
+
+        await Stock.save_trade_price_limits(limits, False)
+
+        buy_limit, sell_limit = await Stock.trade_price_limit_flags(code, start, end)
+
+        assert_array_equal(
+            [True, True, False, False, False, False, False, False, False], buy_limit
+        )
+        assert_array_equal(
+            [False, False, False, False, True, False, False, False, False], sell_limit
+        )

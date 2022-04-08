@@ -9,7 +9,7 @@ def math_round(x: float, digits: int):
     return int(x * (10 ** digits) + 0.5) / (10 ** digits)
 
 
-def equal_price(x: float, y: float) -> bool:
+def price_equal(x: float, y: float) -> bool:
     """判断股价是否相等
 
     Args:

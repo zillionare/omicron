@@ -1,9 +1,12 @@
+import datetime
 import unittest
 
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from omicron.extensions.np import (
     array_math_round,
+    array_price_equal,
     bin_cut,
     count_between,
     dataframe_to_structured_array,
@@ -16,7 +19,6 @@ from omicron.extensions.np import (
     rolling,
     shift,
 )
-from omicron.models.timeframe import TimeFrame
 
 
 class NpTest(unittest.TestCase):
@@ -212,7 +214,7 @@ class NpTest(unittest.TestCase):
         for i, bins in enumerate([1, 2, 3, 5, 10]):
             self.assertListEqual(expected[i], bin_cut(arr, bins))
 
-    def test_math_round(self):
+    def test_array_math_round(self):
         raw = [i / 10 for i in range(10)]
         arr = np.array(raw)
 
@@ -225,3 +227,35 @@ class NpTest(unittest.TestCase):
 
         self.assertEqual(0.16, array_math_round(0.155, 2))
         self.assertEqual(0.15, array_math_round(0.154, 2))
+
+    def test_array_price_equal(self):
+        limits = np.array(
+            [
+                (datetime.date(2022, 3, 23), 3.45, 3.45, 2.83),
+                (datetime.date(2022, 3, 24), 3.8, 3.8, 3.11),
+                (datetime.date(2022, 3, 25), 3.76, 4.18, 3.42),
+                (datetime.date(2022, 3, 28), 3.76, 4.14, 3.38),
+                (datetime.date(2022, 3, 29), 3.38, 4.14, 3.38),
+                (datetime.date(2022, 3, 30), 3.07, 3.72, 3.04),
+                (datetime.date(2022, 3, 31), 3.14, 3.38, 2.76),
+                (datetime.date(2022, 4, 1), 2.94, 3.45, 2.83),
+                (datetime.date(2022, 4, 6), 3.01, 3.23, 2.65),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("close", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+
+        # ensure not equal
+        limits[0]["close"] += 1e-6
+        with self.assertRaises(AssertionError):
+            assert all(limits["close"][:2] == limits["high_limit"][:2])
+
+        # now all elements should equal
+        expected = [True, True, False, False, False, False, False, False, False]
+        actual = array_price_equal(limits["close"], limits["high_limit"])
+
+        assert_array_equal(expected, actual)
