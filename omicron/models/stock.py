@@ -1125,14 +1125,13 @@ class Stock:
             end : 结束日期
 
         Returns:
-            dtype为[('frame', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4'), ('factor', 'f4')]的numpy数组
+            dtype为[('frame', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4')]的numpy数组
         """
-        cols = ["_time", "high_limit", "low_limit", "factor"]
+        cols = ["_time", "high_limit", "low_limit"]
         dtype = [
             ("frame", "O"),
             ("high_limit", "f4"),
             ("low_limit", "f4"),
-            ("factor", "f4"),
         ]
 
         client = cls._get_influx_client()
