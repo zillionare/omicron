@@ -182,8 +182,17 @@ class Stock:
         return [rec["code"] for rec in cls._stocks if rec["code"].startswith("688")]
 
     @classmethod
-    def fuzzy_match(cls, query: str):
-        """对股票/指数进行模糊匹配查找"""
+    def fuzzy_match(cls, query: str) -> Dict[str, Tuple]:
+        """对股票/指数进行模糊匹配查找
+
+        query可以是股票/指数代码，也可以是字母（按name查找），也可以是汉字（按显示名查找）
+
+        Args:
+            query (str): 查询字符串
+
+        Returns:
+            Dict[str, Tuple]: 查询结果，其中Tuple为(code, display_name, name, start, end, type)
+        """
         query = query.upper()
         if re.match(r"\d+", query):
             return {
