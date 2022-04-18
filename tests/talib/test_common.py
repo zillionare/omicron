@@ -68,3 +68,9 @@ class CommonTest(unittest.TestCase):
         actual = top_n_argpos(arr, 2)
         exp = [2, 3]
         self.assertListEqual(exp, actual.tolist())
+
+    def test_smallest_n_argpos(self):
+        arr = [7, 5, 1, 4, 0, 3, 2, 6, 9, 8]
+        actual = smallest_n_argpos(arr, 2)
+        exp = [4, 2]
+        self.assertListEqual(exp, actual.tolist())

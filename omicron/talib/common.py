@@ -133,3 +133,20 @@ def top_n_argpos(ts: np.array, n: int) -> np.array:
         np.array: [description]
     """
     return np.argsort(ts)[-n:][::-1]
+
+
+def smallest_n_argpos(ts: np.array, n: int) -> np.array:
+    """get smallest n (min->max) elements and return argpos which its value ordered in ascent
+
+    Example:
+        >>> smallest_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([7, 6])
+
+    Args:
+        ts (np.array): 输入的数组
+        n (int): 取最小的n个元素
+
+    Returns:
+        np.array: [description]
+    """
+    return np.argsort(ts)[:n]
