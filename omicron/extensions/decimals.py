@@ -6,7 +6,7 @@ def math_round(x: float, digits: int):
         digits: 小数点后保留的位数
 
     """
-    return int(x * (10 ** digits) + 0.5) / (10 ** digits)
+    return int(x * (10**digits) + 0.5) / (10**digits)
 
 
 def price_equal(x: float, y: float) -> bool:

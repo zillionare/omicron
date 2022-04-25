@@ -236,9 +236,9 @@ class TestPatterns(unittest.TestCase):
         X = np.cumprod(1 + np.random.randn(100) * 0.01)
 
         # test resist, support by predict next point
-        support, resist = support_resist_lines(X)
-        self.assertAlmostEqual(1.013318988311881, resist(100))
-        self.assertAlmostEqual(0.9539414071057044, support(100))
+        support, resist, start = support_resist_lines(X)
+        self.assertAlmostEqual(1.0021215790349554, resist(100))
+        self.assertAlmostEqual(0.94672668920434, support(100))
 
     def test_breakout(self):
         np.random.seed(1978)
@@ -250,11 +250,11 @@ class TestPatterns(unittest.TestCase):
         y = np.concatenate([X, [1.1]])
         self.assertEqual(BreakoutFlag.UP, breakout(y))
 
-        y = np.concatenate([X, [0.9]])
+        y = np.concatenate([X, [0.8]])
         self.assertEqual(BreakoutFlag.DOWN, breakout(y))
 
         y = np.concatenate([X, [0.9, 0.8]])
-        self.assertEqual(BreakoutFlag.NONE, breakout(y, confirm=2))
+        self.assertEqual(BreakoutFlag.NONE, breakout(y, 0.03, -0.03, confirm=2))
 
-        y = np.concatenate([X, [0.83, 0.8]])
-        self.assertEqual(BreakoutFlag.DOWN, breakout(y, confirm=2))
+        y = np.concatenate([X, [0.8, 0.75]])
+        self.assertEqual(BreakoutFlag.DOWN, breakout(y, 0.03, -0.03, confirm=2))

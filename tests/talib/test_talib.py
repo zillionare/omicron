@@ -10,7 +10,7 @@ from omicron import talib as ta
 class TaLibTest(unittest.TestCase):
     def test_cross(self):
         y1 = np.array([i + 5 for i in range(10)])
-        y2 = np.array([0.3 * i ** 2 for i in range(10)])
+        y2 = np.array([0.3 * i**2 for i in range(10)])
 
         flag, index = ta.cross(y1, y2)
         self.assertEqual(ta.CrossFlag.DOWNCROSS, flag)
@@ -21,7 +21,7 @@ class TaLibTest(unittest.TestCase):
         self.assertEqual(6, index)
 
         # y1 == y2 when index == 4
-        y2 = np.array([0.5 * i ** 2 for i in range(10)])
+        y2 = np.array([0.5 * i**2 for i in range(10)])
         flag, index = ta.cross(y1, y2)
         self.assertEqual(ta.CrossFlag.DOWNCROSS, flag)
         self.assertEqual(4, index)
@@ -36,7 +36,7 @@ class TaLibTest(unittest.TestCase):
         self.assertEqual(ta.CrossFlag.NONE, flag)
 
     def test_vcross(self):
-        f = np.array([3 * i ** 2 - 20 * i + 2 for i in range(10)])
+        f = np.array([3 * i**2 - 20 * i + 2 for i in range(10)])
         g = np.array([i - 5 for i in range(10)])
 
         flag, indices = ta.vcross(f, g)
@@ -51,7 +51,7 @@ class TaLibTest(unittest.TestCase):
         self.assertAlmostEquals(1, a)
         self.assertAlmostEqual(0, b)
 
-        ts = np.array([0.2 * i ** 2 + 2 * i + 3 for i in range(5)])
+        ts = np.array([0.2 * i**2 + 2 * i + 3 for i in range(5)])
         err, (a, b, c), (x, y) = ta.polyfit(ts)
         self.assertTrue(err < 1e-13)
         self.assertAlmostEquals(0.2, a)
@@ -80,7 +80,7 @@ class TaLibTest(unittest.TestCase):
         self.assertAlmostEquals(-0.866, angle, places=3)  # degree: 150, rad: 5*pi/6
 
     def test_inverse_vcross(self):
-        f = np.array([-3 * i ** 2 + 20 * i - 10 for i in range(10)])
+        f = np.array([-3 * i**2 + 20 * i - 10 for i in range(10)])
         g = np.array([i - 5 for i in range(10)])
 
         flag, indices = ta.inverse_vcross(f, g)

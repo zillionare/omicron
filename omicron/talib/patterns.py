@@ -7,6 +7,8 @@ from typing import Callable, Tuple
 import numpy as np
 from zigzag import peak_valley_pivots
 
+from omicron.talib.common import smallest_n_argpos, top_n_argpos
+
 
 class BreakoutFlag(IntEnum):
     UP = 1
@@ -38,28 +40,30 @@ def peaks_and_valleys(
 
 def support_resist_lines(
     ts: np.ndarray, upthres: float = 0.01, downthres: float = -0.01
-) -> Tuple[Callable, Callable]:
+):
     """计算时间序列的支撑线和阻力线
 
     Examples:
         ```python
-        def show_support_resist_lines(ts):
-            show_peaks_valleys(ts)
+            def show_support_resist_lines(ts):
+                import plotly.graph_objects as go
 
-            support, resist = support_resist_lines(ts)
-            x = np.arange(len(ts) + 1)
+                fig = go.Figure()
 
-            yresist = resist(x)
-            ysupport = support(x)
+                support, resist, x_start = support_resist_lines(ts, 0.03, -0.03)
+                fig.add_trace(go.Scatter(x=np.arange(len(ts)), y=ts))
 
-            plt.plot(x, yresist, 'g')
-            plt.plot(x, ysupport, 'r')
+                x = np.arange(len(ts))[x_start:]
+                fig.add_trace(go.Line(x=x, y = support(x)))
+                fig.add_trace(go.Line(x=x, y = resist(x)))
 
-        np.random.seed(1978)
-        X = np.cumprod(1 + np.random.randn(100) * 0.01)
-        show_support_resist_lines(X)
+                fig.show()
+
+            np.random.seed(1978)
+            X = np.cumprod(1 + np.random.randn(100) * 0.01)
+            show_support_resist_lines(X)
         ```
-        the above code will show this ![image](https://images.jieyu.ai/images/202203/supportline.png)
+        the above code will show this ![](https://images.jieyu.ai/images/202204/support_resist.png)
 
     Args:
         ts (np.ndarray): 时间序列
@@ -67,34 +71,35 @@ def support_resist_lines(
         downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
 
     Returns:
-        返回支撑线和阻力线的计算函数，如果没有支撑线或阻力线，则返回None
+        返回支撑线和阻力线的计算函数及起始点坐标，如果没有支撑线或阻力线，则返回None
     """
     if ts.dtype != np.float64:
         ts = ts.astype(np.float64)
 
     pivots = peak_valley_pivots(ts, upthres, downthres)
 
-    arg_max = np.where(pivots == 1)[0]
-    arg_min = np.where(pivots == -1)[0]
+    peaks_only = np.select([pivots == 1], [ts], 0)
+    arg_max = sorted(top_n_argpos(peaks_only, 2))
+
+    valleys_only = np.select([pivots == -1], [ts], np.max(ts))
+    arg_min = sorted(smallest_n_argpos(valleys_only, 2))
 
     resist = None
     support = None
 
     if len(arg_max) >= 2:
-        x = arg_max[-3:]
-        y = ts[x]
-        coeff = np.polyfit(x, y, deg=1)
+        y = ts[arg_max]
+        coeff = np.polyfit(arg_max, y, deg=1)
 
         resist = np.poly1d(coeff)
 
     if len(arg_min) >= 2:
-        x = arg_min[-3:]
-        y = ts[x]
-        coeff = np.polyfit(x, y, deg=1)
+        y = ts[arg_min]
+        coeff = np.polyfit(arg_min, y, deg=1)
 
         support = np.poly1d(coeff)
 
-    return support, resist
+    return support, resist, np.min([*arg_min, *arg_max])
 
 
 def breakout(
@@ -111,7 +116,7 @@ def breakout(
     Returns:
         如果上向突破压力线，返回1，如果向下突破压力线，返回-1，否则返回0
     """
-    support, resist = support_resist_lines(ts, upthres, downthres)
+    support, resist, _ = support_resist_lines(ts[:-confirm], upthres, downthres)
 
     x0 = len(ts) - confirm - 1
     x = list(range(len(ts) - confirm, len(ts)))
