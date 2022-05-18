@@ -2,6 +2,7 @@
 """
 from __future__ import annotations
 
+import datetime
 import math
 from typing import List, Tuple, Union
 
@@ -442,3 +443,19 @@ def array_price_equal(price1: ArrayLike, price2: ArrayLike) -> np.ndarray:
     price2 = array_math_round(price2, 2)
 
     return abs(price1 - price2) < 1e-2
+
+
+def to_pydatetime(tm: np.datetime64) -> datetime.datetime:
+    """将numpy.datetime64对象转换成为python的datetime对象
+
+    Args:
+        tm : the input numpy datetime object
+
+    Returns:
+        _description_
+    """
+    unix_epoch = np.datetime64(0, "s")
+    one_second = np.timedelta64(1, "s")
+    seconds_since_epoch = (tm - unix_epoch) / one_second
+
+    return datetime.datetime.utcfromtimestamp(seconds_since_epoch)

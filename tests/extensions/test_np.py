@@ -18,6 +18,7 @@ from omicron.extensions.np import (
     replace_zero,
     rolling,
     shift,
+    to_pydatetime,
 )
 
 
@@ -259,3 +260,9 @@ class NpTest(unittest.TestCase):
         actual = array_price_equal(limits["close"], limits["high_limit"])
 
         assert_array_equal(expected, actual)
+
+    def test_to_pydatetime(self):
+        dt64 = np.datetime64("2017-10-24 05:34:20.123456")
+        self.assertEqual(
+            datetime.datetime(2017, 10, 24, 5, 34, 20, 123456), to_pydatetime(dt64)
+        )
