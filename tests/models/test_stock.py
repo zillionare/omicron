@@ -87,59 +87,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         await omicron.close()
         return await super().asyncTearDown()
 
-    def test_choose(self):
-        codes = set(Stock.choose())
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
-        self.assertSetEqual(exp, codes)
-
-        # 允许ST
-        codes = set(Stock.choose(exclude_st=False))
-        exp = {
-            "000001.XSHE",
-            "000005.XSHE",
-            "300001.XSHE",
-            "600000.XSHG",
-            "000007.XSHE",
-            "000001.XSHG",
-        }
-        self.assertSetEqual(exp, codes)
-
-        # 允许科创板
-        codes = set(Stock.choose(exclude_688=False))
-        exp = {
-            "000001.XSHE",
-            "300001.XSHE",
-            "600000.XSHG",
-            "688001.XSHG",
-            "000001.XSHG",
-        }
-        self.assertSetEqual(exp, codes)
-
-        # stock only
-        codes = set(Stock.choose(types=["stock"]))
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG"}
-        self.assertSetEqual(exp, codes)
-
-        # index only
-        codes = set(Stock.choose(types=["index"]))
-        exp = {"000001.XSHG"}
-        self.assertSetEqual(exp, codes)
-
-        # 排除创业板
-        codes = set(Stock.choose(exclude_300=True))
-        exp = {
-            "000001.XSHE",
-            "000001.XSHG",
-            "600000.XSHG",
-        }
-        self.assertSetEqual(exp, codes)
-
-    async def test_choose_cyb(self):
-        self.assertListEqual(["300001.XSHE"], Stock.choose_cyb())
-
-    def test_choose_kcb(self):
-        self.assertListEqual(["688001.XSHG"], Stock.choose_kcb())
-
     def test_fuzzy_match(self):
         exp = set(["600000.XSHG"])
         self.assertSetEqual(exp, set(Stock.fuzzy_match("600").keys()))
@@ -149,26 +96,6 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         exp = set(["000001.XSHE"])
         self.assertSetEqual(exp, set(Stock.fuzzy_match("平").keys()))
-
-    async def test_save_securities(self):
-        stocks = [
-            ("000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"),
-            ("000001.XSHG", "上证指数", "SZZS", "1991-07-15", "2200-01-01", "index"),
-            ("000406.XSHE", "石油大明", "SYDM", "1996-06-28", "2006-04-20", "stock"),
-            ("000005.XSHE", "ST星源", "STXY", "1990-12-10", "2200-01-01", "stock"),
-            ("300001.XSHE", "特锐德", "TRD", "2009-10-30", "2200-01-01", "stock"),
-            ("600000.XSHG", "浦发银行", "PFYH", "1999-11-10", "2200-01-01", "stock"),
-            ("688001.XSHG", "华兴源创", "HXYC", "2019-07-22", "2200-01-01", "stock"),
-            ("000007.XSHE", "*ST全新", "*STQX", "1992-04-13", "2200-01-01", "stock"),
-        ]
-
-        await Stock.save_securities(stocks)
-
-        # make sure no duplicate
-        await Stock.save_securities(stocks)
-        stocks = await Stock.load_securities()
-        self.assertEqual(len(stocks), 8)
-        self.assertEqual(stocks[0]["ipo"], datetime.date(1991, 4, 3))
 
     async def test_resample(self):
         def totime(tm: str):

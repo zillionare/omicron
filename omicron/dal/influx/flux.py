@@ -196,7 +196,7 @@ class Flux(object):
         elif isinstance(tm, datetime.datetime):
             tm = tm.timestamp()
         else:
-            tm = arrow.get(tm).timestamp
+            tm = arrow.get(tm).timestamp()
 
         return int(tm * 10 ** ({"s": 0, "ms": 3, "us": 6}[precision]))
 

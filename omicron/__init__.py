@@ -30,9 +30,10 @@ async def init():
 
     await cache.init()
     await tf.init()
-    from omicron.models.stock import Stock
 
-    await Stock.init()
+    from omicron.models.security import Security
+
+    await Security.init()
 
     cfg = cfg4py.get_instance()
     if cfg.postgres.enabled:

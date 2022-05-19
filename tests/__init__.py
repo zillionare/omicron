@@ -12,6 +12,7 @@ from coretypes import FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import omicron
+from omicron.models.security import security_db_dtype
 from omicron.models.timeframe import TimeFrame
 
 cfg = cfg4py.get_instance()
@@ -25,25 +26,41 @@ async def clear_cache(dsn):
     await redis.wait_closed()
 
 
+_stocks_for_test = [
+    ("000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"),
+    ("000001.XSHG", "上证指数", "SZZS", "1991-07-15", "2200-01-01", "index"),
+    ("000406.XSHE", "石油大明", "SYDM", "1996-06-28", "2006-04-20", "stock"),
+    ("000005.XSHE", "ST星源", "STXY", "1990-12-10", "2200-01-01", "stock"),
+    ("300001.XSHE", "特锐德", "TRD", "2009-10-30", "2200-01-01", "stock"),
+    ("600000.XSHG", "浦发银行", "PFYH", "1999-11-10", "2200-01-01", "stock"),
+    ("688001.XSHG", "华兴源创", "HXYC", "2019-07-22", "2200-01-01", "stock"),
+    ("000007.XSHE", "*ST全新", "*STQX", "1992-04-13", "2200-01-01", "stock"),
+]
+
+
 async def set_security_data(redis):
     # set example securities
-    stocks = [
-        ("000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"),
-        ("000001.XSHG", "上证指数", "SZZS", "1991-07-15", "2200-01-01", "index"),
-        ("000406.XSHE", "石油大明", "SYDM", "1996-06-28", "2006-04-20", "stock"),
-        ("000005.XSHE", "ST星源", "STXY", "1990-12-10", "2200-01-01", "stock"),
-        ("300001.XSHE", "特锐德", "TRD", "2009-10-30", "2200-01-01", "stock"),
-        ("600000.XSHG", "浦发银行", "PFYH", "1999-11-10", "2200-01-01", "stock"),
-        ("688001.XSHG", "华兴源创", "HXYC", "2019-07-22", "2200-01-01", "stock"),
-        ("000007.XSHE", "*ST全新", "*STQX", "1992-04-13", "2200-01-01", "stock"),
-    ]
-
     pl = redis.pipeline()
-    key = "security:stock"
+    key = "security:all"
     await redis.delete(key)
-    for s in stocks:
+    for s in _stocks_for_test:
         pl.rpush(key, ",".join(s))
     await pl.execute()
+
+
+async def set_security_data_to_db(client):
+    measurement = "security_list"
+    dt = arrow.now().naive.date()
+
+    # code, alias, name, start, end, type
+    security_list = np.array(
+        [
+            (dt, x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]}")
+            for x in _stocks_for_test
+        ],
+        dtype=security_db_dtype,
+    )
+    await client.save(security_list, measurement, time_key="frame", tag_keys=["code"])
 
 
 async def set_calendar_data(redis):
