@@ -196,7 +196,9 @@ class FluxTest(unittest.TestCase):
 
         expected = [1644282123, 1644282123000, 1644282123000000]
         for i, p in enumerate(["s", "ms", "us"]):
-            self.assertEqual(expected[i], Flux.to_timestamp(tm, p))
+            tmp1 = expected[i]
+            tmp2 = Flux.to_timestamp(tm, p)
+            self.assertEqual(tmp1, tmp2)
 
         tm = datetime.datetime(2022, 2, 8, 1, 2, 3).replace(
             tzinfo=datetime.timezone.utc

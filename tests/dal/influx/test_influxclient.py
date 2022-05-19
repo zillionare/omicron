@@ -54,6 +54,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         except Exception:
             pass
 
+        await omicron.close()
         return await super().asyncTearDown()
 
     async def test_write(self):

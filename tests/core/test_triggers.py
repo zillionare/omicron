@@ -22,6 +22,9 @@ class TriggersTest(unittest.IsolatedAsyncioTestCase):
         await init_test_env()
         await omicron.init()
 
+    async def asyncTearDown(self) -> None:
+        await omicron.close()
+
     async def test_frame_trigger(self):
         X = [
             # FrameType      jitter  prev   now

@@ -107,3 +107,5 @@ ENV/
 
 omicron/config/schema.py
 .history
+
+mydemo.py

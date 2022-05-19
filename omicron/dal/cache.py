@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import datetime
 import logging
-from typing import Iterable, List, Optional, Tuple, Union
+from threading import Lock
 
 import aioredis
 import cfg4py
-import numpy as np
 from aioredis.commands import Redis
-from arrow.arrow import Arrow
-
-from omicron.models.timeframe import TimeFrame
 
 logger = logging.getLogger(__file__)
+
+
+_cache_lock = Lock()
 
 
 class RedisCache:
@@ -23,31 +20,69 @@ class RedisCache:
     _sys_: Redis
     _temp_: Redis
 
+    _initialized = False
+
     @property
     def security(self) -> Redis:
-        return self._security_
+        if self._initialized is False:
+            return None
+        else:
+            return self._security_
 
     @property
     def sys(self) -> Redis:
-        return self._sys_
+        if self._initialized is False:
+            return None
+        else:
+            return self._sys_
 
     @property
     def temp(self) -> Redis:
-        return self._temp_
+        if self._initialized is False:
+            return None
+        else:
+            return self._temp_
+
+    def __init__(self):
+        self._initialized = False
 
     async def close(self):
-        for redis in [self.sys, self.security, self.temp]:
-            redis.close()
-            await redis.wait_closed()
+        global _cache_lock
+
+        try:
+            _cache_lock.acquire()
+            if self._initialized is False:
+                return True
+
+            for redis in [self.sys, self.security, self.temp]:
+                redis.close()
+                await redis.wait_closed()
+
+            self._initialized = False
+        finally:
+            _cache_lock.release()
 
     async def init(self):
-        cfg = cfg4py.get_instance()
-        for i, name in enumerate(self.databases):
-            db = await aioredis.create_redis_pool(
-                cfg.redis.dsn, encoding="utf-8", maxsize=10, db=i
-            )
-            await db.set("__meta__.database", name)
-            setattr(self, name, db)
+        global _cache_lock
+
+        try:
+            _cache_lock.acquire()
+            if self._initialized:
+                return True
+
+            cfg = cfg4py.get_instance()
+            for i, name in enumerate(self.databases):
+                db = await aioredis.create_redis_pool(
+                    cfg.redis.dsn, encoding="utf-8", maxsize=10, db=i
+                )
+                await db.set("__meta__.database", name)
+                setattr(self, name, db)
+
+            self._initialized = True
+        finally:
+            _cache_lock.release()
+
+        return True
 
 
 cache = RedisCache()

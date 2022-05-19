@@ -20,6 +20,10 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
         await omicron.init()
         return super().setUp()
 
+    async def asyncTearDown(self) -> None:
+        await omicron.close()
+        return await super().asyncTearDown()
+
     def test_resample_frames(self):
         trade_days = np.array(
             [

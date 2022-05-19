@@ -19,6 +19,7 @@ from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
 from omicron.extensions.np import array_math_round, array_price_equal
+from omicron.models.security import Security, convert_nptime_to_datetime
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
@@ -32,20 +33,10 @@ def ciso8601_parse_naive(x):
     return ciso8601.parse_datetime_as_naive(x)
 
 
-class Stock:
+class Stock(Security):
     """ "
     Stock对象用于归集某支证券（股票和指数，不包括其它投资品种）的相关信息，比如行情数据（OHLC等）、市值数据、所属概念分类等。
     """
-
-    _stocks = None
-    stock_info_dtype = [
-        ("code", "O"),
-        ("display_name", "O"),
-        ("name", "O"),
-        ("ipo", "O"),
-        ("end", "O"),
-        ("type", "O"),
-    ]
 
     _cached_frames_start = {
         FrameType.DAY: None,
@@ -60,126 +51,32 @@ class Stock:
 
     def __init__(self, code: str):
         self._code = code
-        stock = self._stocks[self._stocks["code"] == code]
-        assert stock, "系统中不存在该code"
+        self._stock = self.get_stock(code)
+        assert self._stock, "系统中不存在该code"
         (
             _,
             self._display_name,
             self._name,
-            self._start_date,
-            self._end_date,
+            ipo,
+            end,
             _type,
-        ) = stock[0]
+        ) = self._stock
+        self._start_date = convert_nptime_to_datetime(ipo).date()
+        self._end_date = convert_nptime_to_datetime(end).date()
         self._type = SecurityType(_type)
-
-    @classmethod
-    async def load_securities(cls):
-        """加载所有证券的信息，并缓存到内存中。"""
-        secs = await cache.security.lrange("security:stock", 0, -1, encoding="utf-8")
-        if len(secs) != 0:
-            _stocks = np.array(
-                [tuple(x.split(",")) for x in secs], dtype=cls.stock_info_dtype
-            )
-
-            _stocks = _stocks[
-                (_stocks["type"] == "stock") | (_stocks["type"] == "index")
-            ]
-
-            _stocks["ipo"] = [arrow.get(x).date() for x in _stocks["ipo"]]
-            _stocks["end"] = [arrow.get(x).date() for x in _stocks["end"]]
-
-            return _stocks
-        else:  # pragma: no cover
-            return None
-
-    @classmethod
-    async def init(cls):
-        secs = await cls.load_securities()
-        if len(secs) != 0:
-            cls._stocks = secs
-        else:  # pragma: no cover
-            raise DataNotReadyError(
-                "No securities in cache, make sure you have called omicron.init() first."
-            )
-
-    @classmethod
-    async def save_securities(cls, securities: List[str]):
-        """保存指定的证券到缓存中。
-
-        Args:
-            securities: 证券代码列表。
-        """
-        key = "security:stock"
-        pipeline = cache.security.pipeline()
-        pipeline.delete(key)
-        for code, display_name, name, start, end, _type in securities:
-            pipeline.rpush(
-                key, f"{code},{display_name},{name},{start}," f"{end},{_type}"
-            )
-        await pipeline.execute()
-
-    @classmethod
-    def choose(
-        cls,
-        types: List[str] = ["stock", "index"],
-        exclude_exit=True,
-        exclude_st=True,
-        exclude_300=False,
-        exclude_688=True,
-    ) -> list:
-        """选择证券标的
-
-        本函数用于选择部分证券标的。先根据指定的类型(`stock`, `index`等）来加载证券标的，再根
-        据其它参数进行排除。
-
-        Args:
-            exclude_exit : 是否排除掉已退市的品种. Defaults to True.
-            exclude_st : 是否排除掉作ST处理的品种. Defaults to True.
-            exclude_300 : 是否排除掉创业板品种. Defaults to False.
-            exclude_688 : 是否排除掉科创板品种. Defaults to True.
-
-        Returns:
-            筛选出的证券代码列表
-        """
-        cond = np.array([False] * len(cls._stocks))
-
-        for type_ in types:
-            cond |= cls._stocks["type"] == type_
-
-        result = cls._stocks[cond]
-        if exclude_exit:
-            result = result[result["end"] > arrow.now().date()]
-        if exclude_300:
-            result = [rec for rec in result if not rec["code"].startswith("300")]
-        if exclude_688:
-            result = [rec for rec in result if not rec["code"].startswith("688")]
-        if exclude_st:
-            result = [rec for rec in result if rec["display_name"].find("ST") == -1]
-        result = np.array(result, dtype=cls.stock_info_dtype)
-        return result["code"].tolist()
 
     @classmethod
     def choose_listed(cls, dt: datetime.date, types: List[str] = ["stock", "index"]):
         cond = np.array([False] * len(cls._stocks))
+        dt = datetime.datetime.combine(dt, datetime.time())
 
         for type_ in types:
             cond |= cls._stocks["type"] == type_
         result = cls._stocks[cond]
         result = result[result["end"] > dt]
         result = result[result["ipo"] <= dt]
-
-        result = np.array(result, dtype=cls.stock_info_dtype)
+        # result = np.array(result, dtype=cls.stock_info_dtype)
         return result["code"].tolist()
-
-    @classmethod
-    def choose_cyb(cls):
-        """选择创业板股票"""
-        return [rec["code"] for rec in cls._stocks if rec["code"].startswith("300")]
-
-    @classmethod
-    def choose_kcb(cls):
-        """选择科创板股票"""
-        return [rec["code"] for rec in cls._stocks if rec["code"].startswith("688")]
 
     @classmethod
     def fuzzy_match(cls, query: str) -> Dict[str, Tuple]:
@@ -210,7 +107,30 @@ class Stock:
             return {
                 sec["code"]: sec.tolist()
                 for sec in cls._stocks
-                if sec["display_name"].find(query) != -1
+                if sec["alias"].find(query) != -1
+            }
+
+    @classmethod
+    def fuzzy_match_ex(cls, query: str):
+        """对股票/指数进行模糊匹配查找"""
+        query = query.upper()
+        if re.match(r"\d+", query):
+            return {
+                sec["code"]: sec.tolist()
+                for sec in cls._stocks
+                if sec["code"].find(query) != -1
+            }
+        elif re.match(r"[A-Z]+", query):
+            return {
+                sec["code"]: sec.tolist()
+                for sec in cls._stocks
+                if sec["name"].startswith(query)
+            }
+        else:
+            return {
+                sec["code"]: sec.tolist()
+                for sec in cls._stocks
+                if sec["alias"].find(query) != -1
             }
 
     def __str__(self):
