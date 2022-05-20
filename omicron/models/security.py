@@ -514,7 +514,7 @@ class Security:
         data = await client.query(flux)
         print("flux is ", flux)
         if len(data) == 2:  # \r\n
-            return None
+            return None, None
 
         ds = DataframeDeserializer(
             sort_values="_time",

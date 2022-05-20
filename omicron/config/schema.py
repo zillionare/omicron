@@ -36,8 +36,6 @@ class Config(object):
 
         bucket_name: Optional[str] = None
 
-        enable_compress: Optional[bool] = None
-
     class postgres:
         dsn: Optional[str] = None
 
@@ -52,6 +50,6 @@ class Config(object):
     class notify:
         mail_from: Optional[str] = None
 
-        mail_to: Optional[str] = None
+        mail_to: Optional[list] = None
 
         mail_server: Optional[str] = None

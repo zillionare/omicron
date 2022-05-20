@@ -14,3 +14,9 @@ omega:
   home: ~/.zillionare/omega
   urls:
     quotes_server: http://localhost:3181
+
+notify:
+    mail_from: ${MAIL_FROM}
+    mail_to:
+        - ${MAIL_TO}
+    mail_server: ${MAIL_SERVER}
