@@ -272,7 +272,7 @@ class InfluxClient:
             precision: 用以格式化起始和结束时间。
 
         Raises:
-            InfluxDeleteError
+            InfluxDeleteError: 如果删除失败，则抛出此异常
         """
         # todo: add raise error declaration
         command = Flux().delete(

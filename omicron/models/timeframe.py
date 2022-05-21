@@ -123,7 +123,7 @@ class TimeFrame:
             tm: time in YYYYMMDDHHmm format
 
         Returns:
-
+            转换后的时间
         """
         s = str(tm)
         # its 8 times faster than arrow.get()
@@ -145,7 +145,7 @@ class TimeFrame:
             tm:
 
         Returns:
-
+            转换后的整数，比如2020050115
         """
         return int(f"{tm.year:04}{tm.month:02}{tm.day:02}{tm.hour:02}{tm.minute:02}")
 
@@ -163,7 +163,7 @@ class TimeFrame:
             d: date
 
         Returns:
-
+            日期的整数表示，比如20220211
         """
         return int(f"{d.year:04}{d.month:02}{d.day:02}")
 
@@ -179,7 +179,7 @@ class TimeFrame:
             d: YYYYMMDD表示的日期
 
         Returns:
-
+            转换后的日期
         """
         s = str(d)
         # it's 8 times faster than arrow.get
@@ -212,7 +212,7 @@ class TimeFrame:
             offset: days to shift, can be negative
 
         Returns:
-
+            移位后的日期
         """
         # accelerated from 0.12 to 0.07, per 10000 loop, type conversion time included
         start = cls.date2int(start)
@@ -235,6 +235,9 @@ class TimeFrame:
 
             >>> TimeFrame.week_shift(moment, -1)
             datetime.date(2020, 1, 10)
+
+        Returns:
+            移位后的日期
         """
         start = cls.date2int(start)
         return cls.int2date(ext.shift(cls.week_frames, start, offset))
@@ -258,6 +261,8 @@ class TimeFrame:
             >>> TimeFrame.month_shift(arrow.get('2015-3-1').date(), 1)
             datetime.date(2015, 3, 31)
 
+        Returns:
+            移位后的日期
         """
         start = cls.date2int(start)
         return cls.int2date(ext.shift(cls.month_frames, start, offset))
@@ -280,7 +285,7 @@ class TimeFrame:
             ValueError: [description]
 
         Returns:
-            [description]
+            月线、周线、日线及各分钟线对应的frame
         """
         if frame_type in cls.minute_level_frames:
             return cls.ticks[frame_type]
@@ -328,7 +333,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            移位后的Frame
         """
         if frame_type == FrameType.DAY:
             return cls.day_shift(moment, n)
@@ -390,6 +395,8 @@ class TimeFrame:
         args:
             start:
             end:
+        returns:
+            count of days
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -406,6 +413,8 @@ class TimeFrame:
         args:
             start:
             end:
+        returns:
+            count of weeks
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -424,7 +433,7 @@ class TimeFrame:
             end:
 
         Returns:
-
+            months between start and end
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -444,7 +453,7 @@ class TimeFrame:
             end (datetime.date): [description]
 
         Returns:
-            int: [description]
+            quarters between start and end
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -464,7 +473,7 @@ class TimeFrame:
             end (datetime.date): [description]
 
         Returns:
-            int: [description]
+            years between start and end
         """
         start = cls.date2int(start)
         end = cls.date2int(end)
@@ -539,7 +548,7 @@ class TimeFrame:
             dt :
 
         Returns:
-            [description]
+            bool
         """
         return cls.date2int(dt) in cls.day_frames
 
@@ -560,7 +569,7 @@ class TimeFrame:
             tm : [description]. Defaults to None.
 
         Returns:
-            [description]
+            bool
         """
         tm = tm or arrow.now()
 
@@ -580,7 +589,7 @@ class TimeFrame:
             tm : [description]. Defaults to None.
 
         Returns:
-            [description]
+            bool
         """
         if tm is None:
             tm = cls.now()
@@ -604,7 +613,7 @@ class TimeFrame:
             tm : [description]. Defaults to None.
 
         Returns:
-            [description]
+            bool
         """
         tm = tm or cls.now()
 
@@ -650,7 +659,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            `moment`在指定的`frame_type`中的下界
         """
         if frame_type in cls.minute_level_frames:
             tm, day_offset = cls.minute_frames_floor(
@@ -703,7 +712,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            `day`日周期为`frame_type`的结束frame
         """
         if isinstance(day, str):
             day = cls.date2int(arrow.get(day).date())
@@ -768,7 +777,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            `day`当日的第一帧
         """
         day = cls.date2int(arrow.get(day).date())
 
@@ -814,7 +823,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            frame list
         """
         n = cls.count_frames(start, end, frame_type)
         return cls.get_frames_by_count(end, n, frame_type)
@@ -839,7 +848,7 @@ class TimeFrame:
             frame_type:
 
         Returns:
-
+            frame list
         """
 
         if frame_type == FrameType.DAY:
@@ -915,7 +924,7 @@ class TimeFrame:
             frame_type (FrameType): [description]
 
         Returns:
-            [type]: [description]
+            `moment`所在类型为`frame_type`周期的上界
         """
         if frame_type in cls.day_level_frames and type(moment) == datetime.datetime:
             moment = moment.date()
@@ -951,7 +960,7 @@ class TimeFrame:
             microsecond : [description]. Defaults to 0.
 
         Returns:
-            [description]
+            合成后的时间
         """
         return datetime.datetime(
             date.year, date.month, date.day, hour, minute, second, microsecond
@@ -972,7 +981,7 @@ class TimeFrame:
             dt (datetime.date): [description]
 
         Returns:
-            datetime.datetime: [description]
+            变换后的时间
         """
         return datetime.datetime(
             dt.year, dt.month, dt.day, dtm.hour, dtm.minute, dtm.second, dtm.microsecond
@@ -989,7 +998,7 @@ class TimeFrame:
             frame_type (FrameType): [description]
 
         Returns:
-            List[int]: [description]
+            List[int]: 重采样后的日期列表，日期用整数表示
         """
         if frame_type == FrameType.WEEK:
             weeks = []
@@ -1112,6 +1121,9 @@ class TimeFrame:
         Args:
             frame : bar所处的时间，必须小于当前时间
             ft: bar所代表的帧类型
+
+        Returns:
+            bool: 是否已经收盘
         """
         floor = cls.floor(frame, ft)
 

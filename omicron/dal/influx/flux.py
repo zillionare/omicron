@@ -481,7 +481,7 @@ class Flux(object):
             Flux object, to support pipe operation
         """
         if "drop" in self.expressions:
-            raise DuplicateOperationError("drop opertaion has been set aleady")
+            raise DuplicateOperationError("drop operation has been set already")
 
         # add surrounding quotes
         _cols = [f'"{c}"' for c in cols]
@@ -492,7 +492,7 @@ class Flux(object):
     def drop_sys_cols(self, cols: List[str] = None) -> "Flux":
         """use this to drop ["_start", "_stop", "_measurement"], plus columns specified in `cols`, before return query result
 
-        please be noticed, after drop sys columns, there's still two sys colums left, which is "_time" and "table", and "_time" should usually be kept, "table" is one we're not able to removed. If you don't like _time in return result, you can specify it in `cols` parameter.
+        please be noticed, after drop sys columns, there's still two sys columns left, which is "_time" and "table", and "_time" should usually be kept, "table" is one we're not able to removed. If you don't like _time in return result, you can specify it in `cols` parameter.
 
         Args:
             cols : the extra columns to be dropped

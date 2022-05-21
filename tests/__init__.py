@@ -1,4 +1,5 @@
 """Unit test package for omicron."""
+import datetime
 import json
 import logging
 import os
@@ -50,7 +51,7 @@ async def set_security_data(redis):
 
 async def set_security_data_to_db(client):
     measurement = "security_list"
-    dt = arrow.now().naive.date()
+    dt = datetime.date(2022, 5, 20)
 
     # code, alias, name, start, end, type
     security_list = np.array(

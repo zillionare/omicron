@@ -118,6 +118,7 @@ class Query:
 
     def types(self, types: List[str]) -> "Query":
         """按类型过滤
+
         Args:
             # stock: {'index', 'stock'}
             # funds: {'etf', 'fjb', 'mmf', 'reits', 'fja', 'fjm', 'lof'}
@@ -150,21 +151,23 @@ class Query:
         return self
 
     async def eval(self):
-        print("eval, date: ", self.target_date)
-        print(
-            "eval, names and types: ",
+        logger.debug("eval, date: %s", self.target_date)
+        logger.debug(
+            "eval, names and types: %s, %s, %s",
             self._name_pattern,
             self._alias_pattern,
             self._type_pattern,
         )
-        print(
-            "eval, exclude and include: ",
+        logger.debug(
+            "eval, exclude and include: %s, %s, %s, %s",
             self._exclude_cyb,
             self._exclude_st,
             self._exclude_kcb,
             self._include_exit,
         )
-        print("eval, only: ", self._only_cyb, self._only_st, self._only_kcb)
+        logger.debug(
+            "eval, only: %s, %s, %s ", self._only_cyb, self._only_st, self._only_kcb
+        )
 
         records = await Security.load_securities_from_db(self.target_date)
         if records is None:
@@ -221,7 +224,7 @@ class Query:
 
         # 返回所有查询到的结果
         t1 = time.time()
-        print("query cost using filters: {}".format(t1 - t0))
+        logger.debug("query cost using filters: %s", t1 - t0)
         return results
 
 

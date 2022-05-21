@@ -54,7 +54,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         return await super().asyncTearDown()
 
     async def test_select_eval(self):
-        dt = arrow.now().naive.date()
+        dt = arrow.now().date()
         query = await Security.select(dt)
         query.types([]).exclude_st().exclude_kcb()
         results = await query.eval()
@@ -126,15 +126,22 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
     async def test_choose_cyb(self):
-        dt = arrow.now().naive.date()
+        dt = datetime.date(2022, 5, 20)
         query = await Security.select(dt)
         query.types([]).exclude_st().only_cyb()
         results = await query.eval()
-        tmp = [x[0] for x in results]
-        self.assertListEqual(["300001.XSHE"], tmp)
+        actual = [x[0] for x in results]
+        self.assertListEqual(["300001.XSHE"], actual)
+
+        # to check if we could omit `types` method
+        query.exclude_st().only_cyb()
+        results = await query.eval()
+        actual = [x[0] for x in results]
+        self.assertListEqual(["300001.XSHE"], actual)
 
     async def test_choose_kcb(self):
-        dt = arrow.now().naive.date()
+        dt = datetime.date(2022, 5, 20)
+
         query = await Security.select(dt)
         query.types([]).exclude_st().only_kcb()
         results = await query.eval()
@@ -142,7 +149,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(["688001.XSHG"], tmp)
 
     async def test_query_info(self):
-        dt = arrow.now().naive.date()
+        dt = datetime.date(2022, 5, 20)
         rc = await Security.info("688001.XSHG", dt)
         self.assertEqual(rc["display_name"], "华兴源创")
 
