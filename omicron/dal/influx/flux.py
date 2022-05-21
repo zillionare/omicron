@@ -19,7 +19,7 @@ class Flux(object):
 
         Args:
             auto_pivot : 是否自动将查询列字段组装成行. Defaults to True.
-            drop_sys_columns: 是否自动将系统字段删除. Defaults to True.请参考[drop_sys_cols][omicron.dal.influx.flux.Flux.drop_sys_cols]
+            no_sys_cols: 是否自动将系统字段删除. Defaults to True.请参考[drop_sys_cols][omicron.dal.influx.flux.Flux.drop_sys_cols]
         """
         self._cols = None
         self.expressions = defaultdict(list)

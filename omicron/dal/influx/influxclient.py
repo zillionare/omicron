@@ -199,7 +199,7 @@ class InfluxClient:
         ,_result,0,2019-01-01T00:00:00Z,000001.XSHE,100000000,5.15,1.23,5.2,5,5.1,1000000
         ```
 
-        上述`result`中，事先通过Flux.keep()限制了返回的字段为_time,code,amount,close,factor,high,low,open,volume。influxdb查询返回结果时，字段不会按查询时[keep][omicron.dal.influx.flux.Flux.keep]指定的顺序排列，而总是按照字段名称升序排列。此外，总是会额外地返回_result, table两个字段。
+        上述`result`中，事先通过Flux.keep()限制了返回的字段为_time,code,amount,close,factor,high,low,open,volume。influxdb查询返回结果时，总是按照字段名称升序排列。此外，总是会额外地返回_result, table两个字段。
 
         如果传入了deserializer，则会调用deserializer将其解析成为python对象。否则，返回bytes数据。
 
@@ -272,6 +272,7 @@ class InfluxClient:
             precision: 用以格式化起始和结束时间。
 
         Raises:
+            InfluxDeleteError
         """
         # todo: add raise error declaration
         command = Flux().delete(
@@ -366,7 +367,6 @@ class InfluxClient:
         """创建influxdb中指定bucket
 
         Args:
-            bucket_id: 指定bucket的名字
             description: 指定bucket的描述
             org_id: 指定bucket所属的组织id，如果未指定，则使用本client对应的组织id。
 

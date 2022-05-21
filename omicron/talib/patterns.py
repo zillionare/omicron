@@ -40,7 +40,7 @@ def peaks_and_valleys(
 
 def support_resist_lines(
     ts: np.ndarray, upthres: float = 0.01, downthres: float = -0.01
-):
+) -> Tuple[Callable, Callable, np.ndarray]:
     """计算时间序列的支撑线和阻力线
 
     Examples:
