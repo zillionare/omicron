@@ -22,6 +22,9 @@ jobs:
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
       JQ_PASSWORD: ${{secrets.JQ_PASSWORD}}
       MAIL_PASSWORD: ${{secrets.MAIL_PASSWORD}}
+      MAIL_SERVER: ${{secrets.MAIL_SERVER}}
+      MAIL_FROM: ${{secrets.MAIL_FROM}}
+      MAIL_TO: ${{secrets.MAIL_TO}}
       IS_GITHUB: 1
     # The type of runner that the job will run on
     strategy:
