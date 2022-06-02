@@ -18,6 +18,7 @@ from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import EPOCH, DataframeDeserializer
 from omicron.models.timeframe import TimeFrame as tf
+from omicron.notify.dingtalk import DingTalkMessage
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
@@ -36,6 +37,20 @@ security_info_dtype = [
     ("ipo", "datetime64[s]"),
     ("end", "datetime64[s]"),
     ("type", "O"),
+]
+
+xrxd_info_dtype = [
+    ("code", "O"),
+    ("a_xr_date", "datetime64[s]"),
+    ("bonusnote1", "O"),
+    ("bonus_ratio", "<f4"),
+    ("dividend_ratio", "<f4"),
+    ("transfer_ratio", "<f4"),
+    ("at_bonus_ratio", "<f4"),
+    ("report_date", "datetime64[s]"),
+    ("plan_progress", "O"),
+    ("bonusnote2", "O"),
+    ("bonus_cancel_pub_date", "datetime64[s]"),
 ]
 
 _delta = np.timedelta64(1, "s")
@@ -534,3 +549,124 @@ class Security:
             return d1.date(), d2.date()
         else:
             return None, None
+
+    @classmethod
+    async def save_xrxd_reports(cls, reports: List[str], dt: datetime.date):
+        """保存1年内的分红送股信息，并且存入influxdb，定时job调用本接口
+        Args:
+            reports: 分红送股公告
+        """
+        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5), 
+        # at_bonus_ratio_rmb(6), report_date, plan_progress, implementation_bonusnote, bonus_cancel_pub_date(10)
+        
+        if len(reports) == 0 or dt is None:
+            return
+        
+        # read reports from db and convert to dict map
+        reports_in_db = {}
+        dt1 = dt - datetime.timedelta(days=366)
+        dt2 = dt + datetime.timedelta(days=366)
+        existing_records = await cls._load_xrxd_from_db(None, dt1, dt2)
+        for record in existing_records:
+            code = record[0]
+            if code not in reports_in_db:
+                reports_in_db[code] = [record]
+            else:
+                reports_in_db[code].append(record)
+
+        records = []
+        default_cancel_date = datetime.date(2099, 1, 1)
+        for x in reports:
+            code = x[0]
+            cancel_date = x[10]
+            if cancel_date != default_cancel_date:  # report this special event to notify user
+                DingTalkMessage.text("security %s, bonus_cancel_pub_date %s" % (code, cancel_date))
+            
+            existing_items = reports_in_db.get(code, None)
+            if existing_items is None:  # 新记录
+                record = (x[1], x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]},{x[6]},{x[7]},{x[8]},{x[9]},{x[10]}")
+                records.append(record)
+            else:
+                new_record = True
+                for item in existing_items:
+                    existing_date = convert_nptime_to_datetime(item[1]).date()
+                    if existing_date == x[1]:  # 如果xr_date相同，不更新
+                        new_record = False
+                        continue
+                if new_record:
+                    record = (x[1], x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]},{x[6]},{x[7]},{x[8]},{x[9]},{x[10]}")
+                    records.append(record)
+        
+        logger.info("save_xrxd_reports, remaining %d records after remove duplicate record", len(records))
+        if len(records) == 0:
+            return
+
+        measurement = "security_xrxd_reports"
+        client = cls.get_influx_client()
+        # a_xr_date(_time), code(tag), info
+        report_list = np.array(records, dtype=security_db_dtype)
+        await client.save(
+            report_list, measurement, time_key="frame", tag_keys=["code"]
+        )
+
+    @classmethod
+    async def _load_xrxd_from_db(cls, code, dt1: datetime.date, dt2: datetime.date):
+        # 如果设定了start_from，则从dt开始，读取到最新的数据，否则，读取dt当天的数据
+
+        if dt1 is None or dt2 is None:
+            return []
+
+        client = Security.get_influx_client()
+        measurement = "security_xrxd_reports"
+
+        flux = (
+            Flux()
+            .measurement(measurement)
+            .range(dt1, dt2)
+            .bucket(client._bucket)
+            .fields(["info"])
+        )
+        if code is not None and len(code) > 0:
+            flux.tags({"code": code})
+
+        data = await client.query(flux)
+        if len(data) == 2:  # \r\n
+            return []
+
+        ds = DataframeDeserializer(
+            sort_values="_time",
+            usecols=["_time", "code", "info"],
+            time_col="_time",
+            engine="c",
+        )
+        actual = ds(data)
+        secs = actual.to_records(index=False)
+
+        if len(secs) != 0:
+            _reports = np.array(
+                [tuple(x["info"].split(",")) for x in secs], dtype=xrxd_info_dtype
+            )
+            return _reports
+        else:
+            return []
+
+    @classmethod
+    async def get_xrxd_info(cls, dt: datetime.date, code: str = None):
+        if dt is None:
+            return None
+        
+        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5), 
+        # at_bonus_ratio_rmb(6), report_date, plan_progress, implementation_bonusnote, bonus_cancel_pub_date(10)
+        reports = await cls._load_xrxd_from_db(code, dt, dt)
+        if len(reports) == 0:
+            return None
+        
+        readable_reports = []
+        for report in reports:
+            xr_date = convert_nptime_to_datetime(report[1]).date()
+            readable_reports.append(
+                {'code': report[0], 'xr_date': xr_date,
+                'bonus': report[3], 'dividend': report[4], 'transfer': report[5],
+                'bonusnote': report[2]})
+
+        return readable_reports

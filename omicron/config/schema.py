@@ -36,8 +36,6 @@ class Config(object):
 
         bucket_name: Optional[str] = None
 
-        enable_compress: Optional[bool] = None
-
     class postgres:
         dsn: Optional[str] = None
 
@@ -55,3 +53,9 @@ class Config(object):
         mail_to: Optional[list] = None
 
         mail_server: Optional[str] = None
+
+        class dingtalk_access_token:
+            DINGTALK_ACCESS_TOKEN = None
+
+        class dingtalk_secret:
+            DINGTALK_SECRET = None
