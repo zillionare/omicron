@@ -1,18 +1,15 @@
-import asyncio
 import datetime
 import logging
 import re
 import time
-from typing import Dict, Iterable, List, Union
+from typing import List
 
 import arrow
 import cfg4py
-import ciso8601
 import numpy as np
-import pandas as pd
-from coretypes import Frame, FrameType, SecurityType, bars_cols, bars_dtype
+from coretypes import Frame, FrameType, SecurityType
 
-from omicron.core.errors import BadParameterError, DataNotReadyError
+from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
@@ -564,9 +561,9 @@ class Security:
         
         # read reports from db and convert to dict map
         reports_in_db = {}
-        dt1 = dt - datetime.timedelta(days=366)
-        dt2 = dt + datetime.timedelta(days=366)
-        existing_records = await cls._load_xrxd_from_db(None, dt1, dt2)
+        dt_start = dt - datetime.timedelta(days=366)  # 往前回溯366天
+        dt_end = dt + datetime.timedelta(days=366)  # 往后延长366天
+        existing_records = await cls._load_xrxd_from_db(None, dt_start, dt_end)
         for record in existing_records:
             code = record[0]
             if code not in reports_in_db:
@@ -574,17 +571,20 @@ class Security:
             else:
                 reports_in_db[code].append(record)
 
-        records = []
-        default_cancel_date = datetime.date(2099, 1, 1)
+        records = []  # 准备写入db
+        default_cancel_date = datetime.date(2099, 1, 1)  # 默认无取消公告
         for x in reports:
             code = x[0]
-            cancel_date = x[10]
+            cancel_date = x[10]            
             if cancel_date != default_cancel_date:  # report this special event to notify user
                 DingTalkMessage.text("security %s, bonus_cancel_pub_date %s" % (code, cancel_date))
+            note = x[2]
+            if note.find("流通") != -1:  # 检查是否有“流通股”文字
+                DingTalkMessage.text("security %s, special xrxd note: %s" % (code, note))
             
             existing_items = reports_in_db.get(code, None)
             if existing_items is None:  # 新记录
-                record = (x[1], x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]},{x[6]},{x[7]},{x[8]},{x[9]},{x[10]}")
+                record = (x[1], x[0], f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}")
                 records.append(record)
             else:
                 new_record = True
@@ -594,10 +594,10 @@ class Security:
                         new_record = False
                         continue
                 if new_record:
-                    record = (x[1], x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]},{x[6]},{x[7]},{x[8]},{x[9]},{x[10]}")
+                    record = (x[1], x[0], f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}")
                     records.append(record)
         
-        logger.info("save_xrxd_reports, remaining %d records after remove duplicate record", len(records))
+        logger.info("save_xrxd_reports, %d records to be saved", len(records))
         if len(records) == 0:
             return
 
@@ -610,10 +610,8 @@ class Security:
         )
 
     @classmethod
-    async def _load_xrxd_from_db(cls, code, dt1: datetime.date, dt2: datetime.date):
-        # 如果设定了start_from，则从dt开始，读取到最新的数据，否则，读取dt当天的数据
-
-        if dt1 is None or dt2 is None:
+    async def _load_xrxd_from_db(cls, code, dt_start: datetime.date, dt_end: datetime.date):
+        if dt_start is None or dt_end is None:
             return []
 
         client = Security.get_influx_client()
@@ -622,7 +620,7 @@ class Security:
         flux = (
             Flux()
             .measurement(measurement)
-            .range(dt1, dt2)
+            .range(dt_start, dt_end)
             .bucket(client._bucket)
             .fields(["info"])
         )
@@ -644,7 +642,7 @@ class Security:
 
         if len(secs) != 0:
             _reports = np.array(
-                [tuple(x["info"].split(",")) for x in secs], dtype=xrxd_info_dtype
+                [tuple(x["info"].split("|")) for x in secs], dtype=xrxd_info_dtype
             )
             return _reports
         else:
