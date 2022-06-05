@@ -91,11 +91,15 @@ class DingTalkMessage:
         url = cls._get_url()
         response = requests.post(url, json=msg)
         if response.status_code != 200:
-            logger.error(f"failed to send message, content: {msg}, response from Dingtalk: {response.content.decode()}")
+            logger.error(
+                f"failed to send message, content: {msg}, response from Dingtalk: {response.content.decode()}"
+            )
             return
         rsp = json.loads(response.content)
         if rsp.get("errcode") != 0:
-            logger.error(f"failed to send message, content: {msg}, response from Dingtalk: {rsp}")
+            logger.error(
+                f"failed to send message, content: {msg}, response from Dingtalk: {rsp}"
+            )
         return response.content.decode()
 
     @classmethod

@@ -36,6 +36,8 @@ class Config(object):
 
         bucket_name: Optional[str] = None
 
+        enable_compress: Optional[bool] = None
+
     class postgres:
         dsn: Optional[str] = None
 

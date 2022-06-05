@@ -553,12 +553,12 @@ class Security:
         Args:
             reports: 分红送股公告
         """
-        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5), 
+        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5),
         # at_bonus_ratio_rmb(6), report_date, plan_progress, implementation_bonusnote, bonus_cancel_pub_date(10)
-        
+
         if len(reports) == 0 or dt is None:
             return
-        
+
         # read reports from db and convert to dict map
         reports_in_db = {}
         dt_start = dt - datetime.timedelta(days=366)  # 往前回溯366天
@@ -575,16 +575,25 @@ class Security:
         default_cancel_date = datetime.date(2099, 1, 1)  # 默认无取消公告
         for x in reports:
             code = x[0]
-            cancel_date = x[10]            
-            if cancel_date != default_cancel_date:  # report this special event to notify user
-                DingTalkMessage.text("security %s, bonus_cancel_pub_date %s" % (code, cancel_date))
+            cancel_date = x[10]
+            # report this special event to notify user
+            if cancel_date != default_cancel_date:
+                DingTalkMessage.text(
+                    "security %s, bonus_cancel_pub_date %s" % (code, cancel_date)
+                )
             note = x[2]
             if note.find("流通") != -1:  # 检查是否有“流通股”文字
-                DingTalkMessage.text("security %s, special xrxd note: %s" % (code, note))
-            
+                DingTalkMessage.text(
+                    "security %s, special xrxd note: %s" % (code, note)
+                )
+
             existing_items = reports_in_db.get(code, None)
             if existing_items is None:  # 新记录
-                record = (x[1], x[0], f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}")
+                record = (
+                    x[1],
+                    x[0],
+                    f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}",
+                )
                 records.append(record)
             else:
                 new_record = True
@@ -594,9 +603,13 @@ class Security:
                         new_record = False
                         continue
                 if new_record:
-                    record = (x[1], x[0], f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}")
+                    record = (
+                        x[1],
+                        x[0],
+                        f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}",
+                    )
                     records.append(record)
-        
+
         logger.info("save_xrxd_reports, %d records to be saved", len(records))
         if len(records) == 0:
             return
@@ -605,12 +618,12 @@ class Security:
         client = cls.get_influx_client()
         # a_xr_date(_time), code(tag), info
         report_list = np.array(records, dtype=security_db_dtype)
-        await client.save(
-            report_list, measurement, time_key="frame", tag_keys=["code"]
-        )
+        await client.save(report_list, measurement, time_key="frame", tag_keys=["code"])
 
     @classmethod
-    async def _load_xrxd_from_db(cls, code, dt_start: datetime.date, dt_end: datetime.date):
+    async def _load_xrxd_from_db(
+        cls, code, dt_start: datetime.date, dt_end: datetime.date
+    ):
         if dt_start is None or dt_end is None:
             return []
 
@@ -652,19 +665,25 @@ class Security:
     async def get_xrxd_info(cls, dt: datetime.date, code: str = None):
         if dt is None:
             return None
-        
-        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5), 
+
+        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5),
         # at_bonus_ratio_rmb(6), report_date, plan_progress, implementation_bonusnote, bonus_cancel_pub_date(10)
         reports = await cls._load_xrxd_from_db(code, dt, dt)
         if len(reports) == 0:
             return None
-        
+
         readable_reports = []
         for report in reports:
             xr_date = convert_nptime_to_datetime(report[1]).date()
             readable_reports.append(
-                {'code': report[0], 'xr_date': xr_date,
-                'bonus': report[3], 'dividend': report[4], 'transfer': report[5],
-                'bonusnote': report[2]})
+                {
+                    "code": report[0],
+                    "xr_date": xr_date,
+                    "bonus": report[3],
+                    "dividend": report[4],
+                    "transfer": report[5],
+                    "bonusnote": report[2],
+                }
+            )
 
         return readable_reports

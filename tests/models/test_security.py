@@ -54,7 +54,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         return await super().asyncTearDown()
 
     async def test_select_eval(self):
-        dt = arrow.now().date()
+        dt = datetime.date(2022, 5, 20)
         query = await Security.select(dt)
         query.types([]).exclude_st().exclude_kcb()
         results = await query.eval()
