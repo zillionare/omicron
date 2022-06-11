@@ -888,6 +888,7 @@ class Stock(Security):
         client = cls._get_influx_client()
 
         measurement = cls._measurement_name(frame_type)
+        logger.info("persisting bars to influxdb: %s, %d secs", measurement, len(bars))
 
         if isinstance(bars, dict):
             for code, value in bars.items():
