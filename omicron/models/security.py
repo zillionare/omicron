@@ -548,6 +548,21 @@ class Security:
             return None, None
 
     @classmethod
+    async def _notify_special_bonusnote(cls, code, note, cancel_date):
+        default_cancel_date = datetime.date(2099, 1, 1)  # 默认无取消公告
+        # report this special event to notify user
+        if cancel_date != default_cancel_date:
+            DingTalkMessage.text(
+                "security %s, bonus_cancel_pub_date %s" % (code, cancel_date)
+            )
+        
+        if note.find("流通") != -1:  # 检查是否有“流通股”文字
+            DingTalkMessage.text(
+                "security %s, special xrxd note: %s" % (code, note)
+            )
+
+
+    @classmethod
     async def save_xrxd_reports(cls, reports: List[str], dt: datetime.date):
         """保存1年内的分红送股信息，并且存入influxdb，定时job调用本接口
         Args:
@@ -572,20 +587,11 @@ class Security:
                 reports_in_db[code].append(record)
 
         records = []  # 准备写入db
-        default_cancel_date = datetime.date(2099, 1, 1)  # 默认无取消公告
+        
         for x in reports:
             code = x[0]
-            cancel_date = x[10]
-            # report this special event to notify user
-            if cancel_date != default_cancel_date:
-                DingTalkMessage.text(
-                    "security %s, bonus_cancel_pub_date %s" % (code, cancel_date)
-                )
             note = x[2]
-            if note.find("流通") != -1:  # 检查是否有“流通股”文字
-                DingTalkMessage.text(
-                    "security %s, special xrxd note: %s" % (code, note)
-                )
+            cancel_date = x[10]
 
             existing_items = reports_in_db.get(code, None)
             if existing_items is None:  # 新记录
@@ -595,6 +601,7 @@ class Security:
                     f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}",
                 )
                 records.append(record)
+                await cls._notify_special_bonusnote(code, note, cancel_date)
             else:
                 new_record = True
                 for item in existing_items:
@@ -609,6 +616,7 @@ class Security:
                         f"{x[0]}|{x[1]}|{x[2]}|{x[3]}|{x[4]}|{x[5]}|{x[6]}|{x[7]}|{x[8]}|{x[9]}|{x[10]}",
                     )
                     records.append(record)
+                    await cls._notify_special_bonusnote(code, note, cancel_date)
 
         logger.info("save_xrxd_reports, %d records to be saved", len(records))
         if len(records) == 0:
