@@ -555,12 +555,9 @@ class Security:
             DingTalkMessage.text(
                 "security %s, bonus_cancel_pub_date %s" % (code, cancel_date)
             )
-        
-        if note.find("流通") != -1:  # 检查是否有“流通股”文字
-            DingTalkMessage.text(
-                "security %s, special xrxd note: %s" % (code, note)
-            )
 
+        if note.find("流通") != -1:  # 检查是否有“流通股”文字
+            DingTalkMessage.text("security %s, special xrxd note: %s" % (code, note))
 
     @classmethod
     async def save_xrxd_reports(cls, reports: List[str], dt: datetime.date):
@@ -587,7 +584,7 @@ class Security:
                 reports_in_db[code].append(record)
 
         records = []  # 准备写入db
-        
+
         for x in reports:
             code = x[0]
             note = x[2]

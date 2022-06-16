@@ -877,7 +877,7 @@ class TimeFrame:
             days = np.repeat(days, len(cls.ticks[frame_type]))
 
             ticks = [
-                day * 10000 + int(tm / 60) * 100 + tm % 60
+                day.item() * 10000 + int(tm / 60) * 100 + tm % 60
                 for day, tm in zip(days, ticks)
             ]
 
