@@ -8,7 +8,7 @@ name = "zillionare-omicron"
 packages = [
     {include = "omicron"}
 ]
-version = "2.0.0-alpha.31"
+version = "2.0.0-alpha.32"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
@@ -102,3 +102,22 @@ doc = [
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | \.history
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

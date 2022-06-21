@@ -178,10 +178,7 @@ class FluxTest(unittest.TestCase):
         cmd = Flux().delete(
             "unittest",
             datetime.datetime(2019, 1, 1),
-            {
-                "code": "000001.XSHE",
-                "name": ["平安", "平安银行"],
-            },
+            {"code": "000001.XSHE", "name": ["平安", "平安银行"]},
         )
 
         expected = {

@@ -53,14 +53,7 @@ class Stock(Security):
         self._code = code
         self._stock = self.get_stock(code)
         assert self._stock, "系统中不存在该code"
-        (
-            _,
-            self._display_name,
-            self._name,
-            ipo,
-            end,
-            _type,
-        ) = self._stock
+        (_, self._display_name, self._name, ipo, end, _type) = self._stock
         self._start_date = convert_nptime_to_datetime(ipo).date()
         self._end_date = convert_nptime_to_datetime(end).date()
         self._type = SecurityType(_type)
@@ -314,7 +307,7 @@ class Stock(Security):
         begin = tf.shift(end, -n + 1, frame_type)
         part1 = await cls._get_persisted_bars(code, frame_type, begin, end, n)
 
-        if part1.size == n or (part1.size > 0 and part1[-1]["frame"] == end):
+        if part1.size == n or end < arrow.now().date():
             return part1
 
         # need get data from cache
@@ -511,9 +504,7 @@ class Stock(Security):
             skip_rows=1,
             use_cols=keep_cols,
             parse_date=None,
-            converters={
-                "_time": _time_converter,
-            },
+            converters={"_time": _time_converter},
         )
 
         url = cfg.influxdb.url
@@ -896,12 +887,7 @@ class Stock(Security):
                     value, measurement, global_tags={"code": code}, time_key="frame"
                 )
         else:
-            await client.save(
-                bars,
-                measurement,
-                tag_keys=["code"],
-                time_key="frame",
-            )
+            await client.save(bars, measurement, tag_keys=["code"], time_key="frame")
 
     @classmethod
     def resample(
@@ -1058,11 +1044,7 @@ class Stock(Security):
             dtype为[('frame', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4')]的numpy数组
         """
         cols = ["_time", "high_limit", "low_limit"]
-        dtype = [
-            ("frame", "O"),
-            ("high_limit", "f4"),
-            ("low_limit", "f4"),
-        ]
+        dtype = [("frame", "O"), ("high_limit", "f4"), ("low_limit", "f4")]
 
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
@@ -1079,9 +1061,7 @@ class Stock(Security):
         ds = NumpyDeserializer(
             dtype,
             use_cols=cols,
-            converters={
-                "_time": lambda x: ciso8601.parse_datetime(x).date(),
-            },
+            converters={"_time": lambda x: ciso8601.parse_datetime(x).date()},
             # since we ask parse date in convertors, so we have to disable parse_date
             parse_date=None,
         )
@@ -1162,9 +1142,7 @@ class Stock(Security):
         ds = NumpyDeserializer(
             dtype,
             use_cols=["_time", "close", "high_limit", "low_limit"],
-            converters={
-                "_time": lambda x: ciso8601.parse_datetime(x).date(),
-            },
+            converters={"_time": lambda x: ciso8601.parse_datetime(x).date()},
             # since we ask parse date in convertors, so we have to disable parse_date
             parse_date=None,
         )

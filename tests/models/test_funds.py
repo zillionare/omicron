@@ -78,17 +78,7 @@ class FundNetValueTest(unittest.IsolatedAsyncioTestCase):
             ("day", "O"),
         ]
         fund_net_vals = np.array(
-            [
-                (
-                    "999999",
-                    1.5,
-                    1.5,
-                    1.5,
-                    1.5,
-                    1.5,
-                    arrow.get("2020-01-01").date(),
-                )
-            ],
+            [("999999", 1.5, 1.5, 1.5, 1.5, 1.5, arrow.get("2020-01-01").date())],
             dtype=fund_net_vals_dtype,
         )
         result = await Funds.save(funds)
@@ -402,14 +392,7 @@ class FundShareDailyTest(unittest.IsolatedAsyncioTestCase):
             ("total_tna", "f4"),
         ]
         fund_share_daily = np.array(
-            [
-                (
-                    "999999",
-                    "test",
-                    arrow.get("2021-03-31").date(),
-                    6734188,
-                )
-            ],
+            [("999999", "test", arrow.get("2021-03-31").date(), 6734188)],
             dtype=fund_share_daily_dtypes,
         )
         result = await FundShareDaily.save(fund_share_daily)

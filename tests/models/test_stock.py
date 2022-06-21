@@ -67,6 +67,39 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     # no month bars for 000002/000004
                     pass
 
+        # for issue 23
+        code = "600590.XSHG"
+        bars = {
+            code: np.array(
+                [
+                    (
+                        datetime.date(2014, 9, 9),
+                        8.99,
+                        9.09,
+                        8.8,
+                        8.98,
+                        10216680.0,
+                        9.14967520e07,
+                        3.278,
+                    ),
+                    (
+                        datetime.date(2014, 9, 10),
+                        8.94,
+                        9.16,
+                        8.89,
+                        8.97,
+                        12416833.0,
+                        1.11841024e08,
+                        3.278,
+                    ),
+                ],
+                dtype=bars_dtype,
+            )
+        }
+
+        await Stock.persist_bars(FrameType.DAY, bars)
+        # end issue 23
+
         # merge test data from backtest, which help find failed to deserialize data with high/low_limits issue
         for ft in (FrameType.MIN1, FrameType.DAY):
             file = os.path.join(test_dir(), f"data/bars_{ft.value}.pkl")
@@ -643,7 +676,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                         70800.0,
                         1470015.0,
                         7.446,
-                    ),
+                    )
                 ],
                 dtype=bars_dtype,
             ),
@@ -1220,9 +1253,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_batch_cache_unclosed_bars(self):
-        data = {
-            "000001.XSHE": bars_from_csv("000001.XSHE", "1d"),
-        }
+        data = {"000001.XSHE": bars_from_csv("000001.XSHE", "1d")}
         await Stock.batch_cache_unclosed_bars(FrameType.DAY, data)
         data = await Stock.batch_get_bars(
             ["000001.XSHE"], 1, FrameType.DAY, unclosed=True
@@ -1337,6 +1368,22 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
         assert_bars_equal(expected, actual)
+
+        # 4. issue 23
+        code = "600590.XSHG"
+        actual = await Stock._get_day_level_bars(
+            code, 10, FrameType.DAY, datetime.date(2014, 9, 22)
+        )
+        expected = [datetime.date(2014, 9, 9), datetime.date(2014, 9, 10)]
+        self.assertListEqual(expected, actual["frame"].tolist())
+
+        bars["frame"][0] = tf.combine_time(arrow.now().date(), 9, 31)
+        await Stock.cache_bars(code, FrameType.MIN1, bars)
+
+        actual = await Stock._get_day_level_bars(
+            code, 10, FrameType.DAY, datetime.date(2022, 2, 9)
+        )
+        self.assertEqual(actual["frame"][0], datetime.date(2022, 2, 9))
 
     def test_resample_from_day(self):
         day_bars = bars_from_csv("000004.XSHE", "1d")

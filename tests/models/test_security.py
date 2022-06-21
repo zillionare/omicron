@@ -118,11 +118,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         results = await query.eval()
         tmp = [x[0] for x in results]
         codes = set(tmp)
-        exp = {
-            "000001.XSHE",
-            "000001.XSHG",
-            "600000.XSHG",
-        }
+        exp = {"000001.XSHE", "000001.XSHG", "600000.XSHG"}
         self.assertSetEqual(exp, codes)
 
     async def test_choose_cyb(self):

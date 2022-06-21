@@ -124,11 +124,7 @@ def test_numpy_serializer(lines, runs):
     t0 = time.time()
     for i in range(runs):
         serialize = NumpySerializer(
-            arr,
-            "test",
-            "frame",
-            ["name", "code"],
-            precisions={"open": 1, "close": 2},
+            arr, "test", "frame", ["name", "code"], precisions={"open": 1, "close": 2}
         )
         for lp in serialize.serialize(lines):
             pass

@@ -276,11 +276,7 @@ class InfluxClient:
         """
         # todo: add raise error declaration
         command = Flux().delete(
-            measurement,
-            stop,
-            tags,
-            start=start,
-            precision=precision,
+            measurement, stop, tags, start=start, precision=precision
         )
 
         async with ClientSession() as session:

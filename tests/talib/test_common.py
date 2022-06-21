@@ -5,15 +5,7 @@ from omicron.talib import *
 
 class CommonTest(unittest.TestCase):
     def test_find_runs(self):
-        a = [
-            1,
-            1,
-            2,
-            2,
-            3,
-            3,
-            3,
-        ]
+        a = [1, 1, 2, 2, 3, 3, 3]
         value, pos, length = find_runs(a)
         self.assertListEqual([1, 2, 3], value.tolist())
         self.assertListEqual([0, 2, 4], pos.tolist())

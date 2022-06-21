@@ -198,9 +198,7 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
         for i, (start, expected, end) in enumerate(X):
             logger.debug("testing %s", X[i])
             actual = tf.count_frames(
-                arrow.get(start).naive,
-                arrow.get(end).naive,
-                FrameType.MIN1,
+                arrow.get(start).naive, arrow.get(end).naive, FrameType.MIN1
             )
             self.assertEqual(expected, actual)
 

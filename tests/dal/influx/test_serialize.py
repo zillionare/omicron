@@ -44,9 +44,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         data = ",result,table,_time,code,name,close,open\r\n,_result,0,2019-01-01T09:31:00Z,000002.XSHE,国联证券,0.2,0.1\r\n,_result,0,2019-01-01T09:36:00Z,000002.XSHE,国联证券,0.2,0.1\r\n,_result,1,2019-01-01T09:32:00Z,000003.XSHE,上海银行,0.2,0.1\r\n,_result,1,2019-01-01T09:37:00Z,000003.XSHE,上海银行,0.2,0.1\r\n,_result,2,2019-01-01T09:33:00Z,000004.XSHE,中国银行,0.2,0.1\r\n,_result,2,2019-01-01T09:38:00Z,000004.XSHE,中国银行,0.2,0.1\r\n,_result,3,2019-01-01T09:34:00Z,000005.XSHE,中国平安,0.2,0.1\r\n,_result,3,2019-01-01T09:39:00Z,000005.XSHE,中国平安,0.2,0.1\r\n\r\n"
 
         # default
-        des = DataframeDeserializer(
-            time_col="_time",
-        )
+        des = DataframeDeserializer(time_col="_time")
         df = des(data)
         self.assertEqual(8, len(df))
         self.assertEqual(8, len(df.columns))
@@ -291,11 +289,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         )
 
         serializer = NumpySerializer(
-            data,
-            "test",
-            "frame",
-            ["code", "name"],
-            precisions={"open": 1, "close": 1},
+            data, "test", "frame", ["code", "name"], precisions={"open": 1, "close": 1}
         )
 
         actual = []

@@ -21,11 +21,7 @@ logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
 
 
-security_db_dtype = [
-    ("frame", "O"),
-    ("code", "U16"),
-    ("info", "O"),
-]
+security_db_dtype = [("frame", "O"), ("code", "U16"), ("info", "O")]
 
 security_info_dtype = [
     ("code", "O"),
@@ -532,10 +528,7 @@ class Security:
             return None, None
 
         ds = DataframeDeserializer(
-            sort_values="_time",
-            usecols=["_time"],
-            time_col="_time",
-            engine="c",
+            sort_values="_time", usecols=["_time"], time_col="_time", engine="c"
         )
         actual = ds(data)
         secs = actual.to_records(index=False)
