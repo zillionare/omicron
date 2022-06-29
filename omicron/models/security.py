@@ -432,7 +432,7 @@ class Security:
         for code, alias, name, start, end, _type in securities:
             pipeline.rpush(key, f"{code},{alias},{name},{start}," f"{end},{_type}")
         await pipeline.execute()
-        logger.info("all securities saved to cache %s", key)
+        logger.info("all securities saved to cache %s, %d secs", key, len(securities))
 
         # update latest date info
         await cache.security.set("security:latest_date", dt.strftime("%Y-%m-%d"))
