@@ -65,9 +65,10 @@ class Query:
 
     def __init__(self, target_date: datetime.date = None, ds=None):
         if target_date is None:
-            now = datetime.datetime.now()
-            self.target_date = tf.day_shift(now.date(), 0)
+            # 聚宽不一定会及时更新数据，因此db中不存放当天的数据，如果传空，查cache
+            self.target_date = None
         else:
+            # 如果是交易日，取当天，否则取前一天
             self.target_date = tf.day_shift(target_date, 0)
 
         # 名字，显示名，类型过滤器
@@ -177,11 +178,18 @@ class Query:
             "eval, only: %s, %s, %s ", self._only_cyb, self._only_st, self._only_kcb
         )
 
-        records = await Security.load_securities_from_db(self.target_date)
+        records = None
+        if self.target_date is None:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
+            secs = await cache.security.lrange("security:all", 0, -1, encoding="utf-8")
+            if len(secs) != 0:
+                # using np.datetime64[s]
+                records = np.array(
+                    [tuple(x.split(",")) for x in secs], dtype=security_info_dtype
+                )
+        else:
+            records = await Security.load_securities_from_db(self.target_date)
         if records is None:
             return None
-
-        t0 = time.time()
 
         results = []
         now = datetime.datetime.now()
@@ -231,8 +239,6 @@ class Query:
             results.append(record)
 
         # 返回所有查询到的结果
-        t1 = time.time()
-        logger.debug("query cost using filters: %s", t1 - t0)
         return results
 
 
@@ -319,25 +325,25 @@ class Security:
         return None
 
     @classmethod
-    def fuzzy_match(cls, query: str):
+    def fuzzy_match_ex(cls, query: str):
         query = query.upper()
         if re.match(r"\d+", query):
             return {
                 sec["code"]: sec.tolist()
                 for sec in cls._securities
-                if sec["code"].find(query) != -1
+                if sec["code"].find(query) != -1 and sec["type"] == "stock"
             }
         elif re.match(r"[A-Z]+", query):
             return {
                 sec["code"]: sec.tolist()
                 for sec in cls._securities
-                if sec["name"].startswith(query)
+                if sec["name"].startswith(query) and sec["type"] == "stock"
             }
         else:
             return {
                 sec["code"]: sec.tolist()
                 for sec in cls._securities
-                if sec["display_name"].find(query) != -1
+                if sec["alias"].find(query) != -1 and sec["type"] == "stock"
             }
 
     @classmethod
@@ -398,7 +404,7 @@ class Security:
 
     @classmethod
     async def query_security_via_date(cls, code: str, date: datetime.date = None):
-        if date is None:  # 从内存中查找
+        if date is None:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
             date_in_cache = await cache.security.get("security:latest_date")
             if date_in_cache is not None:
                 date = arrow.get(date_in_cache).date()
@@ -415,7 +421,7 @@ class Security:
             return None
 
     @classmethod
-    async def select(cls, date: datetime.date = None) -> Query:
+    def select(cls, date: datetime.date = None) -> Query:
         if date is None:
             return Query(target_date=None)
         else:

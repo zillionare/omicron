@@ -55,7 +55,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_select_eval(self):
         dt = datetime.date(2022, 5, 20)
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_st().exclude_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -64,7 +64,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
         # 允许ST
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -80,7 +80,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
         # 允许科创板
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_st()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -95,7 +95,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
         # stock only
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types(["stock"]).exclude_st().exclude_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -104,7 +104,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
         # index only
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types(["index"]).exclude_st().exclude_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -113,7 +113,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual(exp, codes)
 
         # 排除创业板
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_cyb().exclude_st().exclude_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -123,7 +123,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_choose_cyb(self):
         dt = datetime.date(2022, 5, 20)
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_st().only_cyb()
         results = await query.eval()
         actual = [x[0] for x in results]
@@ -138,7 +138,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
     async def test_choose_kcb(self):
         dt = datetime.date(2022, 5, 20)
 
-        query = await Security.select(dt)
+        query = Security.select(dt)
         query.types([]).exclude_st().only_kcb()
         results = await query.eval()
         tmp = [x[0] for x in results]
@@ -151,13 +151,13 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
     def test_fuzzy_match_ex(self):
         exp = set(["600000.XSHG"])
-        self.assertSetEqual(exp, set(Stock.fuzzy_match_ex("600").keys()))
+        self.assertSetEqual(exp, set(Security.fuzzy_match_ex("600").keys()))
 
         exp = set(["000001.XSHE", "600000.XSHG"])
-        self.assertSetEqual(exp, set(Stock.fuzzy_match_ex("P").keys()))
+        self.assertSetEqual(exp, set(Security.fuzzy_match_ex("P").keys()))
 
         exp = set(["000001.XSHE"])
-        self.assertSetEqual(exp, set(Stock.fuzzy_match_ex("平").keys()))
+        self.assertSetEqual(exp, set(Security.fuzzy_match_ex("平").keys()))
 
     async def test_update_securities(self):
         stocks = [

@@ -103,29 +103,6 @@ class Stock(Security):
                 if sec["alias"].find(query) != -1
             }
 
-    @classmethod
-    def fuzzy_match_ex(cls, query: str):
-        """对股票进行模糊匹配查找"""
-        query = query.upper()
-        if re.match(r"\d+", query):
-            return {
-                sec["code"]: sec.tolist()
-                for sec in cls._stocks
-                if sec["code"].find(query) != -1 and sec["type"] == "stock"
-            }
-        elif re.match(r"[A-Z]+", query):
-            return {
-                sec["code"]: sec.tolist()
-                for sec in cls._stocks
-                if sec["name"].startswith(query) and sec["type"] == "stock"
-            }
-        else:
-            return {
-                sec["code"]: sec.tolist()
-                for sec in cls._stocks
-                if sec["alias"].find(query) != -1 and sec["type"] == "stock"
-            }
-
     def __str__(self):
         return f"{self.display_name}[{self.code}]"
 

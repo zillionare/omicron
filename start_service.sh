@@ -19,7 +19,7 @@ sudo -E apt-get install --yes --no-install-recommends postgresql-client
 
 sleep 3
 
-PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/init.sql
+#PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/init.sql
 PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
 
 echo "初始化influxdb容器"
