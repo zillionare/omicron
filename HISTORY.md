@@ -23,3 +23,7 @@ this version introduced no features, just a internal amendment release, we're mi
 
 * change to sync call for Security.select()
 * date parameter of Security.select(): if date >= today, it will use the data in cache, otherwise, query from database.
+
+## 2.0.0-alpha.35 (2022-07-13)
+
+* fix issue in security exit date comparison, Security.eval().

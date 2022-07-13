@@ -178,16 +178,19 @@ class Query:
             "eval, only: %s, %s, %s ", self._only_cyb, self._only_st, self._only_kcb
         )
 
+        date_in_cache = await cache.security.get("security:latest_date")
+        if date_in_cache:  # 无此数据说明omega有某些问题，不处理
+            _date = arrow.get(date_in_cache).date()
+        else:
+            now = datetime.datetime.now()
+            _date = tf.day_shift(now, 0)
+
         # 确定数据源，cache为当天8点之后获取的数据，数据库存放前一日和更早的数据
-        if self.target_date:
-            date_in_cache = await cache.security.get("security:latest_date")
-            if date_in_cache:  # 无此数据说明omega有某些问题，不处理
-                _date = arrow.get(date_in_cache).date()
-                if self.target_date >= _date:
-                    self.target_date = None
+        if not self.target_date or self.target_date >= _date:
+            self.target_date = _date
 
         records = None
-        if self.target_date is None:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
+        if self.target_date == _date:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
             secs = await cache.security.lrange("security:all", 0, -1, encoding="utf-8")
             if len(secs) != 0:
                 # using np.datetime64[s]
@@ -199,8 +202,7 @@ class Query:
         if records is None:
             return None
 
-        results = []
-        now = datetime.datetime.now()
+        results = []        
         for record in records:
             if self._type_pattern is not None:
                 if record["type"] not in self._type_pattern:
@@ -241,7 +243,7 @@ class Query:
             # 退市暂不限定是否为股票
             if self._include_exit is False:
                 d1 = convert_nptime_to_datetime(record["end"]).date()
-                if d1 <= now.date():
+                if d1 < self.target_date:
                     continue
 
             results.append(record)
