@@ -63,7 +63,7 @@ class Query:
     ["code", "alias(display_name)", "name", "ipo", "end", "type"]
     """
 
-    def __init__(self, target_date: datetime.date = None, ds=None):
+    def __init__(self, target_date: datetime.date = None):
         if target_date is None:
             # 聚宽不一定会及时更新数据，因此db中不存放当天的数据，如果传空，查cache
             self.target_date = None
@@ -177,6 +177,14 @@ class Query:
         logger.debug(
             "eval, only: %s, %s, %s ", self._only_cyb, self._only_st, self._only_kcb
         )
+
+        # 确定数据源，cache为当天8点之后获取的数据，数据库存放前一日和更早的数据
+        if self.target_date:
+            date_in_cache = await cache.security.get("security:latest_date")
+            if date_in_cache:  # 无此数据说明omega有某些问题，不处理
+                _date = arrow.get(date_in_cache).date()
+                if self.target_date >= _date:
+                    self.target_date = None
 
         records = None
         if self.target_date is None:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存

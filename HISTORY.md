@@ -18,3 +18,8 @@
 ## 0.3.1 (2020-12-11)
 
 this version introduced no features, just a internal amendment release, we're migrating to poetry build system.
+
+## 2.0.0-alpha.34 (2022-07-13)
+
+* change to sync call for Security.select()
+* date parameter of Security.select(): if date >= today, it will use the data in cache, otherwise, query from database.
