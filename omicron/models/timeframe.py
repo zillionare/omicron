@@ -1132,3 +1132,70 @@ class TimeFrame:
             return floor < now.date() or now.hour >= 15
         else:
             return floor == frame
+
+    @classmethod
+    def get_frame_scope(cls, frame: Frame, ft: FrameType) -> Tuple[Frame, Frame]:
+        """对于给定的时间，取所在周的第一天和最后一天，所在月的第一天和最后一天
+
+        如果指定日期是休息日，并且本周随后的时间内（周一到周五）还有至少一个交易日，那么返回的日期是当前周，否则返回下一周
+        月线同理，即会出现指定30日，返回下个月的首末时间，和周线的逻辑保持一致（仅限非交易日查询）
+        如果指定日期是交易日，返回的时间范围将完全符合预期。
+        
+        Args:
+            frame : 指定的日期，date对象
+            ft: 帧类型，支持WEEK和MONTH
+
+        Returns:
+            Tuple[Frame, Frame]: 周或者月的首末日期（date对象）
+        
+        """
+        if frame is None:
+            raise ValueError(f"frame cannot be None")
+        if ft not in (FrameType.WEEK, FrameType.MONTH):
+            raise ValueError(f"FrameType only supports WEEK and MONTH")
+
+        if isinstance(frame, datetime.datetime):
+            frame = frame.date()
+        
+        if frame < arrow.get("2005-01-04").date():
+            raise ValueError(f"EPOCH start date is 2005-01-04")
+
+        if ft == FrameType.WEEK:
+            if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
+                week_end = cls.week_shift(frame, 1)
+            else:
+                if frame <= datetime.date(2005, 1, 7):
+                    week_end = datetime.date(2005, 1, 7)
+                else:
+                    w1 = TimeFrame.floor(frame, FrameType.WEEK)
+                    if w1 == frame:  # 本周的最后一个交易日
+                        week_end = w1
+                    else:
+                        week_end = TimeFrame.week_shift(frame, 1)
+
+            if week_end <= datetime.date(2005, 1, 7):
+                return datetime.date(2005, 1, 4), datetime.date(2005, 1, 7)
+            else:
+                w0 = TimeFrame.week_shift(week_end, -1)
+                w1d0 = TimeFrame.day_shift(w0, 1)
+                return w1d0, week_end
+
+        if ft == FrameType.MONTH:
+            if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
+                month_end = cls.month_shift(frame, 1)
+            else:
+                if frame <= datetime.date(2005, 1, 31):
+                    month_end = datetime.date(2005, 1, 31)
+                else:
+                    m1 = TimeFrame.floor(frame, FrameType.MONTH)
+                    if m1 == frame:  # 本月的最后一个交易日
+                        month_end = m1
+                    else:
+                        month_end = TimeFrame.month_shift(frame, 1)
+
+            if month_end <= datetime.date(2005, 1, 31):
+                return datetime.date(2005, 1, 4), datetime.date(2005, 1, 31)
+            else:
+                m0 = TimeFrame.month_shift(month_end, -1)
+                m1d0 = TimeFrame.day_shift(m0, 1)
+                return m1d0, month_end
