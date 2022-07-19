@@ -202,7 +202,7 @@ class Query:
         if records is None:
             return None
 
-        results = []        
+        results = []
         for record in records:
             if self._type_pattern is not None:
                 if record["type"] not in self._type_pattern:
