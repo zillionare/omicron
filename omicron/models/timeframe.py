@@ -22,6 +22,7 @@ from omicron.core.errors import DataNotReadyError
 
 logger = logging.getLogger(__file__)
 EPOCH = datetime.datetime(1970, 1, 1, 0, 0, 0)
+CALENDAR_START = datetime.date(2005, 1, 4)
 
 
 def datetime_to_utc_timestamp(tm: datetime.datetime) -> int:
@@ -1140,25 +1141,25 @@ class TimeFrame:
         如果指定日期是休息日，并且本周随后的时间内（周一到周五）还有至少一个交易日，那么返回的日期是当前周，否则返回下一周
         月线同理，即会出现指定30日，返回下个月的首末时间，和周线的逻辑保持一致（仅限非交易日查询）
         如果指定日期是交易日，返回的时间范围将完全符合预期。
-        
+
         Args:
             frame : 指定的日期，date对象
             ft: 帧类型，支持WEEK和MONTH
 
         Returns:
             Tuple[Frame, Frame]: 周或者月的首末日期（date对象）
-        
+
         """
         if frame is None:
-            raise ValueError(f"frame cannot be None")
+            raise ValueError("frame cannot be None")
         if ft not in (FrameType.WEEK, FrameType.MONTH):
-            raise ValueError(f"FrameType only supports WEEK and MONTH")
+            raise ValueError("FrameType only supports WEEK and MONTH")
 
         if isinstance(frame, datetime.datetime):
             frame = frame.date()
-        
-        if frame < arrow.get("2005-01-04").date():
-            raise ValueError(f"EPOCH start date is 2005-01-04")
+
+        if frame < CALENDAR_START:
+            raise ValueError(f"frame {frame} should be >= {CALENDAR_START}")
 
         if ft == FrameType.WEEK:
             if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
