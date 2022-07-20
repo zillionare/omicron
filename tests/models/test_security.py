@@ -117,8 +117,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         dt = datetime.date(2022, 5, 20)
         query = Security.select(dt)
         query.types([]).exclude_st().only_cyb()
-        results = await query.eval()
-        actual = [x[0] for x in results]
+        actual = await query.eval()
         self.assertListEqual(["300001.XSHE"], actual)
 
         # to check if we could omit `types` method
