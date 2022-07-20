@@ -57,18 +57,15 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         dt = datetime.date(2022, 5, 20)
         query = Security.select(dt)
         query.types([]).exclude_st().exclude_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
+
         exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
         self.assertSetEqual(exp, codes)
 
         # 允许ST
         query = Security.select(dt)
         query.types([]).exclude_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
         exp = {
             "000001.XSHE",
             "000005.XSHE",
@@ -82,9 +79,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         # 允许科创板
         query = Security.select(dt)
         query.types([]).exclude_st()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
         exp = {
             "000001.XSHE",
             "300001.XSHE",
@@ -97,27 +92,24 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         # stock only
         query = Security.select(dt)
         query.types(["stock"]).exclude_st().exclude_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
+
         exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG"}
         self.assertSetEqual(exp, codes)
 
         # index only
         query = Security.select(dt)
         query.types(["index"]).exclude_st().exclude_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
+
         exp = {"000001.XSHG"}
         self.assertSetEqual(exp, codes)
 
         # 排除创业板
         query = Security.select(dt)
         query.types([]).exclude_cyb().exclude_st().exclude_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        codes = set(tmp)
+        codes = set(await query.eval())
+
         exp = {"000001.XSHE", "000001.XSHG", "600000.XSHG"}
         self.assertSetEqual(exp, codes)
 
@@ -131,8 +123,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         # to check if we could omit `types` method
         query.exclude_st().only_cyb()
-        results = await query.eval()
-        actual = [x[0] for x in results]
+        actual = await query.eval()
         self.assertListEqual(["300001.XSHE"], actual)
 
     async def test_choose_kcb(self):
@@ -140,14 +131,14 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         query = Security.select(dt)
         query.types([]).exclude_st().only_kcb()
-        results = await query.eval()
-        tmp = [x[0] for x in results]
-        self.assertListEqual(["688001.XSHG"], tmp)
+        actual = await query.eval()
+        self.assertListEqual(["688001.XSHG"], actual)
 
     async def test_query_info(self):
         dt = datetime.date(2022, 5, 20)
         rc = await Security.info("688001.XSHG", dt)
         self.assertEqual(rc["display_name"], "华兴源创")
+        self.assertEqual(rc["alias"], "华兴源创")
 
     def test_fuzzy_match_ex(self):
         exp = set(["600000.XSHG"])

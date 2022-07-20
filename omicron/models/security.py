@@ -159,7 +159,12 @@ class Query:
 
         return self
 
-    async def eval(self):
+    async def eval(self) -> List[str]:
+        """对查询结果进行求值，返回code列表
+
+        Returns:
+            代码列表
+        """
         logger.debug("eval, date: %s", self.target_date)
         logger.debug(
             "eval, names and types: %s, %s, %s",
@@ -202,7 +207,7 @@ class Query:
         if records is None:
             return None
 
-        results = []        
+        results = []
         for record in records:
             if self._type_pattern is not None:
                 if record["type"] not in self._type_pattern:
@@ -246,7 +251,7 @@ class Query:
                 if d1 < self.target_date:
                     continue
 
-            results.append(record)
+            results.append(record["code"])
 
         # 返回所有查询到的结果
         return results
@@ -368,6 +373,7 @@ class Security:
         return {
             "type": _obj["type"],
             "display_name": _obj["alias"],
+            "alias": _obj["alias"],
             "end": d2,
             "start": d1,
             "name": _obj["name"],
