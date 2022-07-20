@@ -1153,13 +1153,13 @@ class TimeFrame:
         if frame is None:
             raise ValueError("frame cannot be None")
         if ft not in (FrameType.WEEK, FrameType.MONTH):
-            raise ValueError("FrameType only supports WEEK and MONTH")
+            raise ValueError(f"FrameType only supports WEEK and MONTH: {ft}")
 
         if isinstance(frame, datetime.datetime):
             frame = frame.date()
 
         if frame < CALENDAR_START:
-            raise ValueError(f"frame {frame} should be >= {CALENDAR_START}")
+            raise ValueError(f"cannot be earlier than {CALENDAR_START}: {frame}")
 
         if ft == FrameType.WEEK:
             if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
