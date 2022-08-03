@@ -12,7 +12,7 @@ import pandas as pd
 from coretypes import Frame, FrameType, SecurityType, bars_cols, bars_dtype
 
 from omicron import tf
-from omicron.core.constants import TRADE_PRICE_LIMITS
+from omicron.core.constants import TRADE_PRICE_LIMITS, TRADE_PRICE_LIMITS_DATE
 from omicron.core.errors import BadParameterError, DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
@@ -1005,23 +1005,51 @@ class Stock(Security):
         return bars[np.isfinite(bars["close"])]
 
     @classmethod
+    async def _get_price_limit_in_cache(
+        cls, code: str, begin: datetime.date, end: datetime.date
+    ):
+        date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
+        if date_str:
+            date_in_cache = arrow.get(date_str).naive.date()
+            if date_in_cache < begin or date_in_cache > end:
+                return None
+        else:
+            return None
+
+        dtype = [("frame", "O"), ("high_limit", "f4"), ("low_limit", "f4")]
+        hp = await cache._security_.hget(TRADE_PRICE_LIMITS, f"{code}.high_limit")
+        lp = await cache._security_.hget(TRADE_PRICE_LIMITS, f"{code}.low_limit")
+        if hp is None or lp is None:
+            return None
+        else:
+            return np.array([(date_in_cache, hp, lp)], dtype=dtype)
+
+    @classmethod
     async def get_trade_price_limits(
         cls, code: str, begin: Frame, end: Frame
     ) -> np.ndarray:
-        """从influxdb中获取个股在[begin, end]之间的涨跌停价。
+        """从influxdb和cache中获取个股在[begin, end]之间的涨跌停价。
 
-        涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY
+        涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY，
+        当天的数据存放于redis，如果查询日期包含当天（交易日），从cache中读取并追加到结果中
 
         Args:
             code : 个股代码
-            begin : 开始日期
-            end : 结束日期
+            begin : 开始日期，datetime.date
+            end : 结束日期，datetime.date
 
         Returns:
             dtype为[('frame', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4')]的numpy数组
         """
         cols = ["_time", "high_limit", "low_limit"]
         dtype = [("frame", "O"), ("high_limit", "f4"), ("low_limit", "f4")]
+
+        if isinstance(begin, datetime.datetime):
+            begin = begin.date()  # 强制转换为date
+        if isinstance(end, datetime.datetime):
+            end = end.date()  # 强制转换为date
+
+        data_in_cache = await cls._get_price_limit_in_cache(code, begin, end)
 
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
@@ -1044,10 +1072,14 @@ class Stock(Security):
         )
 
         result = await client.query(flux, ds)
+        if data_in_cache:
+            result = np.concatenate([result, data_in_cache])
         return result
 
     @classmethod
-    async def save_trade_price_limits(cls, price_limits: np.ndarray, to_cache: bool):
+    async def save_trade_price_limits(
+        cls, price_limits: np.ndarray, dt: datetime.date, to_cache: bool
+    ):
         """保存涨跌停价
 
         Args:
@@ -1057,7 +1089,9 @@ class Stock(Security):
         if len(price_limits) == 0:
             return
 
-        if to_cache:
+        if to_cache:  # 每个交易日上午9点更新两次
+            await cache._security_.delete(TRADE_PRICE_LIMITS)
+
             pl = cache._security_.pipeline()
             for row in price_limits:
                 # .item convert np.float64 to python float
@@ -1073,8 +1107,16 @@ class Stock(Security):
                 )
             await pl.execute()
 
+            await cache._security_.set(TRADE_PRICE_LIMITS_DATE, dt.strftime("%Y-%m-%d"))
         else:
-            # to influxdb
+            # to influxdb， 每个交易日的第二天早上2点保存
+            date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
+            if date_str:
+                date_in_cache = arrow.get(date_str).naive
+                if date_in_cache == dt:  # 更新到db的同时删除cache
+                    await cache._security_.delete(TRADE_PRICE_LIMITS)
+                    await cache._security_.delete(TRADE_PRICE_LIMITS_DATE)
+
             client = cls._get_influx_client()
             await client.save(
                 price_limits,

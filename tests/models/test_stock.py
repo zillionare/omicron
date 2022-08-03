@@ -13,6 +13,8 @@ from numpy.testing import assert_array_equal
 
 import omicron
 from omicron import tf
+from omicron.core.constants import TRADE_PRICE_LIMITS_DATE
+from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.stock import Stock
@@ -112,7 +114,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         limits = df.to_records(index=False)
         limits.dtype.names = ["frame", "code", "high_limit", "low_limit"]
-        await Stock.save_trade_price_limits(limits, False)
+        await Stock.save_trade_price_limits(limits, None, False)
 
         return super().setUp()
 
@@ -1207,12 +1209,103 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         start = datetime.date(2022, 3, 23)
         end = datetime.date(2022, 4, 6)
 
-        await Stock.save_trade_price_limits(limits, False)
+        await Stock.save_trade_price_limits(limits, start, to_cache=False)
         actual = await Stock.get_trade_price_limits(code, start, end)
         self.assertAlmostEqual(3.45, actual[0]["high_limit"])
 
+    async def test_save_trade_price_limits2(self):
+        await self.client.drop_measurement("stock_bars_1d")
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 3, 31),
+                    3.07,
+                    3.19,
+                    2.9,
+                    3.14,
+                    1.74144017e08,
+                    5.28782426e08,
+                    1.0,
+                    3.38,
+                    2.76,
+                ),
+                (
+                    datetime.date(2022, 4, 1),
+                    3.01,
+                    3.06,
+                    2.91,
+                    2.94,
+                    1.03947342e08,
+                    3.09315863e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+        await cache.security.set(TRADE_PRICE_LIMITS_DATE, "2022-04-01")
+        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 1), False)
+        start = datetime.date(2022, 3, 31)
+        end = datetime.date(2022, 4, 6)
+        actual = await Stock.get_trade_price_limits(code, start, end)
+        self.assertAlmostEqual(3.45, actual[1]["high_limit"])
+
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
         # save it to cache
-        await Stock.save_trade_price_limits(limits, True)
+        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 6), True)
+
+        start = datetime.date(2022, 3, 23)
+        end = datetime.date(2022, 4, 6)
+        actual = await Stock.get_trade_price_limits(code, start, end)
+        self.assertAlmostEqual(3.23, actual[2]["high_limit"])
 
     @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
     async def test_get_bars_in_range(self, mocked_now):
@@ -1612,7 +1705,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         start = datetime.date(2022, 3, 23)
         end = datetime.date(2022, 4, 6)
 
-        await Stock.save_trade_price_limits(limits, False)
+        await Stock.save_trade_price_limits(limits, None, False)
 
         buy_limit, sell_limit = await Stock.trade_price_limit_flags(code, start, end)
 

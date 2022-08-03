@@ -983,3 +983,47 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
         with mock.patch.object(arrow, "now", return_value=arrow.get(now)):
             actual = tf.is_bar_closed(datetime.date(2022, 2, 9), FrameType.DAY)
             self.assertTrue(actual)
+
+    def test_get_previous_trade_day(self):
+        now = arrow.get("2022-8-3 15:00:00").naive
+        rc = tf.get_previous_trade_day(now)
+        self.assertEqual(rc, datetime.date(2022, 8, 2))
+
+        now = arrow.get("2022-8-1 15:00:00").naive
+        rc = tf.get_previous_trade_day(now)
+        self.assertEqual(rc, datetime.date(2022, 7, 29))
+
+        now = arrow.get("2022-7-31 15:00:00").naive
+        rc = tf.get_previous_trade_day(now)
+        self.assertEqual(rc, datetime.date(2022, 7, 29))
+
+    def test_frame_scope(self):
+        now = arrow.get("2021-10-8 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.WEEK)
+        self.assertEqual(d0, datetime.date(2021, 10, 8))
+        self.assertEqual(d1, datetime.date(2021, 10, 8))
+
+        now = arrow.get("2021-10-9 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.WEEK)
+        self.assertEqual(d0, datetime.date(2021, 10, 8))
+        self.assertEqual(d1, datetime.date(2021, 10, 8))
+
+        now = arrow.get("2005-1-7 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.WEEK)
+        self.assertEqual(d0, datetime.date(2005, 1, 4))
+        self.assertEqual(d1, datetime.date(2005, 1, 7))
+
+        now = arrow.get("2022-2-1 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.MONTH)
+        self.assertEqual(d0, datetime.date(2022, 2, 7))
+        self.assertEqual(d1, datetime.date(2022, 2, 28))
+
+        now = arrow.get("2022-3-1 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.MONTH)
+        self.assertEqual(d0, datetime.date(2022, 3, 1))
+        self.assertEqual(d1, datetime.date(2022, 3, 31))
+
+        now = arrow.get("2005-1-31 15:00:00").naive
+        d0, d1 = tf.get_frame_scope(now, FrameType.MONTH)
+        self.assertEqual(d0, datetime.date(2005, 1, 4))
+        self.assertEqual(d1, datetime.date(2005, 1, 31))
