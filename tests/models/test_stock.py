@@ -1214,7 +1214,10 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(3.45, actual[0]["high_limit"])
 
     async def test_save_trade_price_limits2(self):
+        # 清除之前的UT数据残留
         await self.client.drop_measurement("stock_bars_1d")
+        await Stock.reset_price_limits_cache(True, None)
+
         limits = np.array(
             [
                 (
@@ -1306,6 +1309,8 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         end = datetime.date(2022, 4, 6)
         actual = await Stock.get_trade_price_limits(code, start, end)
         self.assertAlmostEqual(3.23, actual[2]["high_limit"])
+
+        await Stock.reset_price_limits_cache(False, datetime.date(2022, 4, 6))
 
     @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
     async def test_get_bars_in_range(self, mocked_now):

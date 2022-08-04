@@ -1077,6 +1077,19 @@ class Stock(Security):
         return result
 
     @classmethod
+    async def reset_price_limits_cache(cls, cache_only: bool, dt: datetime.date = None):
+        if cache_only is False:
+            date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
+            if not date_str:
+                return  # skip clear action
+            date_in_cache = arrow.get(date_str).naive.date()
+            if dt is None or date_in_cache != dt:  # 更新的时间和cache的时间相同，则清除cache
+                return  # skip clear action
+
+        await cache._security_.delete(TRADE_PRICE_LIMITS)
+        await cache._security_.delete(TRADE_PRICE_LIMITS_DATE)
+
+    @classmethod
     async def save_trade_price_limits(
         cls, price_limits: np.ndarray, dt: datetime.date, to_cache: bool
     ):
@@ -1090,8 +1103,6 @@ class Stock(Security):
             return
 
         if to_cache:  # 每个交易日上午9点更新两次
-            await cache._security_.delete(TRADE_PRICE_LIMITS)
-
             pl = cache._security_.pipeline()
             for row in price_limits:
                 # .item convert np.float64 to python float
@@ -1110,13 +1121,6 @@ class Stock(Security):
             await cache._security_.set(TRADE_PRICE_LIMITS_DATE, dt.strftime("%Y-%m-%d"))
         else:
             # to influxdb， 每个交易日的第二天早上2点保存
-            date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
-            if date_str:
-                date_in_cache = arrow.get(date_str).naive
-                if date_in_cache == dt:  # 更新到db的同时删除cache
-                    await cache._security_.delete(TRADE_PRICE_LIMITS)
-                    await cache._security_.delete(TRADE_PRICE_LIMITS_DATE)
-
             client = cls._get_influx_client()
             await client.save(
                 price_limits,
