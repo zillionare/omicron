@@ -13,7 +13,7 @@ from numpy.testing import assert_array_equal
 
 import omicron
 from omicron import tf
-from omicron.core.constants import TRADE_PRICE_LIMITS_DATE
+from omicron.core.constants import TRADE_LATEST_PRICE, TRADE_PRICE_LIMITS_DATE
 from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions.np import numpy_append_fields
@@ -1720,3 +1720,16 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         assert_array_equal(
             [False, False, False, False, True, False, False, False, False], sell_limit
         )
+
+    async def test_get_latest_price(self):
+        cache.feature.hset(TRADE_LATEST_PRICE, "000001", 10)
+        cache.feature.hset(TRADE_LATEST_PRICE, "002227", 12)
+        cache.feature.hset(TRADE_LATEST_PRICE, "601398", 5)
+
+        codes = ["000001.XSHE"]
+        rc = await Stock.get_latest_price(codes)
+        assert_array_equal(["10"], rc)
+
+        codes = ["002227.XSHE", "601398.XSHG"]
+        rc = await Stock.get_latest_price(codes)
+        assert_array_equal(["12", "5"], rc)

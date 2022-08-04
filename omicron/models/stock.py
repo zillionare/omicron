@@ -12,7 +12,11 @@ import pandas as pd
 from coretypes import Frame, FrameType, SecurityType, bars_cols, bars_dtype
 
 from omicron import tf
-from omicron.core.constants import TRADE_PRICE_LIMITS, TRADE_PRICE_LIMITS_DATE
+from omicron.core.constants import (
+    TRADE_LATEST_PRICE,
+    TRADE_PRICE_LIMITS,
+    TRADE_PRICE_LIMITS_DATE,
+)
 from omicron.core.errors import BadParameterError, DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
@@ -1178,3 +1182,25 @@ class Stock(Security):
             array_price_equal(result["close"], result["high_limit"]),
             array_price_equal(result["close"], result["low_limit"]),
         )
+
+    @classmethod
+    async def get_latest_price(cls, codes: Iterable[str]) -> List[str]:
+        """获取多支股票的最新价格（交易日当天），暂不包括指数
+
+        价格数据每5秒更新一次，接受多只股票查询，返回最后缓存的价格
+
+        Args:
+            codes: 代码列表
+
+        Returns:
+            返回一个List，价格是字符形式的浮点数。
+        """
+        if not codes:
+            return []
+
+        _raw_code_list = []
+        for code_str in codes:
+            code, _ = code_str.split(".")
+            _raw_code_list.append(code)
+
+        return await cache.feature.hmget(TRADE_LATEST_PRICE, *_raw_code_list)
