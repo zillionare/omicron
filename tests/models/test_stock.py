@@ -1312,6 +1312,48 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         await Stock.reset_price_limits_cache(False, datetime.date(2022, 4, 6))
 
+    async def test_reset_price_limit_cache(self):
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+        # save it to cache
+        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 6), True)
+        date_str = await cache.security.get(TRADE_PRICE_LIMITS_DATE)
+        self.assertEqual(date_str, "2022-04-06")
+
+        await Stock.reset_price_limits_cache(False, datetime.date(2022, 4, 6))
+        date_str = await cache.security.get(TRADE_PRICE_LIMITS_DATE)
+        self.assertFalse(date_str)
+
     @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
     async def test_get_bars_in_range(self, mocked_now):
         code = "000001.XSHE"
@@ -1722,14 +1764,18 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_get_latest_price(self):
-        cache.feature.hset(TRADE_LATEST_PRICE, "000001", 10)
-        cache.feature.hset(TRADE_LATEST_PRICE, "002227", 12)
+        cache.feature.hset(TRADE_LATEST_PRICE, "000001", 10.2)
+        cache.feature.hset(TRADE_LATEST_PRICE, "002227", 12.1)
         cache.feature.hset(TRADE_LATEST_PRICE, "601398", 5)
 
         codes = ["000001.XSHE"]
         rc = await Stock.get_latest_price(codes)
-        assert_array_equal(["10"], rc)
+        assert_array_equal([10.2], rc)
 
         codes = ["002227.XSHE", "601398.XSHG"]
         rc = await Stock.get_latest_price(codes)
-        assert_array_equal(["12", "5"], rc)
+        assert_array_equal([12.1, 5], rc)
+
+        codes = ["000002.XSHE"]
+        rc = await Stock.get_latest_price(codes)
+        assert_array_equal([None], rc)

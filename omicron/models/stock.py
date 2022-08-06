@@ -1085,7 +1085,7 @@ class Stock(Security):
         if cache_only is False:
             date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
             if not date_str:
-                return  # skip clear action
+                return  # skip clear action if date not found in cache
             date_in_cache = arrow.get(date_str).naive.date()
             if dt is None or date_in_cache != dt:  # 更新的时间和cache的时间相同，则清除cache
                 return  # skip clear action
@@ -1203,4 +1203,11 @@ class Stock(Security):
             code, _ = code_str.split(".")
             _raw_code_list.append(code)
 
-        return await cache.feature.hmget(TRADE_LATEST_PRICE, *_raw_code_list)
+        _converted_data = []
+        raw_data = await cache.feature.hmget(TRADE_LATEST_PRICE, *_raw_code_list)
+        for _data in raw_data:
+            if _data is None:
+                _converted_data.append(_data)
+            else:
+                _converted_data.append(float(_data))
+        return _converted_data
