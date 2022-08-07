@@ -20,7 +20,7 @@ from omicron.dal.influx.serialize import (
     NumpySerializer,
 )
 from omicron.models.stock import Stock
-from tests import assert_bars_equal, init_test_env
+from tests import MockException, assert_bars_equal, init_test_env
 from tests.dal.influx import mock_data_for_influx
 
 cfg = cfg4py.get_instance()
@@ -92,7 +92,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             dtype=bars_dtype,
         )
 
-        start, end = bars["frame"]
+        start, end = bars["frame"][0].item(), bars["frame"][1].item()
 
         serializer = NumpySerializer(
             bars, measurement, global_tags={"code": "000001.XSHE"}, time_key="frame"
@@ -195,7 +195,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         )
 
         # given deserializer
-        ds = DataframeDeserializer()
         actual = await self.client.query(flux, ds)
         self.assertEqual(actual.loc[0]["name"], "平安银行")
         self.assertEqual(1, len(actual))
@@ -210,7 +209,6 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .bucket(self.client._bucket)
         )
 
-        ds = DataframeDeserializer()
         actual = await self.client.query(flux, ds)
         self.assertSetEqual(set(["平安银行", "中国银行"]), set(actual["name"]))
         self.assertEqual(3, len(actual))
@@ -227,7 +225,7 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
         actual = await self.client.query(flux, ds)
         self.assertEqual(1, len(actual))
         self.assertEqual(actual.loc[0]["name"], "平安银行")
-        self.assertEqual(str(actual.loc[0]["_time"]), "2019-01-01T09:30:00Z")
+        self.assertEqual(str(actual.loc[0]["_time"]), "2019-01-01 09:30:00")
 
         # check exceptions
         with mock.patch("aiohttp.ClientSession.post") as mock_post:
@@ -240,6 +238,14 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(InfluxDBQueryError):
                 await self.client.query(flux, ds)
 
+        # deserialize error
+        with mock.patch(
+            "omicron.dal.influx.serialize.DataframeDeserializer.__call__",
+            side_effect=MockException,
+        ):
+            with self.assertRaises(MockException):
+                await self.client.query(flux, ds)
+
     async def test_delete(self):
         q = (
             Flux()
@@ -248,7 +254,13 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             .range(Flux.EPOCH_START, arrow.now().datetime)
         )
 
-        ds = DataframeDeserializer()
+        ds = DataframeDeserializer(
+            sort_values="_time",
+            usecols=["_time", "open", "code", "name"],
+            time_col="_time",
+            engine="c",
+        )
+
         recs = await self.client.query(q, ds)
 
         self.assertEqual(len(recs), 100)
@@ -359,7 +371,8 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
             np.testing.assert_array_almost_equal(bars[col], actual[col], decimal=2)
 
         np.testing.assert_array_equal(
-            bars["frame"], [x.date() for x in actual["frame"]]
+            [x.item().date() for x in bars["frame"]],
+            [x.item().date() for x in actual["frame"]],
         )
 
         ## save pd.DataFrame with chunk_size == -1
@@ -415,3 +428,15 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
 
         # 删除bucket by bucket name
         await client.delete_bucket()
+
+        # test error handling
+        await client.create_bucket("this is ut_test_bucket", org_id=org_id)
+        with self.assertRaises(InfluxSchemaError):
+            with mock.patch("aiohttp.ClientSession.delete") as mock_delete:
+                mock_delete.return_value.__aenter__.status = 400
+                mock_delete.return_value.__aenter__.json = mock.Mock()
+                mock_delete.return_value.__aenter__.json.return_value = {
+                    "code": -1,
+                    "message": "mockerror",
+                }
+                await client.delete_bucket()

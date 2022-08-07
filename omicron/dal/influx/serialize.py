@@ -308,42 +308,38 @@ class DataframeDeserializer(Serializer):
         for performance consideration, please specify the following args:
             - engine = 'c' or 'pyarrow' when possible. Be noticed that 'pyarrow' is the fastest (multi-threaded supported) but may be error-prone. Only use it when you have thoroughly tested.
 
-            - specify parse_date and infer_datetime_format to True, if the data contains date-time format. The official doc says that will be 3~5 times faster.
-
-            - specify lineterminator to '\n' or '\r\n', when the engine is 'c'
-
             - specify dtype when possible
 
         use `usecols` to specify the columns to read, and `names` to specify the column names (i.e., rename the columns), otherwise, the column names will be inferred from the first line.
 
-        when `names` is specified, it has to be as same length as actual columns of the data. If this caused column renam, then you should always use column name specified in `names` to access the data(for example, in `usecols`).
+        when `names` is specified, it has to be as same length as actual columns of the data. If this causes column renaming, then you should always use column name specified in `names` to access the data (instead of which in `usecols`).
+
+        Examples:
+            >>> data = ",result,table,_time,code,name\\r\\n,_result,0,2019-01-01T09:31:00Z,000002.XSHE,国联证券"
+            >>> des = DataframeDeserializer(names=["_", "result", "table", "frame", "code", "name"], usecols=["frame", "code", "name"])
+            >>> des(data)
+                              frame         code  name
+            0  2019-01-01T09:31:00Z  000002.XSHE  国联证券
 
         Args:
             sort_values: sort the dataframe by the specified columns
             encoding: if the data is bytes, then encoding is required, due to pandas.read_csv only handle string array
-            sep : the seperator/delimiter of each fields
-            header : the row number of the header, default is 'infer'
-            names : the column names of the dataframe
-            index_col : the column number or name of the index column
-            usecols : the column number or name of the columns to use
-            dtype : the dtype of the columns
-            engine : the engine of the csv file, default is None
-            converters : specify converter for columns.
-            skiprows : the row number to skip
-            skipfooter : the row number to skip at the end of the file
-            time_col : the columns to parse as dates
-            infer_datetime_format : whether to infer the datetime format
-            date_parser : the function to parse the date
+            sep: the seperator/delimiter of each fields
+            header: the row number of the header, default is 'infer'
+            names: the column names of the dataframe
+            index_col: the column number or name of the index column
+            usecols: the column name of the columns to use
+            dtype: the dtype of the columns
+            engine: the engine of the csv file, default is None
+            converters: specify converter for columns.
+            skiprows: the row number to skip
+            skipfooter: the row number to skip at the end of the file
+            time_col: the columns to parse as dates
+            infer_datetime_format: whether to infer the datetime format
+            date_parser: the function to parse the date
             lineterminator: the line terminator of the csv file, only valid when engine is 'c'
-            kwargs : other arguments
+            kwargs: other arguments
         """
-        if "parse_dates" in kwargs:
-            raise BadParameterError("parse_dates is disabled, use time_col instead")
-        if "date_parser" in kwargs:
-            raise BadParameterError(
-                "date_parser is disabled, ciso8061 parser is used instead"
-            )
-
         self.sort_values = sort_values
         self.encoding = encoding
         self.sep = sep
@@ -391,6 +387,8 @@ class DataframeDeserializer(Serializer):
             **self.kwargs,
         )
 
+        if self.usecols:
+            df = df[list(self.usecols)]
         if self.sort_values is not None:
             return df.sort_values(self.sort_values)
         else:

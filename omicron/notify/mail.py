@@ -40,7 +40,7 @@ async def mail_notify(
         html (bool, optional): body是否按html格式处理？ Defaults to False.
         receivers (List[str], Optional): 接收者信息。如果不提供，将使用预先配置的接收者信息。
     """
-    if all([msg, subject or body]):
+    if all([msg is not None, subject or body]):
         raise TypeError("msg参数与subject/body只能提供其中之一")
     elif all([msg is None, subject is None, body is None]):
         raise TypeError("必须提供msg参数或者subjecdt/body参数")
@@ -128,14 +128,16 @@ async def send_mail(
 
 def compose(
     subject: str, plain_txt: str = None, html: str = None, attachment: str = None
-):
+) -> EmailMessage:
     """编写MIME邮件。
 
     Args:
-        subject (str): [description]
-        plain_txt (str): [description]
-        html (str, optional): [description]. Defaults to None.
-        attachment (str, optional): 附件文件名。 Defaults to None.
+        subject (str): 邮件主题
+        plain_txt (str): 纯文本格式的邮件内容
+        html (str, optional): html格式的邮件内容. Defaults to None.
+        attachment (str, optional): 附件文件名
+    Returns:
+        MIME mail
     """
     msg = EmailMessage()
 

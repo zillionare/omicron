@@ -806,7 +806,7 @@ class TimeFrame:
             raise ValueError(f"{frame_type} not supported")
 
     @classmethod
-    def get_frames(cls, start: Arrow, end: Arrow, frame_type: FrameType) -> List[int]:
+    def get_frames(cls, start: Frame, end: Frame, frame_type: FrameType) -> List[int]:
         """取[start, end]间所有类型为frame_type的frames
 
         调用本函数前，请先通过`floor`或者`ceiling`将时间帧对齐到`frame_type`的边界值
@@ -1136,6 +1136,7 @@ class TimeFrame:
 
     @classmethod
     def get_frame_scope(cls, frame: Frame, ft: FrameType) -> Tuple[Frame, Frame]:
+        # todo: 函数的通用性不足，似乎应该放在具体的业务类中。如果是通用型的函数，参数不应该局限于周和月。
         """对于给定的时间，取所在周的第一天和最后一天，所在月的第一天和最后一天
 
         如果指定日期是休息日，并且本周随后的时间内（周一到周五）还有至少一个交易日，那么返回的日期是当前周，否则返回下一周

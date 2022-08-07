@@ -18,7 +18,7 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         await init_test_env()
         await omicron.init()
-        return super().setUp()
+        return await super().asyncSetUp()
 
     async def asyncTearDown(self) -> None:
         await omicron.close()

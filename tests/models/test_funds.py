@@ -24,9 +24,11 @@ class FundNetValueTest(unittest.IsolatedAsyncioTestCase):
         await Funds.delete.gino.status()
 
     async def asyncTearDown(self) -> None:
-        await FundNetValue.delete.gino.status()
-        await Funds.delete.gino.status()
-        await omicron.close()
+        try:
+            await FundNetValue.delete.gino.status()
+            await Funds.delete.gino.status()
+        finally:
+            await omicron.close()
 
     async def test_crud(self) -> None:
 

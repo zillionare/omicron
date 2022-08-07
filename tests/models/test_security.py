@@ -47,7 +47,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         await self.client.create_bucket()
         await set_security_data_to_db(self.client)
 
-        return super().setUp()
+        return await super().asyncSetUp()
 
     async def asyncTearDown(self) -> None:
         await omicron.close()

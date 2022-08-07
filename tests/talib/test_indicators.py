@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from omicron.talib import *
+from omicron.talib.indicators import *
 
 
 class IndicatorTest(unittest.TestCase):

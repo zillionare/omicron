@@ -258,11 +258,12 @@ def join_by_left(key, r1, r2, mask=True):
 
 def numpy_append_fields(
     base: np.ndarray, names: Union[str, List[str]], data: List, dtypes: List
-):
+) -> np.ndarray:
     """给现有的数组`base`增加新的字段
 
-    实现了`numpy.lib.recfunctions.rec_append_fields`的功能。因为`rec_append_fields`不能处
-    理`data`元素的类型为Object的情况
+    实现了`numpy.lib.recfunctions.rec_append_fields`的功能。提供这个功能，是因为`rec_append_fields`不能处理`data`元素的类型为Object的情况。
+
+    新增的数据列将顺序排列在其它列的右边。
 
     Example:
         >>> # 新增单个字段

@@ -1,24 +1,33 @@
-import asyncio
 import datetime
+import itertools
 import logging
 import re
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Generator, List, Tuple, Union
 
 import arrow
 import cfg4py
 import ciso8601
 import numpy as np
 import pandas as pd
-from coretypes import Frame, FrameType, SecurityType, bars_cols, bars_dtype
+from coretypes import (
+    BarsArray,
+    BarsPanel,
+    Frame,
+    FrameType,
+    SecurityType,
+    bars_cols,
+    bars_dtype,
+    bars_dtype_with_code,
+)
 
 from omicron import tf
 from omicron.core.constants import TRADE_PRICE_LIMITS
-from omicron.core.errors import BadParameterError, DataNotReadyError
+from omicron.core.errors import BadParameterError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
-from omicron.extensions.np import array_math_round, array_price_equal
+from omicron.extensions.np import array_price_equal, numpy_append_fields
 from omicron.models.security import Security, convert_nptime_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -37,15 +46,6 @@ class Stock(Security):
     """ "
     Stock对象用于归集某支证券（股票和指数，不包括其它投资品种）的相关信息，比如行情数据（OHLC等）、市值数据、所属概念分类等。
     """
-
-    _cached_frames_start = {
-        FrameType.DAY: None,
-        FrameType.MIN60: None,
-        FrameType.MIN30: None,
-        FrameType.MIN15: None,
-        FrameType.MIN5: None,
-        FrameType.MIN1: None,
-    }
 
     _is_cache_empty = True
 
@@ -156,7 +156,7 @@ class Stock(Security):
         return tf.count_day_frames(ipo_day, arrow.now().date())
 
     @staticmethod
-    def qfq(bars: np.ndarray) -> np.ndarray:
+    def qfq(bars: BarsArray) -> BarsArray:
         """对行情数据执行前复权操作"""
         # todo: 这里可以优化
         if bars.size == 0:
@@ -169,33 +169,137 @@ class Stock(Security):
         return bars
 
     @classmethod
-    async def batch_get_bars_in_range(
+    async def batch_get_min_level_bars_in_range(
         cls,
-        codes: Iterable[str],
+        codes: List[str],
         frame_type: FrameType,
-        begin: Frame,
+        start: Frame,
         end: Frame,
-        fq=True,
-        unclosed: bool = True,
-    ) -> Dict[str, np.ndarray]:
-        """获取在`[start, stop]`间的行情数据。
+        fq: bool = True,
+    ) -> Generator[Dict[str, BarsArray], None, None]:
+        """获取多支股票（指数）在[start, end)时间段内的行情数据
+
+        如果要获取的行情数据是分钟级别（即1m, 5m, 15m, 30m和60m)，使用本接口。
+
+        停牌数据处理请见[get_bars][omicron.models.stock.Stock.get_bars]。
+
+        本函数返回一个迭代器，使用方法示例：
+        ```
+        async for code, bars in Stock.batch_get_min_level_bars_in_range(...):
+            print(code, bars)
+        ```
+
+        如果`end`不在`frame_type`所属的边界点上，那么，如果`end`大于等于当前缓存未收盘数据时间，则将包含未收盘数据；否则，返回的记录将截止到`tf.floor(end, frame_type)`。
 
         Args:
-            codes: 证券代码列表
-            begin (Frame): [description]
-            end (Frame): [description]
-            frame_type (FrameType): [description]
-            fq (bool, optional): [description]. Defaults to True.
+            codes: 股票/指数代码列表
+            frame_type: 帧类型
+            start: 起始时间
+            end: 结束时间。如果未指明，则取当前时间。
+            fq: 是否进行复权，如果是，则进行前复权。Defaults to True.
 
         Returns:
-            返回一个字典，key为证券代码，value为行情数据。value是一个dtype为`bars_dtype`的一维numpy数组。
+            Generator[Dict[str, BarsArray], None, None]: 迭代器，每次返回一个字典，其中key为代码，value为行情数据
         """
-        closed_end = tf.floor(end, frame_type)
-        n = tf.count_frames(begin, closed_end, frame_type)
-        if closed_end < end and unclosed:
-            n += 1
+        n = tf.count_frames(start, tf.floor(end, frame_type), frame_type)
+        batch_size = cfg.influxdb.max_query_size // n + 1
+        ff = tf.first_min_frame(end, frame_type)
 
-        return await cls.batch_get_bars(codes, n, frame_type, end, fq, unclosed)
+        for i in range(0, len(codes), batch_size):
+            batch_codes = codes[i : i + batch_size]
+
+            if end < ff:
+                part1 = await cls._batch_get_persisted_bars_in_range(
+                    batch_codes, frame_type, start, ff
+                )
+                part2 = pd.DataFrame([], columns=bars_dtype_with_code.names)
+            elif start > ff:
+                part1 = pd.DataFrame([], columns=bars_dtype_with_code.names)
+                n = tf.get_frames(start, tf.floor(end, frame_type), frame_type) + 1
+                cached = await cls._batch_get_cached_bars_n(
+                    frame_type, n, end, batch_codes
+                )
+                part2 = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
+            else:
+                part1 = await cls._batch_get_persisted_bars_in_range(
+                    batch_codes, frame_type, start, ff
+                )
+                n = tf.count_frames(start, tf.floor(end, frame_type), frame_type) + 1
+                cached = await cls._batch_get_cached_bars_n(
+                    frame_type, n, end, batch_codes
+                )
+                part2 = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
+
+            df = pd.concat([part1, part2])
+
+            for code in batch_codes:
+                filtered = df[df["code"] == code][bars_cols]
+                bars = filtered.to_records(index=False).astype(bars_dtype)
+                if fq:
+                    bars = cls.qfq(bars)
+
+                yield code, bars
+
+    @classmethod
+    async def batch_get_day_level_bars_in_range(
+        cls,
+        codes: List[str],
+        frame_type: FrameType,
+        start: Frame,
+        end: Frame,
+        fq: bool = True,
+    ) -> Generator[Dict[str, BarsArray], None, None]:
+        """获取多支股票（指数）在[start, end)时间段内的行情数据
+
+        如果要获取的行情数据是日线级别（即1d, 1w, 1M)，使用本接口。
+
+        停牌数据处理请见[get_bars][omicron.models.stock.Stock.get_bars]。
+
+        本函数返回一个迭代器，使用方法示例：
+        ```
+        async for code, bars in Stock.batch_get_day_level_bars_in_range(...):
+            print(code, bars)
+        ```
+
+        如果`end`不在`frame_type`所属的边界点上，那么，如果`end`大于等于当前缓存未收盘数据时间，则将包含未收盘数据；否则，返回的记录将截止到`tf.floor(end, frame_type)`。
+
+        Args:
+            codes: 代码列表
+            frame_type: 帧类型
+            start: 起始时间
+            end: 结束时间
+            fq: 是否进行复权，如果是，则进行前复权。Defaults to True.
+
+        Returns:
+            Generator[Dict[str, BarsArray], None, None]: 迭代器，每次返回一个字典，其中key为代码，value为行情数据
+        """
+        today = datetime.datetime.now().date()
+        # 日线，end不等于最后交易日，此时已无缓存
+        if frame_type == FrameType.DAY and end == tf.floor(today, frame_type):
+            from_cache = True
+        elif frame_type != FrameType.DAY and start > tf.floor(today, frame_type):
+            from_cache = True
+        else:
+            from_cache = False
+
+        if from_cache:
+            cached = await cls._batch_get_cached_bars_n(frame_type, 1, end, codes)
+            cached = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
+        else:
+            cached = pd.DataFrame([], columns=bars_dtype_with_code.names)
+
+        persisted = await cls._batch_get_persisted_bars_in_range(
+            codes, frame_type, start, end
+        )
+
+        df = pd.concat([persisted, cached])
+        for code in codes:
+            filtered = df[df["code"] == code][bars_cols]
+            bars = filtered.to_records(index=False).astype(bars_dtype)
+            if fq:
+                bars = cls.qfq(bars)
+
+            yield code, bars
 
     @classmethod
     async def get_bars_in_range(
@@ -203,144 +307,51 @@ class Stock(Security):
         code: str,
         frame_type: FrameType,
         start: Frame,
-        end: Frame,
+        end: Frame = None,
         fq=True,
         unclosed=True,
-    ) -> np.ndarray:
+    ) -> BarsArray:
         """获取指定证券（`code`）在[`start`, `end`]期间帧类型为`frame_type`的行情数据。
 
         Args:
             code : 证券代码
             frame_type : 行情数据的帧类型
             start : 起始时间
-            end : 结束时间
+            end : 结束时间,如果为None，则表明取到当前时间。
             fq : 是否对行情数据执行前复权操作
             unclosed : 是否包含未收盘的数据
         """
-        closed_end = tf.floor(end, frame_type)
-        n = tf.count_frames(start, closed_end, frame_type)
+        if frame_type in tf.day_level_frames:
+            end = end or arrow.now().date()
+            if unclosed and tf.day_shift(end, 0) == arrow.now().date():
+                part2 = await cls._get_cached_bars_n(code, 1, frame_type)
+            else:
+                part2 = np.array([], dtype=bars_dtype)
 
-        if closed_end != end and unclosed:
-            n += 1
-
-        return await cls.get_bars(code, n, frame_type, end, fq, unclosed)
-
-    @classmethod
-    async def batch_get_bars(
-        cls,
-        codes: Iterable[str],
-        n: int,
-        frame_type: FrameType,
-        end: Frame = None,
-        fq: bool = True,
-        unclosed: bool = True,
-    ) -> Dict[str, np.ndarray]:
-        """获取多支股票（指数）的最近的`n`个行情数据。
-
-        停牌数据处理请见[get_bars][omicron.models.stock.Stock.get_bars]。
-
-        结果以dict方式返回，key为传入的股票代码，value为对应的行情数据。
-
-        Args:
-            codes: 代码列表
-            n: 返回记录数
-            frame_type: 帧类型
-            end: 结束时间。如果未指明，则取当前时间。 Defaults to None.
-            fq: 是否进行复权，如果是，则进行前复权。Defaults to True.
-            unclosed: 是否包含最新一期未收盘数据. Defaults to True.
-
-        Returns:
-            返回一个字典，其key为证券代码，其value为dtype为`bars_dtype`的一维numpy数组。
-        """
-        tasks = [cls.get_bars(c, n, frame_type, end, fq, unclosed) for c in codes]
-        results = await asyncio.gather(*tasks)
-
-        return {c: r for c, r in zip(codes, results)}
-
-    @classmethod
-    async def _get_day_level_bars(
-        cls, code: str, n: int, frame_type: FrameType, end: datetime.date
-    ) -> np.ndarray:
-        """获取日线及日线以上级别的行情数据
-
-        日线级别以上的数据，如果unclosed为False，则只需要从持久化存储中获取；如果为True，则需要先获取日线、再重采样为更高级别的数据。
-
-        对于日线数据，因为次日凌晨才写入持久化储存，因此在此之前都认为是unclosed
-
-        Args:
-            code (str): 证券代码
-            n (int): 记录数
-            frame_type (FrameType): 帧类型
-            end (Frame): 截止时间,如果未指明，则取当前时间
-            fq (bool, optional): [description]. Defaults to True.
-            unclosed (bool, optional): 是否包含最新未收盘的数据？ Defaults to True.
-
-        Returns:
-            一维numpy array, dtype为bars_dtype。如果数据不存在，则返回空数组。
-        """
-        if n <= 0:
-            raise BadParameterError(f"n must be positive, got {n}")
-
-        begin = tf.shift(end, -n + 1, frame_type)
-        part1 = await cls._get_persisted_bars(code, frame_type, begin, end, n)
-
-        if part1.size == n or end < arrow.now().date():
-            return part1
-
-        # need get data from cache
-        cached_day_bar = await cls._get_cached_day_bar(code)
-
-        if frame_type == FrameType.DAY:
-            return np.concatenate([part1, cached_day_bar])[-n:]
-
-        # 其它周期的数据，需要从日线级别来拼。注意，此时可能某个周期的数据已收盘，但还未到周期校准同步的时间，因此即使是取已收盘数据，也需要从日线来拼。
-        day_start = tf.day_shift(tf.floor(end, frame_type), 1)
-
-        m = tf.count_frames(day_start, end, FrameType.DAY)
-        if m <= 0:
-            persisted_day_bars = np.array([], dtype=bars_dtype)
+            # get rest from persisted
+            part1 = await cls._get_persisted_bars_in_range(code, frame_type, start, end)
+            bars = np.concatenate((part1, part2))
         else:
-            persisted_day_bars = await cls._get_persisted_bars(
-                code, FrameType.DAY, day_start, end, m
-            )
+            end = end or arrow.now().naive
+            ff = tf.first_min_frame(arrow.now(), frame_type)
+            if start < ff:
+                part1 = await cls._get_persisted_bars_in_range(
+                    code, frame_type, start, ff
+                )
+            else:
+                part1 = np.array([], dtype=bars_dtype)
 
-        day_bars = np.concatenate([persisted_day_bars, cached_day_bar])
-        if day_bars.size >= 2 and day_bars[-1]["frame"] == day_bars[-2]["frame"]:
-            # overlapped, should never happen
-            logger.warning(
-                "both persisted db and cache has bars for %s at %s", code, end
-            )
-            day_bars = day_bars[:-1]
+            closed_end = tf.floor(end, frame_type)
+            n = tf.count_frames(ff, closed_end, frame_type)
+            part2 = await cls._get_cached_bars_n(code, n + 1, frame_type, end)
+            if not unclosed:
+                part2 = part2[part2["frame"] <= closed_end]
+            bars = np.concatenate((part1, part2))
 
-        if day_bars.size > 0:
-            unsynced = cls._resample_from_day(day_bars, frame_type)
+        if fq:
+            return cls.qfq(bars)
         else:
-            unsynced = np.array([], dtype=bars_dtype)
-
-        bars = np.concatenate([part1, unsynced])
-        return bars[-n:]
-
-    @classmethod
-    async def _get_cached_day_bar(cls, code: str) -> np.ndarray:
-        """获取最新日线数据
-
-        Args:
-            code : 证券代码（聚宽格式）
-
-        Returns:
-            dtype为bars_dtype的一维numpy数组
-        """
-        key = "bars:1d:unclosed"
-
-        raw = await cache.security.hget(key, code)
-        if raw is not None:
-            return cls._deserialize_cached_bars([raw], FrameType.DAY)
-
-        mbars = await cls._get_cached_bars(code, arrow.now().naive, 240, FrameType.MIN1)
-        if len(mbars) == 0:
-            return np.array([], dtype=bars_dtype)
-
-        return cls.resample(mbars, FrameType.MIN1, FrameType.DAY)
+            return bars
 
     @classmethod
     async def get_bars(
@@ -351,69 +362,67 @@ class Stock(Security):
         end: Frame = None,
         fq=True,
         unclosed=True,
-    ) -> np.ndarray:
+    ) -> BarsArray:
         """获取到`end`为止的`n`个行情数据。
 
-        返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，该时段数据将被跳过，因此返回的记录可能不是交易日连续的。
+        返回的数据是按照时间顺序递增排序的。在遇到停牌的情况时，该时段数据将被跳过，因此返回的记录可能不是交易日连续的，并且可能不足`n`个。
 
         如果系统当前没有到指定时间`end`的数据，将尽最大努力返回数据。调用者可以通过判断最后一条数据的时间是否等于`end`来判断是否获取到了全部数据。
 
         Args:
-            code (str): 证券代码
-            n (int): 记录数
-            frame_type (FrameType): 帧类型
-            end (Frame): 截止时间,如果未指明，则取当前时间
-            fq (bool, optional): [description]. Defaults to True.
-            unclosed (bool, optional): 是否包含最新未收盘的数据？ Defaults to True.
+            code: 证券代码
+            n: 记录数
+            frame_type: 帧类型
+            end: 截止时间,如果未指明，则取当前时间
+            fq: 是否对返回记录进行复权。如果为`True`的话，则进行前复权。Defaults to True.
+            unclosed: 是否包含最新未收盘的数据？ Defaults to True.
 
         Returns:
             返回dtype为`coretypes.bars_dtype`的一维numpy数组。
         """
+        now = datetime.datetime.now()
         try:
             if frame_type in tf.day_level_frames:
-                end = arrow.get(end).date() if end else arrow.now().date()
-                bars = await cls._get_day_level_bars(code, n, frame_type, end)
-
-                if not unclosed and not tf.is_bar_closed(bars[-1]["frame"], frame_type):
-                    bars = bars[:-1]
-
-                if fq:
-                    bars = cls.qfq(bars)
-                return bars
-
-            # frame_type is minute level
-            end = end or arrow.now().floor("minute").naive
-            close_end = tf.floor(end, frame_type)
-
-            part2 = await cls._get_cached_bars(code, end, n, frame_type)
-
-            if not unclosed and not tf.is_bar_closed(part2[-1]["frame"], frame_type):
-                part2 = part2[:-1]
-
-            if part2.size == n:
-                part1 = np.array([], dtype=bars_dtype)
-            elif part2.size == 0:
-                n1 = n
-                part1_end = close_end
-                part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
-                part1 = await cls._get_persisted_bars(
-                    code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
-                )
+                if end is None:
+                    end = now.date()
+                elif type(end) == datetime.datetime:
+                    end = end.date()
+                n0 = n
+                if unclosed:
+                    cached = await cls._get_cached_bars_n(code, 1, frame_type)
+                    if cached.size > 0:
+                        # 如果缓存的未收盘日期 > end，则该缓存不是需要的
+                        if cached[0]["frame"].item().date() > end:
+                            cached = np.array([], dtype=bars_dtype)
+                        else:
+                            n0 = n - 1
             else:
-                n1 = n - part2.size
+                end = end or now
+                closed_frame = tf.floor(end, frame_type)
 
-                # 可能多查询一个bar，但返回前通过limit进行了限制
-                part1_end = tf.shift(part2[0]["frame"], -1, frame_type)
-                part1_begin = tf.shift(part1_end, -n1 + 1, frame_type)
-                part1 = await cls._get_persisted_bars(
-                    code, begin=part1_begin, end=part1_end, n=n1, frame_type=frame_type
-                )
+                # fetch one more bar, in case we should discard unclosed bar
+                cached = await cls._get_cached_bars_n(code, n + 1, frame_type, end)
+                if not unclosed:
+                    cached = cached[cached["frame"] <= closed_frame]
 
-            bars = np.concatenate([part1, part2])
+                # n bars we need fetch from persisted db
+                n0 = n - cached.size
+            if n0 > 0:
+                if cached.size > 0:
+                    end0 = cached[0]["frame"].item()
+                elif frame_type in tf.day_level_frames:
+                    end0 = end
+                else:
+                    end0 = tf.first_min_frame(end, frame_type)
+
+                bars = await cls._get_persisted_bars_n(code, frame_type, n0, end0)
+                merged = np.concatenate((bars, cached))
+                bars = merged[-n:]
+            else:
+                bars = cached[-n:]
 
             if fq:
                 bars = cls.qfq(bars)
-
             return bars
         except Exception as e:
             logger.exception(e)
@@ -423,65 +432,57 @@ class Stock(Security):
             raise
 
     @classmethod
-    async def _get_persisted_bars(
-        cls,
-        code: str,
-        frame_type: FrameType,
-        begin: Frame,
-        end: Frame = None,
-        n: int = None,
-    ) -> np.array:
-        """从influxdb中获取数据
+    async def _get_persisted_bars_in_range(
+        cls, code: str, frame_type: FrameType, start: Frame, end: Frame = None
+    ) -> BarsArray:
+        """从持久化数据库中获取介于[`start`, `end`]间的行情记录
 
-        如果`end`未指定，则取当前时间。当`n`指定时，将只返回在`[begin, end]`范围内的最多`n`条数据,且为递增排序的最后`n`条数据（即最接近于`end`的数据）。
-
-        返回的数据按`frame`进行升序排列。
+        如果`start`到`end`区间某支股票停牌，则会返回空数组。
 
         Args:
-            code (str): 证券代码
-            frame_type: the frame_type to query
-            n (int): 返回结果数量
-            end (Frame): [description]
+            code: 证券代码
+            frame_type: 帧类型
+            start: 起始时间
+            end: 结束时间，如果未指明，则取当前时间
 
         Returns:
-            返回dtype为`bars_dtype`的numpy数组
+            返回dtype为`coretypes.bars_dtype`的一维numpy数组。
         """
-        assert begin is not None, "must specify `begin`"
-        # check is needed since tags accept List as well
-        assert isinstance(code, str), "`code` must be a string"
-
         end = end or arrow.now().naive
 
-        keep_cols = ["_time"] + bars_cols[1:]
+        keep_cols = ["_time"] + list(bars_cols[1:])
 
         measurement = cls._measurement_name(frame_type)
         flux = (
             Flux()
             .bucket(cfg.influxdb.bucket_name)
-            .range(begin, end)
+            .range(start, end)
             .measurement(measurement)
             .fields(keep_cols)
             .tags({"code": code})
         )
 
-        if n is not None:
-            flux.latest(n)
-        else:
-            flux.sort("_time")
-
-        if frame_type in tf.day_level_frames:
-            _time_converter = ciso8601_parse_date
-        else:
-            _time_converter = ciso8601_parse_naive
-        serializer = NumpyDeserializer(
-            bars_dtype,
-            # sort at server side
-            # sort_values="frame",
+        serializer = DataframeDeserializer(
             encoding="utf-8",
-            skip_rows=1,
-            use_cols=keep_cols,
-            parse_date=None,
-            converters={"_time": _time_converter},
+            names=[
+                "_",
+                "table",
+                "result",
+                "frame",
+                "code",
+                "amount",
+                "close",
+                "factor",
+                "high",
+                "low",
+                "open",
+                "volume",
+            ],
+            engine="c",
+            skiprows=0,
+            header=0,
+            usecols=bars_cols,
+            parse_dates=["frame"],
         )
 
         url = cfg.influxdb.url
@@ -490,47 +491,172 @@ class Stock(Security):
         org = cfg.influxdb.org
 
         client = InfluxClient(url, token, bucket, org)
-        return await client.query(flux, serializer)
+        result = await client.query(flux, serializer)
+        return result.to_records(index=False).astype(bars_dtype)
 
     @classmethod
-    async def _batch_get_persisted_bars(
-        cls,
-        codes: List[str],
-        frame_type: FrameType,
-        begin: Frame,
-        n: int = None,
-        end: Frame = None,
-    ) -> Dict[str, np.array]:
-        """从持久化存储中获取`codes`指定的一批股票在时间范围内的数据。
+    async def _get_persisted_bars_n(
+        cls, code: str, frame_type: FrameType, n: int, end: Frame = None
+    ) -> BarsArray:
+        """从持久化数据库中获取截止到`end`的`n`条行情记录
 
-        如果`end`未指定，则取当前时间。当`n`指定时，将只返回在`[begin, end]`范围内的最多`n`条数据,且为递增排序的最后`n`条数据（即最接近于`end`的数据）。
+        如果`end`未指定，则取当前时间。
+
+        基于influxdb查询的特性，在查询前，必须先根据`end`和`n`计算出起始时间，但如果在此期间某些股票有停牌，则无法返回的数据将小于`n`。而如果起始时间设置得足够早，虽然能满足返回数据条数的要求，但会带来性能上的损失。因此，我们在计算起始时间时，不是使用`n`来计算，而是使用了`min(n * 2, n + 20)`来计算起始时间，这样多数情况下，能够保证返回数据的条数为`n`条。
 
         返回的数据按`frame`进行升序排列。
 
-        如果`codes`为None,则返回指定时间段内所有股票的数据。
-
-        注意，返回的数据有可能不是等长的。
-
         Args:
-            codes : 证券代码列表
-            frame_type : the frame_type to query
-            begin : begin timestamp of returned results
-            n : 返回结果数量
-            end : end timestamp of returned results
+            code: 证券代码
+            frame_type: 帧类型
+            n: 返回结果数量
+            end: 结束时间，如果未指明，则取当前时间
 
         Returns:
-            以`code`为key, 行情数据（dtype为bars_dtype的numpy数组）为value的字典
+            返回dtype为`bars_dtype`的numpy数组
         """
-        if n is None:
-            assert begin is not None, "must specify `begin` or `n`"
-        else:
-            begin = begin or Flux.EPOCH_START
+        # check is needed since tags accept List as well
+        assert isinstance(code, str), "`code` must be a string"
+
+        end = end or datetime.datetime.now()
+        closed_end = tf.floor(end, frame_type)
+        start = tf.shift(closed_end, -min(2 * n, n + 20), frame_type)
+
+        keep_cols = ["_time"] + list(bars_cols[1:])
+
+        measurement = cls._measurement_name(frame_type)
+        flux = (
+            Flux()
+            .bucket(cfg.influxdb.bucket_name)
+            .range(start, end)
+            .measurement(measurement)
+            .fields(keep_cols)
+            .tags({"code": code})
+            .latest(n)
+        )
+
+        serializer = DataframeDeserializer(
+            encoding="utf-8",
+            names=[
+                "_",
+                "table",
+                "result",
+                "frame",
+                "code",
+                "amount",
+                "close",
+                "factor",
+                "high",
+                "low",
+                "open",
+                "volume",
+            ],
+            engine="c",
+            skiprows=0,
+            header=0,
+            usecols=bars_cols,
+            parse_dates=["frame"],
+        )
+
+        url = cfg.influxdb.url
+        token = cfg.influxdb.token
+        bucket = cfg.influxdb.bucket_name
+        org = cfg.influxdb.org
+
+        client = InfluxClient(url, token, bucket, org)
+        result = await client.query(flux, serializer)
+        return result.to_records(index=False).astype(bars_dtype)
+
+    @classmethod
+    async def _batch_get_persisted_bars_n(
+        cls, codes: List[str], frame_type: FrameType, n: int, end: Frame = None
+    ) -> pd.DataFrame:
+        """从持久化存储中获取`codes`指定的一批股票截止`end`时的`n`条记录。
+
+        返回的数据按`frame`进行升序排列。如果不存在满足指定条件的查询结果，将返回空的DataFrame。
+
+        基于influxdb查询的特性，在查询前，必须先根据`end`和`n`计算出起始时间，但如果在此期间某些股票有停牌，则无法返回的数据将小于`n`。如果起始时间设置的足够早，虽然能满足返回数据条数的要求，但会带来性能上的损失。因此，我们在计算起始时间时，不是使用`n`来计算，而是使用了`min(n * 2, n + 20)`来计算起始时间，这样多数情况下，能够保证返回数据的条数为`n`条。
+
+        Args:
+            codes: 证券代码列表。
+            frame_type: 帧类型
+            n: 返回结果数量
+            end: 结束时间，如果未指定，则使用当前时间
+
+        Returns:
+            DataFrame, columns为`code`, `frame`, `open`, `high`, `low`, `close`, `volume`, `amount`, `factor`
+
+        """
+        if len(codes) * min(n + 20, 2 * n) > cfg.influxdb.max_query_size:
+            raise BadParameterError(
+                f"codes的数量和n的乘积超过了influxdb的最大查询数量限制{cfg.influxdb.max_query_size}"
+            )
 
         end = end or arrow.now().naive
+        close_end = tf.floor(end, frame_type)
+        begin = tf.shift(close_end, -1 * min(n + 20, n * 2), frame_type)
 
         # influxdb的查询结果格式类似于CSV，其列顺序为_, result_alias, table_seq, _time, tags, fields,其中tags和fields都是升序排列
-        return_cols = bars_cols
-        keep_cols = bars_cols + ["code"]
+        keep_cols = ["code"] + list(bars_cols)
+        names = ["_", "result", "table", "frame", "code"]
+
+        # influxdb will return fields in the order of name ascending parallel
+        names.extend(sorted(bars_cols[1:]))
+
+        measurement = cls._measurement_name(frame_type)
+        flux = (
+            Flux()
+            .bucket(cfg.influxdb.bucket_name)
+            .range(begin, end)
+            .measurement(measurement)
+            .fields(keep_cols)
+            .latest(n)
+        )
+
+        if codes is not None:
+            assert isinstance(codes, list), "`codes` must be a list or None"
+            flux.tags({"code": codes})
+
+        deserializer = DataframeDeserializer(
+            names=names,
+            usecols=keep_cols,
+            encoding="utf-8",
+            time_col="frame",
+            engine="c",
+        )
+
+        client = cls._get_influx_client()
+        return await client.query(flux, deserializer)
+
+    @classmethod
+    async def _batch_get_persisted_bars_in_range(
+        cls, codes: List[str], frame_type: FrameType, begin: Frame, end: Frame = None
+    ) -> pd.DataFrame:
+        """从持久化存储中获取`codes`指定的一批股票在`begin`和`end`之间的记录。
+
+        返回的数据将按`frame`进行升序排列。
+        注意，返回的数据有可能不是等长的，因为有的股票可能停牌。
+
+        Args:
+            codes: 证券代码列表。
+            frame_type: 帧类型
+            begin: 开始时间
+            end: 结束时间
+
+        Returns:
+            DataFrame, columns为`code`, `frame`, `open`, `high`, `low`, `close`, `volume`, `amount`, `factor`
+
+        """
+        end = end or datetime.datetime.now()
+
+        n = tf.count_frames(begin, end, frame_type)
+        if len(codes) * n > cfg.influxdb.max_query_size:
+            raise BadParameterError(
+                f"asked records is {len(codes) * n}, which is too large than {cfg.influxdb.max_query_size}"
+            )
+
+        # influxdb的查询结果格式类似于CSV，其列顺序为_, result_alias, table_seq, _time, tags, fields,其中tags和fields都是升序排列
+        keep_cols = ["code"] + list(bars_cols)
         names = ["_", "result", "table", "frame", "code"]
 
         # influxdb will return fields in the order of name ascending parallel
@@ -545,46 +671,22 @@ class Stock(Security):
             .fields(keep_cols)
         )
 
-        if len(codes) > 0:
-            flux.tags({"code": codes})
-        if n is not None:
-            flux.latest(n)
-        else:
-            flux.sort("_time")
+        flux.tags({"code": codes})
 
         deserializer = DataframeDeserializer(
-            names=names, usecols=keep_cols, encoding="utf-8", time_col="frame"
+            names=names,
+            usecols=keep_cols,
+            encoding="utf-8",
+            time_col="frame",
+            engine="c",
         )
 
         client = cls._get_influx_client()
-        result_df = await client.query(flux, deserializer)
-
-        # 将查询结果转换为dict,并且进行排序
-        result = {}
-        if frame_type in tf.day_level_frames:
-            convertor = cls._pd_timestamp_to_date
-        else:
-            convertor = cls._pd_timestamp_to_datetime
-
-        for code, group in result_df.groupby("code"):
-            df = group[return_cols].sort_values("frame")
-            bars = df.to_records(index=False).astype(bars_dtype)
-            bars["frame"] = [convertor(x) for x in df["frame"]]
-            result[code] = bars
-
-        return result
+        df = await client.query(flux, deserializer)
+        return df
 
     @classmethod
-    def _pd_timestamp_to_date(cls, ts: pd.Timestamp) -> datetime.date:
-        """将pd.Timestamp转换为date"""
-        return ts.to_pydatetime().date()
-
-    @classmethod
-    def _pd_timestamp_to_datetime(cls, ts: pd.Timestamp) -> datetime.datetime:
-        return ts.to_pydatetime()
-
-    @classmethod
-    async def batch_cache_bars(cls, frame_type: FrameType, bars: Dict[str, np.ndarray]):
+    async def batch_cache_bars(cls, frame_type: FrameType, bars: Dict[str, BarsArray]):
         """缓存已收盘的分钟线和日线
 
         当缓存日线时，仅限于当日收盘后的第一次同步时调用。
@@ -604,7 +706,7 @@ class Stock(Security):
         for code, bars in bars.items():
             key = f"bars:{frame_type.value}:{code}"
             for bar in bars:
-                frame = tf.time2int(bar["frame"])
+                frame = tf.time2int(bar["frame"].item())
                 val = [*bar]
                 val[0] = frame
                 pl.hset(key, frame, ",".join(map(str, val)))
@@ -612,12 +714,9 @@ class Stock(Security):
 
     @classmethod
     async def batch_cache_unclosed_bars(
-        cls, frame_type: FrameType, bars: Dict[str, np.ndarray]
+        cls, frame_type: FrameType, bars: Dict[str, BarsArray]
     ):  # pragma: no cover
-        """缓存未收盘的5、15、30、60分钟线及日线
-
-        Note:
-            同[cache_unclosed_bars][omicron.models.stock.Stock.cache_unclosed_bars]一样，考虑到resample的性能较高，所以当前并没有将未结束的行情数据缓存 -- 这需要有一个程序以每分钟一次的频率，对全市场数据进行resample并缓存。
+        """缓存未收盘的5、15、30、60分钟线及日线、周线、月线
 
         Args:
             frame_type: 帧类型
@@ -633,7 +732,7 @@ class Stock(Security):
 
         for code, bar in bars.items():
             val = [*bar[0]]
-            val[0] = convert(bar["frame"][0])  # 时间转换
+            val[0] = convert(bar["frame"][0].item())  # 时间转换
             pl.hset(key, code, ",".join(map(str, val)))
 
         await pl.execute()
@@ -642,9 +741,7 @@ class Stock(Security):
     async def reset_cache(cls):
         """清除缓存的行情数据"""
         try:
-            await cache.security.delete("bars:1d:unclosed")
-            for ft in tf.minute_level_frames:
-                await cache.security.delete(f"bars:{ft.value}:unclosed")
+            for ft in itertools.chain(tf.minute_level_frames, tf.day_level_frames):
                 keys = await cache.security.keys(f"bars:{ft.value}:*")
                 if keys:
                     await cache.security.delete(*keys)
@@ -652,21 +749,25 @@ class Stock(Security):
             cls._is_cache_empty = True
 
     @classmethod
-    def _deserialize_cached_bars(cls, raw: List[str], ft: FrameType) -> np.ndarray:
+    def _deserialize_cached_bars(cls, raw: List[str], ft: FrameType) -> BarsArray:
         """从redis中反序列化缓存的数据
+
+        如果`raw`空数组或者元素为`None`，则返回空数组。
 
         Args:
             raw: redis中的缓存数据
             ft: 帧类型
+            sort: 是否需要重新排序，缺省为False
 
         Returns:
-            [description]
+            BarsArray: 行情数据
         """
         if ft in tf.minute_level_frames:
             convert = tf.int2time
         else:
             convert = tf.int2date
         recs = []
+        # it's possible to treat raw as csv and use pandas to parse, however, the performance is 10 times worse than this method
         for raw_rec in raw:
             if raw_rec is None:
                 continue
@@ -687,80 +788,129 @@ class Stock(Security):
         return np.array(recs, dtype=bars_dtype)
 
     @classmethod
-    async def _batch_get_cached_bars(
-        cls, codes: List[str], end: Frame, n: int, frame_type: FrameType
-    ) -> Dict[str, np.ndarray]:
+    async def _batch_get_cached_bars_n(
+        cls, frame_type: FrameType, n: int, end: Frame = None, codes: List[str] = None
+    ) -> BarsPanel:
         """批量获取在cache中截止`end`的`n`个bars。
 
-        Args:
-            codes: 证券代码列表
-            end : 截止时间
-            n : 返回记录条数
-            frame_type : 时间帧类型
-            unclosed : 是否包含未结束数据
+        如果`end`不在`frame_type`所属的边界点上，那么，如果`end`大于等于当前缓存未收盘数据时间，则将包含未收盘数据；否则，返回的记录将截止到`tf.floor(end, frame_type)`。
 
-        Raises:
+        Args:
+            frame_type: 时间帧类型
+            n: 返回记录条数
+            codes: 证券代码列表
+            end: 截止时间, 如果为None
 
         Returns:
-            key为code, value为行情数据的字典
+            BarsPanel: 行情数据
         """
-        tasks = [cls._get_cached_bars(c, end, n, frame_type) for c in codes]
-        results = await asyncio.gather(*tasks)
+        # 调用者自己保证end在缓存中
+        cols = list(bars_dtype_with_code.names)
+        if frame_type in tf.day_level_frames:
+            key = f"bars:{frame_type.value}:unclosed"
+            if codes is None:
+                recs = await cache.security.hgetall(key)
+                codes = list(recs.keys())
+                recs = recs.values()
+            else:
+                recs = await cache.security.hmget(key, *codes)
 
-        return {c: r for c, r in zip(codes, results)}
+            barss = cls._deserialize_cached_bars(recs, frame_type)
+            barss = numpy_append_fields(barss, "code", codes, [("code", "O")])
+            return barss[cols].astype(bars_dtype_with_code)
+        else:
+            end = end or arrow.now().naive
+            close_end = tf.floor(end, frame_type)
+            all_bars = []
+            if codes is None:
+                keys = await cache.security.keys(f"bars:{frame_type.value}:*")
+                codes = [key.split(":")[-1] for key in keys]
+            else:
+                keys = [f"bars:{frame_type.value}:{code}" for code in codes]
+
+            if frame_type != FrameType.MIN1:
+                unclosed = await cache.security.hgetall(
+                    f"bars:{frame_type.value}:unclosed"
+                )
+            else:
+                unclosed = {}
+
+            pl = cache.security.pipeline()
+            frames = tf.get_frames_by_count(close_end, n, frame_type)
+            for key in keys:
+                pl.hmget(key, *frames)
+
+            all_closed = await pl.execute()
+            for code, raw in zip(codes, all_closed):
+                raw.append(unclosed.get(code))
+                barss = cls._deserialize_cached_bars(raw, frame_type)
+                barss = numpy_append_fields(
+                    barss, "code", [code] * len(barss), [("code", "O")]
+                )
+                barss = barss[cols].astype(bars_dtype_with_code)
+                all_bars.append(barss[barss["frame"] <= end][-n:])
+
+            try:
+                return np.concatenate(all_bars)
+            except ValueError as e:
+                logger.exception(e)
+                return np.array([], dtype=bars_dtype_with_code)
 
     @classmethod
-    async def _get_cached_bars(
-        cls, code: str, end: Frame, n: int, frame_type: FrameType
-    ) -> np.ndarray:
+    async def _get_cached_bars_n(
+        cls, code: str, n: int, frame_type: FrameType, end: Frame = None
+    ) -> BarsArray:
         """从缓存中获取指定代码的行情数据
 
-        本接口在如下场景下，性能不是最优的：
-        如果cache中存在接近240根分钟线，取截止到9：35分的前5根K线，此实现也会取出全部k线，但只返回前5根。这样会引起不必要的网络通信及反串行化时间。
+        存取逻辑是，从`end`指定的时间向前取`n`条记录。`end`不应该大于当前系统时间，并且根据`end`和`n`计算出来的起始时间应该在缓存中存在。否则，两种情况下，返回记录数都将小于`n`。
+
+        如果`end`不处于`frame_type`所属的边界结束位置，且小于当前已缓存的未收盘bar时间，则会返回前一个已收盘的数据，否则，返回的记录中还将包含未收盘的数据。
 
         args:
-            code: the full qualified code of a security or index
-            end: the end frame of the bars
-            n: the number of bars to return
-            frame_type: 帧类型。只能为分钟类型和日线类型。
+            code: 证券代码，比如000001.XSHE
+            n: 返回记录条数
+            frame_type: 帧类型
+            end: 结束帧，如果为None，则取当前时间
 
         returns:
             元素类型为`coretypes.bars_dtype`的一维numpy数组。如果没有数据，则返回空ndarray。
         """
-        # 只有日线及以下级别的数据，才能直接从缓存中获取
-        assert frame_type in tf.minute_level_frames or frame_type == FrameType.DAY
+        # 50 times faster than arrow.now().floor('second')
+        end = end or datetime.datetime.now().replace(second=0, microsecond=0)
 
-        # 如果传入的end为日期型（如果是日线，则常常会传入datetime.date类型），则转换为datetime型
-        if getattr(end, "date", None) is None:
-            end = tf.combine_time(end, 15)
+        if frame_type in tf.minute_level_frames:
+            cache_start = tf.first_min_frame(end.date(), frame_type)
+            closed = tf.floor(end, frame_type)
 
-        # ff = tf.day_shift(arrow.now().date(), 0)
-        start = tf.combine_time(arrow.now().date(), 9, 31)
-        end = tf.floor(end, FrameType.MIN1)
+            frames = (tf.get_frames(cache_start, closed, frame_type))[-n:]
+            if len(frames) == 0:
+                return np.empty(shape=(0,), dtype=bars_dtype)
 
-        if end < start:
-            return np.array([], dtype=bars_dtype)
+            key = f"bars:{frame_type.value}:{code}"
+            recs = await cache.security.hmget(key, *frames)
+            recs = cls._deserialize_cached_bars(recs, frame_type)
 
-        # 取1分钟数据，再进行resample
-        key = f"bars:{FrameType.MIN1.value}:{code}"
+            if closed < end:
+                # for unclosed
+                key = f"bars:{frame_type.value}:unclosed"
+                unclosed = await cache.security.hget(key, code)
+                unclosed = cls._deserialize_cached_bars([unclosed], frame_type)
 
-        frames = map(str, tf.get_frames(start, end, FrameType.MIN1))
-        r1 = await cache.security.hmget(key, *frames)
-
-        min_bars = cls._deserialize_cached_bars(r1, FrameType.MIN1)
-
-        if min_bars.size == 0:
-            return min_bars
-
-        if frame_type == FrameType.MIN1:
-            return min_bars[-n:]
-
-        bars = cls.resample(min_bars, from_frame=FrameType.MIN1, to_frame=frame_type)
-
-        return bars[-n:]
+                if end < unclosed[0]["frame"].item():
+                    # 如果unclosed为9:36, 调用者要求取9:29的5m数据，则取到的unclosed不合要求，抛弃。似乎没有更好的方法检测end与unclosed的关系
+                    return recs[-n:]
+                else:
+                    bars = np.concatenate((recs, unclosed))
+                    return bars[-n:]
+            else:
+                return recs[-n:]
+        else:  # 日线及以上级别，仅在缓存中存在未收盘数据
+            key = f"bars:{frame_type.value}:unclosed"
+            rec = await cache.security.hget(key, code)
+            return cls._deserialize_cached_bars([rec], frame_type)
 
     @classmethod
-    async def cache_bars(cls, code: str, frame_type: FrameType, bars: np.ndarray):
+    async def cache_bars(cls, code: str, frame_type: FrameType, bars: BarsArray):
         """将当期已收盘的行情数据缓存
 
         Note:
@@ -784,23 +934,20 @@ class Stock(Security):
         pl = cache.security.pipeline()
         for bar in bars:
             val = [*bar]
-            val[0] = convert(bar["frame"])
+            val[0] = convert(bar["frame"].item())
             pl.hset(key, val[0], ",".join(map(str, val)))
 
         await pl.execute()
 
     @classmethod
     async def cache_unclosed_bars(
-        cls, code: str, frame_type: FrameType, bars: np.ndarray
+        cls, code: str, frame_type: FrameType, bars: BarsArray
     ):  # pragma: no cover
         """将未结束的行情数据缓存
 
-        Note:
-            考虑到resample的性能高，所以当前并没有将未结束的行情数据缓存 -- 这需要有一个程序以每分钟一次的频率，对全市场数据进行resample并缓存。因此这个函数当前并没有被使用。
-
         未结束的行情数据缓存在以`bars:{frame_type.value}:unclosed`为key, {code}为field的hashmap中。
 
-        尽管`bars`被声明为np.ndarray，但实际上应该只包含一个元素。
+        尽管`bars`被声明为BarsArray，但实际上应该只包含一个元素。
 
         Args:
             code: the full qualified code of a security or index
@@ -816,13 +963,10 @@ class Stock(Security):
         assert len(bars) == 1, "unclosed bars should only have one record"
 
         key = f"bars:{frame_type.value}:unclosed"
-        pl = cache.security.pipeline()
-        for bar in bars:
-            val = [*bar]
-            val[0] = converter(bar["frame"])
-            pl.hset(key, code, ",".join(map(str, val)))
-
-        await pl.execute()
+        bar = bars[0]
+        val = [*bar]
+        val[0] = converter(bar["frame"].item())
+        await cache.security.hset(key, code, ",".join(map(str, val)))
 
     @classmethod
     def _get_influx_client(cls):
@@ -840,11 +984,11 @@ class Stock(Security):
     async def persist_bars(
         cls,
         frame_type: FrameType,
-        bars: Union[Dict[str, np.ndarray], np.ndarray, pd.DataFrame],
+        bars: Union[Dict[str, BarsArray], BarsArray, pd.DataFrame],
     ):
         """将行情数据持久化
 
-        如果`bars`类型为Dict,则key为`code`，value为`bars`。如果其类型为np.ndarray或者pd.DataFrame，则`bars`各列字段应该为`coretypes.bars_dtype` + ("code", "O")构成。
+        如果`bars`类型为Dict,则key为`code`，value为`bars`。如果其类型为BarsArray或者pd.DataFrame，则`bars`各列字段应该为`coretypes.bars_dtype` + ("code", "O")构成。
 
         Args:
             frame_type: the frame type of the bars
@@ -868,8 +1012,8 @@ class Stock(Security):
 
     @classmethod
     def resample(
-        cls, bars: np.ndarray, from_frame: FrameType, to_frame: FrameType
-    ) -> np.ndarray:
+        cls, bars: BarsArray, from_frame: FrameType, to_frame: FrameType
+    ) -> BarsArray:
         """将原来为`from_frame`的行情数据转换为`to_frame`的行情数据
 
         如果`to_frame`为日线或者分钟级别线，则`from_frame`必须为分钟线；如果`to_frame`为周以上级别线，则`from_frame`必须为日线。其它级别之间的转换不支持。
@@ -877,12 +1021,12 @@ class Stock(Security):
         如果`from_frame`为1分钟线，则必须从9：31起。
 
         Args:
-            bars (np.ndarray): 行情数据
+            bars (BarsArray): 行情数据
             from_frame (FrameType): 转换前的FrameType
             to_frame (FrameType): 转换后的FrameType
 
         Returns:
-            np.ndarray: 转换后的行情数据
+            BarsArray: 转换后的行情数据
         """
         if from_frame == FrameType.MIN1:
             return cls._resample_from_min1(bars, to_frame)
@@ -896,7 +1040,7 @@ class Stock(Security):
         return f"stock_bars_{frame_type.value}"
 
     @classmethod
-    def _resample_from_min1(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
+    def _resample_from_min1(cls, bars: BarsArray, to_frame: FrameType) -> BarsArray:
         """将`bars`从1分钟线转换为`to_frame`的行情数据
 
         重采样后的数据只包含frame, open, high, low, close, volume, amount, factor，无论传入数据是否还有别的字段，它们都将被丢弃。
@@ -905,7 +1049,7 @@ class Stock(Security):
 
         TODO： 如果`bars`中包含nan怎么处理？
         """
-        if bars[0]["frame"].minute != 31:
+        if bars[0]["frame"].item().minute != 31:
             raise ValueError("resampling from 1min must start from 9:31")
 
         if to_frame not in (
@@ -959,16 +1103,16 @@ class Stock(Security):
         resampled[cols] = bars[close_pos][cols]
 
         if to_frame == FrameType.DAY:
-            resampled["frame"] = bars[-1]["frame"].date()
+            resampled["frame"] = bars[-1]["frame"].item().date()
 
         return resampled
 
     @classmethod
-    def _resample_from_day(cls, bars: np.ndarray, to_frame: FrameType) -> np.ndarray:
+    def _resample_from_day(cls, bars: BarsArray, to_frame: FrameType) -> BarsArray:
         """将`bars`从日线转换成`to_frame`的行情数据
 
         Args:
-            bars (np.ndarray): [description]
+            bars (BarsArray): [description]
             to_frame (FrameType): [description]
 
         Returns:
@@ -1007,7 +1151,7 @@ class Stock(Security):
     @classmethod
     async def get_trade_price_limits(
         cls, code: str, begin: Frame, end: Frame
-    ) -> np.ndarray:
+    ) -> BarsArray:
         """从influxdb中获取个股在[begin, end]之间的涨跌停价。
 
         涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY
@@ -1047,7 +1191,7 @@ class Stock(Security):
         return result
 
     @classmethod
-    async def save_trade_price_limits(cls, price_limits: np.ndarray, to_cache: bool):
+    async def save_trade_price_limits(cls, price_limits: BarsArray, to_cache: bool):
         """保存涨跌停价
 
         Args:

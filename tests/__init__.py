@@ -3,13 +3,12 @@ import datetime
 import json
 import logging
 import os
-from typing import Union
+from typing import List, Union
 
 import aioredis
-import arrow
 import cfg4py
 import numpy as np
-from coretypes import FrameType, bars_dtype
+from coretypes import Frame, FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import omicron
@@ -20,11 +19,17 @@ cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
 
 
+class MockException(Exception):
+    pass
+
+
 async def clear_cache(dsn):
-    redis = await aioredis.create_redis(dsn)
-    await redis.flushall()
-    redis.close()
-    await redis.wait_closed()
+    try:
+        redis = await aioredis.create_redis(dsn)
+        await redis.flushall()
+    finally:
+        redis.close()
+        await redis.wait_closed()
 
 
 _stocks_for_test = [
@@ -123,7 +128,7 @@ async def init_test_env():
 def assert_bars_equal(exp, actual):
     assert_array_equal(exp["frame"], actual["frame"])
 
-    for field, _ in bars_dtype:
+    for field, _ in bars_dtype.descr:
         if field == "frame":
             continue
 
@@ -139,7 +144,7 @@ def test_dir():
     return home
 
 
-def lines2bars(lines, is_date):
+def lines2bars(lines: List[str], start: Frame = None, end: Frame = None):
     """将CSV记录转换为Bar对象
 
     header: date,open,high,low,close,money,volume,factor
@@ -149,34 +154,22 @@ def lines2bars(lines, is_date):
     if isinstance(lines, str):
         lines = [lines]
 
-    def parse_date(x):
-        return arrow.get(x).date()
+    if lines[0].startswith("date,"):
+        lines = lines[1:]
 
-    def parse_naive(x):
-        return arrow.get(x).naive
+    from io import StringIO
 
-    if is_date:
-        convert = parse_date
-    else:
-        convert = parse_naive
+    import pandas as pd
 
-    data = []
-    for line in lines:
-        fields = line.split(",")
-        data.append(
-            (
-                convert(fields[0]),
-                float(fields[1]),
-                float(fields[2]),
-                float(fields[3]),
-                float(fields[4]),
-                float(fields[5]),
-                float(fields[6]),
-                float(fields[7]),
-            )
-        )
+    buf = StringIO("\n".join(lines))
+    df = pd.read_csv(buf, names=bars_dtype.names, parse_dates=["frame"])
 
-    return np.array(data, dtype=bars_dtype)
+    if start is not None:
+        df = df[df["frame"] >= start]
+    if end is not None:
+        df = df[df["frame"] <= end]
+
+    return df.to_records(index=False).astype(bars_dtype)
 
 
 def read_csv(fname, start=None, end=None):
@@ -199,15 +192,10 @@ def read_csv(fname, start=None, end=None):
 
 
 def bars_from_csv(
-    code: str, ft: Union[str, FrameType], start_line: int = None, end_line: int = None
+    code: str, ft: Union[str, FrameType], start: Frame = None, end: Frame = None
 ):
     ft = FrameType(ft)
 
     fname = f"{code}.{ft.value}.csv"
 
-    if ft in TimeFrame.minute_level_frames:
-        is_date = False
-    else:
-        is_date = True
-
-    return lines2bars(read_csv(fname, start_line, end_line), is_date)
+    return lines2bars(read_csv(fname), start, end)

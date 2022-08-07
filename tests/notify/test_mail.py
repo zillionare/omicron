@@ -47,13 +47,11 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         await send_mail(sender, receiver, password, msg, host=host)
 
         # 参数检查
-        try:
+        with self.assertRaises(TypeError):
             await send_mail(sender, receiver, password)
             self.assertTrue(False, "未进行参数检查")
-        except TypeError:
-            pass
 
-        try:
+        with self.assertRaises(TypeError):
             await send_mail(
                 sender,
                 receiver,
@@ -63,9 +61,6 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
                 msg=EmailMessage(),
                 host=host,
             )
-            self.assertTrue(False, "未进行参数检查")
-        except TypeError:
-            pass
 
     async def test_mail_notify(self):
         body = """
@@ -78,5 +73,23 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         </body>
         </html>
         """
-
         await mail_notify("test mail_notify", body=body, html=True)
+
+        # 参数检查
+        with self.assertRaises(TypeError):
+            await mail_notify("test", body=body, msg=EmailMessage())
+
+        with self.assertRaises(TypeError):
+            await mail_notify(
+                None,
+                None,
+                None,
+            )
+
+        # send plain txt
+        await mail_notify("test mail_notify", body="plain text body")
+
+    def test_compose(self):
+        file = os.path.join(test_dir(), "data/test.jpg")
+        msg = compose("test", plain_txt="plain text body", attachment=file)
+        self.assertListEqual(["test", "1.0", "multipart/mixed"], msg.values())

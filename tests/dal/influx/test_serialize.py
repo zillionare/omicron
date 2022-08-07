@@ -44,10 +44,12 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         data = ",result,table,_time,code,name,close,open\r\n,_result,0,2019-01-01T09:31:00Z,000002.XSHE,国联证券,0.2,0.1\r\n,_result,0,2019-01-01T09:36:00Z,000002.XSHE,国联证券,0.2,0.1\r\n,_result,1,2019-01-01T09:32:00Z,000003.XSHE,上海银行,0.2,0.1\r\n,_result,1,2019-01-01T09:37:00Z,000003.XSHE,上海银行,0.2,0.1\r\n,_result,2,2019-01-01T09:33:00Z,000004.XSHE,中国银行,0.2,0.1\r\n,_result,2,2019-01-01T09:38:00Z,000004.XSHE,中国银行,0.2,0.1\r\n,_result,3,2019-01-01T09:34:00Z,000005.XSHE,中国平安,0.2,0.1\r\n,_result,3,2019-01-01T09:39:00Z,000005.XSHE,中国平安,0.2,0.1\r\n\r\n"
 
         # default
-        des = DataframeDeserializer(time_col="_time")
+        des = DataframeDeserializer(
+            time_col="_time", usecols=["_time", "code", "name", "close"]
+        )
         df = des(data)
         self.assertEqual(8, len(df))
-        self.assertEqual(8, len(df.columns))
+        self.assertEqual(4, len(df.columns))
         self.assertIn("_time", df.columns)
         self.assertEqual(np.dtype("datetime64[ns]"), df["_time"].dtype)
 
@@ -57,8 +59,10 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
 
         # keep cols
         des = DataframeDeserializer(
-            names=["frame", "open", "close"], usecols=[3, 6, 7], time_col="frame"
+            names=",result,table,frame,code,name,close,open".split(","),
+            usecols=["frame", "open", "close"],
         )
+
         df = des(data)
         self.assertEqual(3, len(df.columns))
         self.assertListEqual(["frame", "open", "close"], df.columns.tolist())
@@ -67,9 +71,8 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         # sort by
         des = DataframeDeserializer(
             sort_values="frame",
-            time_col="frame",
-            names=["frame", "open", "close"],
-            usecols=[3, 6, 7],
+            names=",result,table,frame,code,name,close,open".split(","),
+            usecols=["frame", "open", "close"],
         )
 
         df = des(data)
@@ -209,7 +212,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AssertionError):
             des = NumpyDeserializer(
                 bars_dtype,
-                use_cols=["_time"] + bars_dtype[1:],
+                use_cols=["_time"] + bars_cols[1:],
                 skip_rows=None,
                 converters={"_time": lambda x: arrow.get(x).date()},
                 header_line=None,
@@ -219,19 +222,19 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             des = NumpyDeserializer(
                 bars_dtype,
                 parse_date=None,
-                use_cols=["_time"] + bars_dtype[1:],
+                use_cols=["_time"] + bars_cols[1:],
                 converters={"_time": lambda x: arrow.get(x).date()},
                 header_line=None,
             )
 
         # content is empty
         data = "\r\n"
-        des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_dtype[1:])
+        des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_cols[1:])
         self.assertEqual(0, des(data).size)
 
         data = "\r\nabceefg\r\n"
         with self.assertRaises(SerializationError):
-            des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_dtype[1:])
+            des = NumpyDeserializer(bars_dtype, use_cols=["_time"] + bars_cols[1:])
             des(data)
 
     async def test_dataframe_serializer(self):
@@ -354,7 +357,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(exp, lines)
 
         # frame is datetime.date
-        dtype = bars_dtype.copy()
+        dtype = bars_dtype.descr.copy()
         dtype[0] = ("frame", "O")
         bars = bars.astype(dtype)
         serializer = NumpySerializer(bars, "test", "frame")
@@ -375,7 +378,7 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
         serializer = NumpySerializer(bars, "test")
 
         for actual in serializer.serialize(len(bars)):
-            exp = 'test amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,frame="2019-01-01",high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0'
+            exp = 'test amount=100000000.0,close=5.150000095367432,factor=1.2300000190734863,frame="2019-01-01 00:00:00",high=5.199999809265137,low=5.0,open=5.099999904632568,volume=1000000.0'
             self.assertEqual(exp, actual)
 
         # global keys

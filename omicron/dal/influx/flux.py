@@ -73,7 +73,7 @@ class Flux(object):
         if self.expressions.get("limit"):
             expr.append(self.expressions["limit"])
 
-        # 根据测试，influxdb默认并不会按时间顺序返回结果。因此，在取last_n的情况下，必须进行排序。
+        # influxdb默认按升序排列，但last_n查询的结果则必然是降序的，所以还需要再次排序
         if self._last_n:
             expr.append(
                 "\n".join(
@@ -351,6 +351,9 @@ class Flux(object):
     def sort(self, by: List[str] = None, desc: bool = False) -> "Flux":
         """按照指定的列进行排序
 
+        根据[influxdb doc](https://docs.influxdata.com/influxdb/v2.0/query-data/flux/first-last/), 查询返回值默认地按时间排序。因此，如果仅仅是要求查询结果按时间排序，无须调用此API，但是，此API提供了按其它字段排序的能力。
+
+        另外，在一个有5000多个tag，共返回1M条记录的测试中，测试验证返回记录确实按_time升序排列。
 
         Args:
             by: 指定排序的列名称列表

@@ -2,7 +2,7 @@ import datetime
 import logging
 import re
 import time
-from typing import List
+from typing import List, Tuple
 
 import arrow
 import cfg4py
@@ -444,7 +444,13 @@ class Security:
             return Query(target_date=date)
 
     @classmethod
-    async def update_secs_cache(cls, dt: datetime.date, securities: List[str]):
+    async def update_secs_cache(cls, dt: datetime.date, securities: List[Tuple]):
+        """更新证券列表到缓存数据库中
+
+        Args:
+            dt: 证券列表归属的日期
+            securities: 证券列表, 元素为元组，分别为代码、别名、名称、IPO日期、退市日和证券类型
+        """
         # stock: {'index', 'stock'}
         # funds: {'fjb', 'mmf', 'reits', 'fja', 'fjm'}
         # {'etf', 'lof'}
@@ -462,6 +468,7 @@ class Security:
     @classmethod
     async def save_securities(cls, securities: List[str], dt: datetime.date):
         """保存指定的证券信息到缓存中，并且存入influxdb，定时job调用本接口
+
         Args:
             securities: 证券代码列表。
         """
@@ -530,6 +537,7 @@ class Security:
 
     @classmethod
     async def get_datescope_from_db(cls):
+        # fixme: 函数名无法反映用途，需要增加文档注释，说明该函数的作用
         client = Security.get_influx_client()
         measurement = "security_list"
 
@@ -545,7 +553,6 @@ class Security:
         )
 
         data = await client.query(flux)
-        print("flux is ", flux)
         if len(data) == 2:  # \r\n
             return None, None
 
@@ -577,6 +584,7 @@ class Security:
     @classmethod
     async def save_xrxd_reports(cls, reports: List[str], dt: datetime.date):
         """保存1年内的分红送股信息，并且存入influxdb，定时job调用本接口
+
         Args:
             reports: 分红送股公告
         """
