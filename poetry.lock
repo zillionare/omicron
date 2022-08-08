@@ -465,7 +465,7 @@ python-versions = "*"
 python-dateutil = ">=2.8.1"
 
 [package.extras]
-dev = ["twine", "markdown", "flake8", "wheel"]
+dev = ["wheel", "flake8", "markdown", "twine"]
 
 [[package]]
 name = "gino"
@@ -480,11 +480,11 @@ asyncpg = ">=0.18,<1.0"
 SQLAlchemy = ">=1.2.16,<1.4"
 
 [package.extras]
-starlette = ["gino-starlette (>=0.1.1,<0.2.0)"]
-aiohttp = ["gino-aiohttp (>=0.1.0,<0.2.0)"]
-tornado = ["gino-tornado (>=0.1.0,<0.2.0)"]
-sanic = ["gino-sanic (>=0.1.0,<0.2.0)"]
 quart = ["gino-quart (>=0.1.0,<0.2.0)"]
+sanic = ["gino-sanic (>=0.1.0,<0.2.0)"]
+tornado = ["gino-tornado (>=0.1.0,<0.2.0)"]
+aiohttp = ["gino-aiohttp (>=0.1.0,<0.2.0)"]
+starlette = ["gino-starlette (>=0.1.1,<0.2.0)"]
 
 [[package]]
 name = "hiredis"
@@ -559,8 +559,8 @@ optional = true
 python-versions = ">=3.7"
 
 [package.extras]
-test = ["pytest", "pytest-trio", "pytest-asyncio (>=0.17)", "testpath", "trio", "async-timeout"]
-trio = ["trio", "async-generator"]
+trio = ["async-generator", "trio"]
+test = ["async-timeout", "trio", "testpath", "pytest-asyncio (>=0.17)", "pytest-trio", "pytest"]
 
 [[package]]
 name = "jinja2"
@@ -1208,10 +1208,10 @@ scipy = ">=1.3.2"
 threadpoolctl = ">=2.0.0"
 
 [package.extras]
-benchmark = ["matplotlib (>=3.1.2)", "pandas (>=1.0.5)", "memory-profiler (>=0.57.0)"]
-docs = ["matplotlib (>=3.1.2)", "scikit-image (>=0.14.5)", "pandas (>=1.0.5)", "seaborn (>=0.9.0)", "memory-profiler (>=0.57.0)", "sphinx (>=4.0.1)", "sphinx-gallery (>=0.7.0)", "numpydoc (>=1.2.0)", "Pillow (>=7.1.2)", "sphinx-prompt (>=1.3.0)", "sphinxext-opengraph (>=0.4.2)"]
-examples = ["matplotlib (>=3.1.2)", "scikit-image (>=0.14.5)", "pandas (>=1.0.5)", "seaborn (>=0.9.0)"]
-tests = ["matplotlib (>=3.1.2)", "scikit-image (>=0.14.5)", "pandas (>=1.0.5)", "pytest (>=5.0.1)", "pytest-cov (>=2.9.0)", "flake8 (>=3.8.2)", "black (>=22.3.0)", "mypy (>=0.770)", "pyamg (>=4.0.0)", "numpydoc (>=1.2.0)"]
+tests = ["numpydoc (>=1.2.0)", "pyamg (>=4.0.0)", "mypy (>=0.770)", "black (>=22.3.0)", "flake8 (>=3.8.2)", "pytest-cov (>=2.9.0)", "pytest (>=5.0.1)", "pandas (>=1.0.5)", "scikit-image (>=0.14.5)", "matplotlib (>=3.1.2)"]
+examples = ["seaborn (>=0.9.0)", "pandas (>=1.0.5)", "scikit-image (>=0.14.5)", "matplotlib (>=3.1.2)"]
+docs = ["sphinxext-opengraph (>=0.4.2)", "sphinx-prompt (>=1.3.0)", "Pillow (>=7.1.2)", "numpydoc (>=1.2.0)", "sphinx-gallery (>=0.7.0)", "sphinx (>=4.0.1)", "memory-profiler (>=0.57.0)", "seaborn (>=0.9.0)", "pandas (>=1.0.5)", "scikit-image (>=0.14.5)", "matplotlib (>=3.1.2)"]
+benchmark = ["memory-profiler (>=0.57.0)", "pandas (>=1.0.5)", "matplotlib (>=3.1.2)"]
 
 [[package]]
 name = "scipy"
@@ -1502,7 +1502,7 @@ python-versions = "*"
 
 [[package]]
 name = "zillionare-core-types"
-version = "0.4.1"
+version = "0.5.0.dev28"
 description = "core types definition shared by zillionare."
 category = "main"
 optional = false
@@ -1510,14 +1510,17 @@ python-versions = ">=3.8,<4.0"
 
 [package.dependencies]
 deprecation = ">=2.1.0,<3.0.0"
-mkdocs-material-extensions = ">=1.0.1,<2.0.0"
+mkdocs-material-extensions = ">=1.0.3,<2.0.0"
 numpy = ">=1.20,<2.0"
 
 [package.extras]
-test = ["black (==20.8b1)", "isort (==5.6.4)", "flake8 (==3.8.4)", "flake8-docstrings (>=1.6.0,<2.0.0)", "pytest (==6.1.2)", "pytest-cov (==2.10.1)"]
-dev = ["tox (>=3.20.1,<4.0.0)", "virtualenv (>=20.2.2,<21.0.0)", "pip (>=20.3.1,<21.0.0)", "twine (>=3.3.0,<4.0.0)", "pre-commit (>=2.12.0,<3.0.0)", "toml (>=0.10.2,<0.11.0)"]
-doc = ["mkdocs (>=1.1.2,<2.0.0)", "mkdocs-include-markdown-plugin (>=1.0.0,<2.0.0)", "mkdocs-material (>=6.1.7,<7.0.0)", "mkdocstrings (>=0.13.6,<0.14.0)", "mkdocs-autorefs (==0.1.1)"]
+test = ["black (>=22.3.0,<23.0.0)", "flake8 (==3.8.4)", "flake8-docstrings (>=1.6.0,<2.0.0)", "isort (==5.6.4)", "pytest (==6.1.2)", "pytest-cov (==2.10.1)"]
+dev = ["black (>=22.3.0,<23.0.0)", "pip (>=20.3.1,<21.0.0)", "pre-commit (>=2.12.0,<3.0.0)", "toml (>=0.10.2,<0.11.0)", "tox (>=3.20.1,<4.0.0)", "twine (>=3.3.0,<4.0.0)", "virtualenv (>=20.2.2,<21.0.0)"]
+doc = ["livereload (>=2.6.3,<3.0.0)", "mike (>=1.1.2,<2.0.0)", "mkdocs (>=1.3.0,<2.0.0)", "mkdocs-autorefs (>=0.4.1,<0.5.0)", "mkdocs-include-markdown-plugin (>=3.2.3,<4.0.0)", "mkdocs-material (>=8.1.11,<9.0.0)", "mkdocstrings (>=0.18.0,<0.19.0)"]
 
+[package.source]
+type = "url"
+url = "https://test-files.pythonhosted.org/packages/fa/b6/b510c6197cef9a355ce613f46666dd7925387f75e86d94fb99a1934fe325/zillionare_core_types-0.5.0.dev28-py3-none-any.whl"
 [[package]]
 name = "zipp"
 version = "3.8.0"
@@ -1538,7 +1541,7 @@ test = ["pytest", "black", "isort", "doc8", "flake8", "pytest-cov", "psutil"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "c189d812ad23699a7075ee8c5d1802180f785df1d19342dd8e43da09ad3f8aef"
+content-hash = "d1666dbb0bb9276dacf14ecdfa4a5c4f2f011de2465186528db1a60624e758e1"
 
 [metadata.files]
 aiohttp = [
@@ -1966,7 +1969,10 @@ flake8 = [
     {file = "flake8-3.8.4-py2.py3-none-any.whl", hash = "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839"},
     {file = "flake8-3.8.4.tar.gz", hash = "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"},
 ]
-freezegun = []
+freezegun = [
+    {file = "freezegun-1.2.1-py3-none-any.whl", hash = "sha256:15103a67dfa868ad809a8f508146e396be2995172d25f927e48ce51c0bf5cb09"},
+    {file = "freezegun-1.2.1.tar.gz", hash = "sha256:b4c64efb275e6bc68dc6e771b17ffe0ff0f90b81a2a5189043550b6519926ba4"},
+]
 frozenlist = [
     {file = "frozenlist-1.3.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d2257aaba9660f78c7b1d8fea963b68f3feffb1a9d5d05a18401ca9eb3e8d0a3"},
     {file = "frozenlist-1.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:4a44ebbf601d7bac77976d429e9bdb5a4614f9f4027777f9e54fd765196e9d3b"},
@@ -2892,10 +2898,7 @@ yfinance = [
 zigzag = [
     {file = "ZigZag-0.2.2.tar.gz", hash = "sha256:e370278bfb5f133024b3e0cbaa585807328b93d3c3e453e470bb80793df9d464"},
 ]
-zillionare-core-types = [
-    {file = "zillionare_core_types-0.4.1-py3-none-any.whl", hash = "sha256:d38f03d196e528a523f102f19e97f0041f6c64295f885ea1484dd180e8e26316"},
-    {file = "zillionare_core_types-0.4.1.tar.gz", hash = "sha256:096eb62669ac5853f2b6b5753f420c07e506fe5d0aa64af8c3647fc3cf163555"},
-]
+zillionare-core-types = []
 zipp = [
     {file = "zipp-3.8.0-py3-none-any.whl", hash = "sha256:c4f6e5bbf48e74f7a38e7cc5b0480ff42b0ae5178957d564d18932525d5cf099"},
     {file = "zipp-3.8.0.tar.gz", hash = "sha256:56bf8aadb83c24db6c4b577e13de374ccfb67da2078beba1d037c17980bf43ad"},

@@ -336,7 +336,6 @@ class DataframeDeserializer(Serializer):
             skipfooter: the row number to skip at the end of the file
             time_col: the columns to parse as dates
             infer_datetime_format: whether to infer the datetime format
-            date_parser: the function to parse the date
             lineterminator: the line terminator of the csv file, only valid when engine is 'c'
             kwargs: other arguments
         """
