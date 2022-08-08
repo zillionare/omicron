@@ -2,7 +2,7 @@ import datetime
 import itertools
 import logging
 import re
-from typing import Dict, Generator, List, Tuple, Union
+from typing import Dict, Generator, Iterable, List, Tuple, Union
 
 import arrow
 import cfg4py
@@ -21,7 +21,11 @@ from coretypes import (
 )
 
 from omicron import tf
-from omicron.core.constants import TRADE_PRICE_LIMITS
+from omicron.core.constants import (
+    TRADE_LATEST_PRICE,
+    TRADE_PRICE_LIMITS,
+    TRADE_PRICE_LIMITS_DATE,
+)
 from omicron.core.errors import BadParameterError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
@@ -1149,12 +1153,33 @@ class Stock(Security):
         return bars[np.isfinite(bars["close"])]
 
     @classmethod
+    async def _get_price_limit_in_cache(
+        cls, code: str, begin: datetime.date, end: datetime.date
+    ):
+        date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
+        if date_str:
+            date_in_cache = arrow.get(date_str).naive.date()
+            if date_in_cache < begin or date_in_cache > end:
+                return None
+        else:
+            return None
+
+        dtype = [("frame", "O"), ("high_limit", "f4"), ("low_limit", "f4")]
+        hp = await cache._security_.hget(TRADE_PRICE_LIMITS, f"{code}.high_limit")
+        lp = await cache._security_.hget(TRADE_PRICE_LIMITS, f"{code}.low_limit")
+        if hp is None or lp is None:
+            return None
+        else:
+            return np.array([(date_in_cache, hp, lp)], dtype=dtype)
+
+    @classmethod
     async def get_trade_price_limits(
         cls, code: str, begin: Frame, end: Frame
     ) -> BarsArray:
-        """从influxdb中获取个股在[begin, end]之间的涨跌停价。
+        """从influxdb和cache中获取个股在[begin, end]之间的涨跌停价。
 
-        涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY
+        涨跌停价只有日线数据才有，因此，FrameType固定为FrameType.DAY，
+        当天的数据存放于redis，如果查询日期包含当天（交易日），从cache中读取并追加到结果中
 
         Args:
             code : 个股代码
@@ -1166,6 +1191,13 @@ class Stock(Security):
         """
         cols = ["_time", "high_limit", "low_limit"]
         dtype = [("frame", "O"), ("high_limit", "f4"), ("low_limit", "f4")]
+
+        if isinstance(begin, datetime.datetime):
+            begin = begin.date()  # 强制转换为date
+        if isinstance(end, datetime.datetime):
+            end = end.date()  # 强制转换为date
+
+        data_in_cache = await cls._get_price_limit_in_cache(code, begin, end)
 
         client = cls._get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
@@ -1188,10 +1220,27 @@ class Stock(Security):
         )
 
         result = await client.query(flux, ds)
+        if data_in_cache:
+            result = np.concatenate([result, data_in_cache])
         return result
 
     @classmethod
-    async def save_trade_price_limits(cls, price_limits: BarsArray, to_cache: bool):
+    async def reset_price_limits_cache(cls, cache_only: bool, dt: datetime.date = None):
+        if cache_only is False:
+            date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
+            if not date_str:
+                return  # skip clear action if date not found in cache
+            date_in_cache = arrow.get(date_str).naive.date()
+            if dt is None or date_in_cache != dt:  # 更新的时间和cache的时间相同，则清除cache
+                return  # skip clear action
+
+        await cache._security_.delete(TRADE_PRICE_LIMITS)
+        await cache._security_.delete(TRADE_PRICE_LIMITS_DATE)
+
+    @classmethod
+    async def save_trade_price_limits(
+        cls, price_limits: BarsArray, dt: datetime.date, to_cache: bool
+    ):
         """保存涨跌停价
 
         Args:
@@ -1201,7 +1250,7 @@ class Stock(Security):
         if len(price_limits) == 0:
             return
 
-        if to_cache:
+        if to_cache:  # 每个交易日上午9点更新两次
             pl = cache._security_.pipeline()
             for row in price_limits:
                 # .item convert np.float64 to python float
@@ -1217,8 +1266,9 @@ class Stock(Security):
                 )
             await pl.execute()
 
+            await cache._security_.set(TRADE_PRICE_LIMITS_DATE, dt.strftime("%Y-%m-%d"))
         else:
-            # to influxdb
+            # to influxdb， 每个交易日的第二天早上2点保存
             client = cls._get_influx_client()
             await client.save(
                 price_limits,
@@ -1276,3 +1326,32 @@ class Stock(Security):
             array_price_equal(result["close"], result["high_limit"]),
             array_price_equal(result["close"], result["low_limit"]),
         )
+
+    @classmethod
+    async def get_latest_price(cls, codes: Iterable[str]) -> List[str]:
+        """获取多支股票的最新价格（交易日当天），暂不包括指数
+
+        价格数据每5秒更新一次，接受多只股票查询，返回最后缓存的价格
+
+        Args:
+            codes: 代码列表
+
+        Returns:
+            返回一个List，价格是字符形式的浮点数。
+        """
+        if not codes:
+            return []
+
+        _raw_code_list = []
+        for code_str in codes:
+            code, _ = code_str.split(".")
+            _raw_code_list.append(code)
+
+        _converted_data = []
+        raw_data = await cache.feature.hmget(TRADE_LATEST_PRICE, *_raw_code_list)
+        for _data in raw_data:
+            if _data is None:
+                _converted_data.append(_data)
+            else:
+                _converted_data.append(float(_data))
+        return _converted_data

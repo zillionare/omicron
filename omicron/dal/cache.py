@@ -14,11 +14,12 @@ _cache_lock = Lock()
 
 
 class RedisCache:
-    databases = ["_sys_", "_security_", "_temp_"]
+    databases = ["_sys_", "_security_", "_temp_", "_feature_"]
 
     _security_: Redis
     _sys_: Redis
     _temp_: Redis
+    _feature_: Redis
 
     _initialized = False
 
@@ -43,6 +44,13 @@ class RedisCache:
         else:
             return self._temp_
 
+    @property
+    def feature(self) -> Redis:
+        if self._initialized is False:
+            return None
+        else:
+            return self._feature_
+
     def __init__(self):
         self._initialized = False
 
@@ -54,7 +62,7 @@ class RedisCache:
             if self._initialized is False:
                 return True
 
-            for redis in [self.sys, self.security, self.temp]:
+            for redis in [self.sys, self.security, self.temp, self.feature]:
                 redis.close()
                 await redis.wait_closed()
 

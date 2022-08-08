@@ -1139,10 +1139,6 @@ class TimeFrame:
         # todo: 函数的通用性不足，似乎应该放在具体的业务类中。如果是通用型的函数，参数不应该局限于周和月。
         """对于给定的时间，取所在周的第一天和最后一天，所在月的第一天和最后一天
 
-        如果指定日期是休息日，并且本周随后的时间内（周一到周五）还有至少一个交易日，那么返回的日期是当前周，否则返回下一周
-        月线同理，即会出现指定30日，返回下个月的首末时间，和周线的逻辑保持一致（仅限非交易日查询）
-        如果指定日期是交易日，返回的时间范围将完全符合预期。
-
         Args:
             frame : 指定的日期，date对象
             ft: 帧类型，支持WEEK和MONTH
@@ -1162,42 +1158,55 @@ class TimeFrame:
         if frame < CALENDAR_START:
             raise ValueError(f"cannot be earlier than {CALENDAR_START}: {frame}")
 
+        # datetime.date(2021, 10, 8)，这是个特殊的日期
         if ft == FrameType.WEEK:
-            if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
-                week_end = cls.week_shift(frame, 1)
-            else:
-                if frame <= datetime.date(2005, 1, 7):
-                    week_end = datetime.date(2005, 1, 7)
-                else:
-                    w1 = TimeFrame.floor(frame, FrameType.WEEK)
-                    if w1 == frame:  # 本周的最后一个交易日
-                        week_end = w1
-                    else:
-                        week_end = TimeFrame.week_shift(frame, 1)
-
-            if week_end <= datetime.date(2005, 1, 7):
+            if frame < datetime.date(2005, 1, 10):
                 return datetime.date(2005, 1, 4), datetime.date(2005, 1, 7)
+
+            if not cls.is_trade_day(frame):  # 非交易日的情况，直接回退一天
+                week_day = cls.day_shift(frame, 0)
             else:
-                w0 = TimeFrame.week_shift(week_end, -1)
-                w1d0 = TimeFrame.day_shift(w0, 1)
-                return w1d0, week_end
+                week_day = frame
+
+            w1 = TimeFrame.floor(week_day, FrameType.WEEK)
+            if w1 == week_day:  # 本周的最后一个交易日
+                week_end = w1
+            else:
+                week_end = TimeFrame.week_shift(week_day, 1)
+
+            w0 = TimeFrame.week_shift(week_end, -1)
+            week_start = TimeFrame.day_shift(w0, 1)
+            return week_start, week_end
 
         if ft == FrameType.MONTH:
-            if not cls.is_trade_day(frame):  # 非交易日的情况，直接加1
-                month_end = cls.month_shift(frame, 1)
-            else:
-                if frame <= datetime.date(2005, 1, 31):
-                    month_end = datetime.date(2005, 1, 31)
-                else:
-                    m1 = TimeFrame.floor(frame, FrameType.MONTH)
-                    if m1 == frame:  # 本月的最后一个交易日
-                        month_end = m1
-                    else:
-                        month_end = TimeFrame.month_shift(frame, 1)
-
-            if month_end <= datetime.date(2005, 1, 31):
+            if frame <= datetime.date(2005, 1, 31):
                 return datetime.date(2005, 1, 4), datetime.date(2005, 1, 31)
-            else:
-                m0 = TimeFrame.month_shift(month_end, -1)
-                m1d0 = TimeFrame.day_shift(m0, 1)
-                return m1d0, month_end
+
+            month_start = frame.replace(day=1)
+            if not cls.is_trade_day(month_start):  # 非交易日的情况，直接加1
+                month_start = cls.day_shift(month_start, 1)
+
+            month_end = TimeFrame.month_shift(month_start, 1)
+            return month_start, month_end
+
+    @classmethod
+    def get_previous_trade_day(cls, now: datetime.date):
+        """获取上一个交易日
+
+        如果当天是周六或者周日，返回周五（交易日），如果当天是周一，返回周五，如果当天是周五，返回周四
+
+        Args:
+            now : 指定的日期，date对象
+
+        Returns:
+            datetime.date: 上一个交易日
+
+        """
+        if now == datetime.date(2005, 1, 4):
+            return now
+
+        if TimeFrame.is_trade_day(now):
+            pre_trade_day = TimeFrame.day_shift(now, -1)
+        else:
+            pre_trade_day = TimeFrame.day_shift(now, 0)
+        return pre_trade_day
