@@ -213,7 +213,7 @@ class Query:
                 if record["type"] not in self._type_pattern:
                     continue
             if self._name_pattern is not None:
-                if record["name"].startswith(self._name_pattern) is False:
+                if record["name"].find(self._name_pattern) == -1:
                     continue
             if self._alias_pattern is not None:
                 if record["alias"].find(self._alias_pattern) == -1:
