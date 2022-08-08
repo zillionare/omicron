@@ -139,6 +139,25 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(rc["display_name"], "华兴源创")
         self.assertEqual(rc["alias"], "华兴源创")
 
+        rc = await Security.name("688001.XSHG", dt)
+        self.assertEqual(rc, "HXYC")
+
+        rc = await Security.alias("688001.XSHG", dt)
+        self.assertEqual(rc, "华兴源创")
+        rc = await Security.display_name("688001.XSHG", dt)
+        self.assertEqual(rc, "华兴源创")
+
+        rc = await Security.start_date("688001.XSHG", dt)
+        self.assertEqual(rc, datetime.date(2019, 7, 22))
+        rc = await Security.end_date("688001.XSHG", dt)
+        self.assertEqual(rc, datetime.date(2200, 1, 1))
+
+        rc = await Security.security_type("688001.XSHG", dt)
+        self.assertEqual(rc, "stock")
+
+        rc = await Security.security_type("688001.XSHG", None)
+        self.assertEqual(rc, "stock")
+
     def test_fuzzy_match_ex(self):
         exp = set(["600000.XSHG"])
         self.assertSetEqual(exp, set(Security.fuzzy_match_ex("600").keys()))
@@ -171,3 +190,80 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(stocks), 8)
         t1 = convert_nptime_to_datetime(stocks[0]["ipo"]).date()
         self.assertEqual(t1, datetime.date(1991, 4, 3))
+
+    async def test_save_securitie(self):
+        dt = datetime.date(2022, 8, 1)
+        secs = [["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]]
+        await Security.save_securities(secs, dt)
+
+        items = await Security.load_securities_from_db(dt, "000001.XSHE")
+        sec_data = items[0]
+        self.assertEqual(sec_data[0], "000001.XSHE")
+
+        dt = datetime.date(2022, 8, 2)
+        secs = [["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]]
+        await Security.save_securities(secs, dt)
+
+        dt1, dt2 = await Security.get_datescope_from_db()
+        self.assertEqual(dt1, datetime.date(2022, 5, 20))
+        self.assertEqual(dt2, datetime.date(2022, 8, 2))
+
+    async def test_save_xrxd(self):
+        dt = datetime.date(2022, 8, 1)
+        # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5),
+        # at_bonus_ratio_rmb(6), report_date, plan_progress, implementation_bonusnote, bonus_cancel_pub_date(10)
+
+        secs = [
+            [
+                "000001.XSHE",
+                datetime.date(2022, 8, 1),
+                "note",
+                10.0,
+                5.0,
+                0,
+                0,
+                datetime.date(2021, 12, 31),
+                "progress",
+                "impl note",
+                datetime.date(2099, 1, 1),
+            ]
+        ]
+        await Security.save_xrxd_reports(secs, dt)
+
+        secs = [
+            [
+                "600000.XSHG",
+                datetime.date(2022, 8, 1),
+                "流通",
+                10.0,
+                5.0,
+                0,
+                0,
+                datetime.date(2021, 12, 31),
+                "progress",
+                "impl note",
+                datetime.date(2099, 1, 1),
+            ]
+        ]
+        await Security.save_xrxd_reports(secs, dt)
+
+        secs = [
+            [
+                "000406.XSHE",
+                datetime.date(2022, 8, 1),
+                "note",
+                10.0,
+                5.0,
+                0,
+                0,
+                datetime.date(2021, 12, 31),
+                "progress",
+                "impl note",
+                datetime.date(2022, 8, 1),
+            ]
+        ]
+        await Security.save_xrxd_reports(secs, dt)
+
+        items = await Security.get_xrxd_info(dt, "000001.XSHE")
+        item = items[0]
+        self.assertEqual(item["xr_date"], dt)

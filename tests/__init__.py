@@ -48,6 +48,8 @@ async def set_security_data(redis):
         pl.rpush(key, ",".join(s))
     await pl.execute()
 
+    await redis.set("security:latest_date", "2022-05-20")
+
 
 async def set_security_data_to_db(client):
     measurement = "security_list"
