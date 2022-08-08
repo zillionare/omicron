@@ -91,10 +91,12 @@ jobs:
       - name: list files
         run: ls -l .
 
-      - name: pre-publish documentation
+      - name: build documentation
         run: |
           poetry install -E doc
           poetry run mkdocs build
+          poetry run mike deploy `poetry version $(poetry version --short)-dev`
+          poetry run mike set-default `poetry version $(poetry version --short)-dev`
 
       - name: publish documentation
         uses: peaceiris/actions-gh-pages@v3
@@ -109,7 +111,6 @@ jobs:
       - name: Build wheels and source tarball
         run: >-
           poetry version $(poetry version --short)-dev.$GITHUB_RUN_NUMBER
-          poetry version --short
           poetry build
 
       - name: publish to Test PyPI
