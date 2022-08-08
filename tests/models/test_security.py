@@ -13,6 +13,7 @@ from numpy.testing import assert_array_equal
 
 import omicron
 from omicron import tf
+from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
 from omicron.extensions.np import numpy_append_fields
 from omicron.models.security import Security, convert_nptime_to_datetime
@@ -133,6 +134,42 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         actual = await query.eval()
         self.assertListEqual(["688001.XSHG"], actual)
 
+    async def test_eval(self):
+        dt = datetime.date(2022, 5, 20)
+
+        query = Security.select()
+        query.types([]).exclude_st().exclude_kcb()
+        codes = set(await query.eval())
+        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        self.assertSetEqual(exp, codes)
+
+        query = Security.select()
+        query.types([]).only_st()
+        codes = set(await query.eval())
+        self.assertSetEqual({"000005.XSHE", "000007.XSHE"}, codes)
+
+        query = Security.select()
+        query.types([]).include_exit().name("DM")
+        codes = set(await query.eval())
+        self.assertSetEqual({"000406.XSHE"}, codes)
+
+        query = Security.select()
+        query.types([]).alias("银行")
+        codes = set(await query.eval())
+        self.assertSetEqual({"000001.XSHE", "600000.XSHG"}, codes)
+
+    async def test_eval_2(self):
+        # dt = datetime.date(2022, 5, 20)
+        await cache.security.delete("security:latest_date")
+
+        query = Security.select()
+        query.types([]).exclude_st().exclude_kcb()
+        codes = set(await query.eval())
+        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        self.assertSetEqual(exp, codes)
+
+        await cache.security.set("security:latest_date", "2022-05-20")
+
     async def test_query_info(self):
         dt = datetime.date(2022, 5, 20)
         rc = await Security.info("688001.XSHG", dt)
@@ -208,6 +245,17 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(dt1, datetime.date(2022, 5, 20))
         self.assertEqual(dt2, datetime.date(2022, 8, 2))
 
+        rc = await Security.get_security_types()
+        self.assertTrue(rc)
+
+        await cache.security.set("security:latest_date", "2022-08-02")
+        query = Security.select(dt)
+        query.types([]).name("PAY")
+        codes = set(await query.eval())
+        exp = {"000001.XSHE"}
+        self.assertSetEqual(exp, codes)
+        await cache.security.set("security:latest_date", "2022-05-20")
+
     async def test_save_xrxd(self):
         dt = datetime.date(2022, 8, 1)
         # code(0), a_xr_date, board_plan_bonusnote, bonus_ratio_rmb(3), dividend_ratio, transfer_ratio(5),
@@ -243,7 +291,20 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
                 "progress",
                 "impl note",
                 datetime.date(2099, 1, 1),
-            ]
+            ],
+            [
+                "000001.XSHE",
+                datetime.date(2022, 8, 2),
+                "note",
+                10.0,
+                5.0,
+                0,
+                0,
+                datetime.date(2021, 12, 31),
+                "progress",
+                "impl note",
+                datetime.date(2099, 1, 1),
+            ],
         ]
         await Security.save_xrxd_reports(secs, dt)
 
