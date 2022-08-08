@@ -95,8 +95,8 @@ jobs:
         run: |
           poetry install -E doc
           poetry run mkdocs build
-          poetry run mike deploy `poetry version $(poetry version --short)-dev`
-          poetry run mike set-default `poetry version $(poetry version --short)-dev`
+          poetry run mike deploy "`poetry version $(poetry version --short)`.dev"
+          poetry run mike set-default "`poetry version $(poetry version --short)`.dev"
 
       - name: publish documentation
         uses: peaceiris/actions-gh-pages@v3

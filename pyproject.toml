@@ -3,6 +3,8 @@ name = "ali"
 url = "https://mirrors.aliyun.com/pypi/simple/"
 secondary = true
 
+
+[tool.poetry.dev-dependencies]
 [tool.poetry]
 name = "zillionare-omicron"
 packages = [
@@ -75,7 +77,8 @@ mkdocstrings  = { version = "^0.18.0", optional = true}
 mkdocs-material-extensions  = { version = "^1.0.3", optional = true}
 livereload = {version = "^2.6.3", optional = true}
 mkdocs-autorefs = {version = "^0.4.1", optional = true}
-freezegun = {version = "^1.2.1", extras = ["test"]}
+freezegun = {version = "^1.2.1", optional = true}
+mike = {version = "^1.1.2", optional = true}
 
 [tool.poetry.extras]
 test = [
@@ -85,7 +88,8 @@ test = [
     "doc8",
     "flake8",
     "pytest-cov",
-    "psutil"
+    "psutil",
+    "freezegun"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "pip", "twine"]
@@ -98,7 +102,8 @@ doc = [
     "mkdocs-material-extension",
     "mkdocs-autorefs",
     "Jinja2",
-    "livereload"
+    "livereload",
+    "mike"
     ]
 [build-system]
 requires = ["poetry-core>=1.0.0"]

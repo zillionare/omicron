@@ -14,8 +14,6 @@
 
 Contents
 ---------
-
-* [installation](installation.md)
 ## 简介
 
 Omicron是Zillionare的核心公共模块，实现了数据访问层，向其它模块提供行情、市值、交易日历、证券列表、时间操作及Trigger等功能。
