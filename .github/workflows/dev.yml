@@ -30,7 +30,7 @@ jobs:
     strategy:
       matrix:
         python-versions: [3.8]
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
 
     services:
@@ -95,8 +95,8 @@ jobs:
         run: |
           poetry install -E doc
           poetry run mkdocs build
-          poetry run mike deploy "`poetry version $(poetry version --short)`.dev"
-          poetry run mike set-default "`poetry version $(poetry version --short)`.dev"
+          poetry run mike deploy "`poetry version --short`.dev"
+          poetry run mike set-default "`poetry version --short`.dev"
 
       - name: publish documentation
         uses: peaceiris/actions-gh-pages@v3

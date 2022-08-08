@@ -36,9 +36,9 @@ class Config(object):
 
         bucket_name: Optional[str] = None
 
-        max_query_size: Optional[int] = None
-
         enable_compress: Optional[bool] = None
+
+        max_query_size: Optional[int] = None
 
     class postgres:
         dsn: Optional[str] = None
