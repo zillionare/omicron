@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import logging
-from threading import Lock
+from asyncio import Lock
 
 import aioredis
 import cfg4py
@@ -57,27 +57,26 @@ class RedisCache:
     async def close(self):
         global _cache_lock
 
-        try:
-            _cache_lock.acquire()
+        async with _cache_lock:
             if self._initialized is False:
                 return True
 
+            logger.info("closing redis cache...")
             for redis in [self.sys, self.security, self.temp, self.feature]:
                 redis.close()
                 await redis.wait_closed()
 
             self._initialized = False
-        finally:
-            _cache_lock.release()
+            logger.info("redis caches are all closed")
 
     async def init(self):
         global _cache_lock
 
-        try:
-            _cache_lock.acquire()
+        async with _cache_lock:
             if self._initialized:
                 return True
 
+            logger.info("init redis cache...")
             cfg = cfg4py.get_instance()
             for i, name in enumerate(self.databases):
                 db = await aioredis.create_redis_pool(
@@ -87,8 +86,7 @@ class RedisCache:
                 setattr(self, name, db)
 
             self._initialized = True
-        finally:
-            _cache_lock.release()
+            logger.info("redis cache is inited")
 
         return True
 
