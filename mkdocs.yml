@@ -4,8 +4,8 @@ nav:
   - 简介: index.md
   - 安装: installation.md
   - 教程: usage.md
-  - 社区: https://zillionare.readthedocs.io/zh_CN/latest/contributing.html
   - 版本历史: history.md
+  - 开发者文档: developer.md
   - API文档:
     - omicron: api/omicron.md
     - timeframe: api/timeframe.md

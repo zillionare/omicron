@@ -138,7 +138,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
         limits = df.to_records(index=False)
         limits.dtype.names = ["frame", "code", "high_limit", "low_limit"]
-        await Stock.save_trade_price_limits(limits, None, False)
+        await Stock.save_trade_price_limits(limits, False)
 
         return await super().asyncSetUp()
 
@@ -1218,7 +1218,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         start = datetime.date(2022, 3, 23)
         end = datetime.date(2022, 4, 6)
 
-        await Stock.save_trade_price_limits(limits, start, to_cache=False)
+        await Stock.save_trade_price_limits(limits, to_cache=False)
         actual = await Stock.get_trade_price_limits(code, start, end)
         self.assertAlmostEqual(3.45, actual[0]["high_limit"])
 
@@ -1273,7 +1273,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             limits, "code", [code] * len(limits), [("code", "O")]
         )
         await cache.security.set(TRADE_PRICE_LIMITS_DATE, "2022-04-01")
-        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 1), False)
+        await Stock.save_trade_price_limits(limits, False)
         start = datetime.date(2022, 3, 31)
         end = datetime.date(2022, 4, 6)
         actual = await Stock.get_trade_price_limits(code, start, end)
@@ -1312,7 +1312,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             limits, "code", [code] * len(limits), [("code", "O")]
         )
         # save it to cache
-        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 6), True)
+        await Stock.save_trade_price_limits(limits, True)
 
         start = datetime.date(2022, 3, 23)
         end = datetime.date(2022, 4, 6)
@@ -1355,7 +1355,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             limits, "code", [code] * len(limits), [("code", "O")]
         )
         # save it to cache
-        await Stock.save_trade_price_limits(limits, datetime.date(2022, 4, 6), True)
+        await Stock.save_trade_price_limits(limits, True)
         date_str = await cache.security.get(TRADE_PRICE_LIMITS_DATE)
         self.assertEqual(date_str, "2022-04-06")
 
@@ -1701,7 +1701,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         start = datetime.date(2022, 3, 23)
         end = datetime.date(2022, 4, 6)
 
-        await Stock.save_trade_price_limits(limits, None, False)
+        await Stock.save_trade_price_limits(limits, False)
 
         buy_limit, sell_limit = await Stock.trade_price_limit_flags(code, start, end)
 

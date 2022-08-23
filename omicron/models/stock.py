@@ -14,6 +14,7 @@ from coretypes import (
     BarsPanel,
     Frame,
     FrameType,
+    LimitPriceOnlyBarsArray,
     SecurityType,
     bars_cols,
     bars_dtype,
@@ -414,10 +415,8 @@ class Stock(Security):
             if n0 > 0:
                 if cached.size > 0:
                     end0 = cached[0]["frame"].item()
-                elif frame_type in tf.day_level_frames:
-                    end0 = end
                 else:
-                    end0 = tf.first_min_frame(end, frame_type)
+                    end0 = end
 
                 bars = await cls._get_persisted_bars_n(code, frame_type, n0, end0)
                 merged = np.concatenate((bars, cached))
@@ -1239,12 +1238,12 @@ class Stock(Security):
 
     @classmethod
     async def save_trade_price_limits(
-        cls, price_limits: BarsArray, dt: datetime.date, to_cache: bool
+        cls, price_limits: LimitPriceOnlyBarsArray, to_cache: bool
     ):
         """保存涨跌停价
 
         Args:
-            price_limits: numpy structured array of dtype [('frame', 'O'), ('code', 'O'), ('high_limit', 'f4'), ('low_limit', 'f4')]
+            price_limits: 要保存的涨跌停价格数据。
             to_cache: 是保存到缓存中，还是保存到持久化存储中
         """
         if len(price_limits) == 0:
@@ -1264,9 +1263,10 @@ class Stock(Security):
                     f"{row['code']}.low_limit",
                     row["low_limit"].item(),
                 )
-            await pl.execute()
 
-            await cache._security_.set(TRADE_PRICE_LIMITS_DATE, dt.strftime("%Y-%m-%d"))
+            dt = price_limits[-1]["frame"]
+            pl.set(TRADE_PRICE_LIMITS_DATE, dt.strftime("%Y-%m-%d"))
+            await pl.execute()
         else:
             # to influxdb， 每个交易日的第二天早上2点保存
             client = cls._get_influx_client()

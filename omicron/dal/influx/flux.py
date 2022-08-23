@@ -1,6 +1,6 @@
 import datetime
 from collections import defaultdict
-from typing import DefaultDict, List, Tuple, Union
+from typing import DefaultDict, List, Tuple
 
 import arrow
 import numpy as np
@@ -270,7 +270,9 @@ class Flux(object):
 
         filters = []
         for tag, values in tags.items():
-            assert values, f"tag {tag} bind with no value"
+            assert (
+                isinstance(values, str) or len(values) > 0
+            ), f"tag {tag} should not be empty or None"
             if isinstance(values, str):
                 values = [values]
 
