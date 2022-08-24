@@ -25,6 +25,8 @@ jobs:
       MAIL_SERVER: ${{secrets.MAIL_SERVER}}
       MAIL_FROM: ${{secrets.MAIL_FROM}}
       MAIL_TO: ${{secrets.MAIL_TO}}
+      DINGTALK_ACCESS_TOKEN: ${{secrets.DINGTALK_ACCESS_TOKEN}}
+      DINGTALK_SECRET: ${{secrets.DINGTALK_SECRET}}
       IS_GITHUB: 1
     # The type of runner that the job will run on
     strategy:
