@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# !!!NOTICE!!
-# Personal token with full access rights is required to run this scripts
-# Once you got persona token, set environment variable GH_TOKEN with it
-
-# uncomment the following to create repo and push code to github
-# gh repo create omicron --public
-# git remote add origin git@github.com:zillionare/omicron.git
-# git add .
-# pre-commit run --all-files
-# git add .
-# git commit -m "Initial commit by ppw"
-# git branch -M main
-
 # Uncomment the following to config github secret used by github workflow.
 gh secret set PERSONAL_TOKEN --body $GH_TOKEN
 gh secret set PYPI_API_TOKEN --body $PYPI_API_TOKEN
@@ -24,5 +11,5 @@ gh secret set BUILD_NOTIFY_MAIL_PORT --body $BUILD_NOTIFY_MAIL_PORT
 gh secret set BUILD_NOTIFY_MAIL_FROM --body $BUILD_NOTIFY_MAIL_FROM
 gh secret set BUILD_NOTIFY_MAIL_PASSWORD --body $BUILD_NOTIFY_MAIL_PASSWORD
 gh secret set BUILD_NOTIFY_MAIL_RCPT --body $BUILD_NOTIFY_MAIL_RCPT
-
-# git push -u origin main
+gh secret set DINGTALK_ACCESS_TOKEN --body $BUILD_DINGTALK_ACCESS_TOKEN
+gh secret set DINGTALK_SECRET --body $BUILD_DINGTALK_SECRET
