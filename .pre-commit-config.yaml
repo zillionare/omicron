@@ -31,7 +31,12 @@ repos:
     -   id: flake8
         additional_dependencies: [flake8-typing-imports==1.10.0]
         exclude: ^tests/
--   repo: https://github.com/crate-ci/typos
-    rev: v1.8.1
+-   repo: https://github.com/codespell-project/codespell
+    rev: v1.16.0
     hooks:
-    -   id: typos
+      - id: codespell
+        name: codespell
+        description: Checks for common misspellings in text files.
+        entry: codespell
+        language: python
+        types: [text]
