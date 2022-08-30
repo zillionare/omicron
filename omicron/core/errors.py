@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from typing import Any
 
 
 class Error(Exception):
@@ -52,5 +53,11 @@ class EmptyResult(Error):
 
     def __init__(self, msg="return empty result"):
         super().__init__(msg)
+
+    pass
+
+
+class ConfigError(Error):
+    """错误的配置"""
 
     pass

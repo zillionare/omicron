@@ -21,9 +21,7 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
         sender = cfg.notify.mail_from
         body = "unitest for omicron/notify/mail"
         host = cfg.notify.mail_server
-        await send_mail(
-            sender, receiver, password, subject="MailTest", body=body, host=host
-        )
+        send_mail(sender, receiver, password, subject="MailTest", body=body, host=host)
 
         # add attachment
         html = """
@@ -44,15 +42,15 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
             "mail test with attachment", plain_txt=txt, html=html, attachment=file
         )
 
-        await send_mail(sender, receiver, password, msg, host=host)
+        task = send_mail(sender, receiver, password, msg, host=host)
 
         # 参数检查
         with self.assertRaises(TypeError):
-            await send_mail(sender, receiver, password)
+            send_mail(sender, receiver, password)
             self.assertTrue(False, "未进行参数检查")
 
         with self.assertRaises(TypeError):
-            await send_mail(
+            send_mail(
                 sender,
                 receiver,
                 password,
@@ -61,6 +59,9 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
                 msg=EmailMessage(),
                 host=host,
             )
+
+        await task
+        print("please check if you have received 2 email message")
 
     async def test_mail_notify(self):
         body = """

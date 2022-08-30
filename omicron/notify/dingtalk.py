@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -6,23 +7,16 @@ import json
 import logging
 import time
 import urllib.parse
+from typing import Awaitable, Union
 
 import cfg4py
-import requests
+import httpx
+from deprecation import deprecated
+
+from omicron.core.errors import ConfigError
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
-
-
-def config_validate(func):
-    def inner(cls, *args, **kwargs):
-        access_token = cls._get_access_token()
-        if not access_token:
-            return False
-        else:
-            return func(cls, *args, **kwargs)
-
-    return inner
 
 
 class DingTalkMessage:
@@ -51,7 +45,7 @@ class DingTalkMessage:
                 "  dingtalk_access_token: xxxx\n"
                 "  dingtalk_secret: xxxx\n"
             )
-            return None
+            raise ConfigError("dingtalk_access_token not found")
 
     @classmethod
     def _get_secret(cls):
@@ -89,7 +83,7 @@ class DingTalkMessage:
     def _send(cls, msg):
         """发送消息到钉钉机器人"""
         url = cls._get_url()
-        response = requests.post(url, json=msg)
+        response = httpx.post(url, json=msg, timeout=30)
         if response.status_code != 200:
             logger.error(
                 f"failed to send message, content: {msg}, response from Dingtalk: {response.content.decode()}"
@@ -103,7 +97,54 @@ class DingTalkMessage:
         return response.content.decode()
 
     @classmethod
-    @config_validate
+    async def _send_async(cls, msg):
+        """发送消息到钉钉机器人"""
+        url = cls._get_url()
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=msg, timeout=30)
+            if r.status_code != 200:
+                logger.error(
+                    f"failed to send message, content: {msg}, response from Dingtalk: {r.content.decode()}"
+                )
+                return
+            rsp = json.loads(r.content)
+            if rsp.get("errcode") != 0:
+                logger.error(
+                    f"failed to send message, content: {msg}, response from Dingtalk: {rsp}"
+                )
+            return r.content.decode()
+
+    @classmethod
+    @deprecated()
     def text(cls, content):
         msg = {"text": {"content": content}, "msgtype": "text"}
         return cls._send(msg)
+
+
+def ding(msg: Union[str, dict]) -> Awaitable:
+    """发送消息到钉钉机器人
+
+    支持发送纯文本消息和markdown格式的文本消息。如果要发送markdown格式的消息，请通过字典传入，必须包含包含"title"和"text"两个字段。更详细信息，请见[钉钉开放平台文档](https://open.dingtalk.com/document/orgapp-server/message-type)
+
+    ???+ Important
+        必须在异步线程(即运行asyncio loop的线程）中调用此方法，否则会抛出异常。
+        此方法返回一个Awaitable，您可以等待它完成，也可以忽略返回值，此时它将作为一个后台任务执行，但完成的时间不确定。
+
+    Args:
+        msg: 待发送消息。
+
+    Returns:
+        发送消息的后台任务。您可以使用此返回句柄来取消任务。
+    """
+    if isinstance(msg, str):
+        msg_ = {"text": {"content": msg}, "msgtype": "text"}
+    elif isinstance(msg, dict):
+        msg_ = {
+            "msgtype": "markdown",
+            "markdown": {"title": msg["title"], "text": msg["text"]},
+        }
+    else:
+        raise TypeError
+
+    task = asyncio.create_task(DingTalkMessage._send_async(msg_))
+    return task

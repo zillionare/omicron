@@ -118,6 +118,7 @@ jobs:
       - name: Build wheels and source tarball
         run: |
           poetry version "$(poetry version --short)-dev.$GITHUB_RUN_NUMBER"
+          poetry lock
           poetry build
 
       - name: publish to Test PyPI
@@ -128,19 +129,20 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
           skip_existing: true
 
-      - name: Dingtalk Robot Notify
+      - uses: martialonline/workflow-status@v2
+        id: check
+
+      - name: build notification via email
         if: always()
-        uses: leafney/dingtalk-action@v1.0.0
-        env:
-          DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
-          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+        uses: dawidd6/action-send-mail@v3
         with:
-          msgtype: markdown
-          title: CI Notification | Success
-          text: |
-            ### Build Success
-            ${{ env.package_name }}.${{ env.package_version }} is built and published to test pypi
-            ### Change History
-            Please check change history at https://${{ env.repo_owner }}.github.io/${{ env.repo_name }}/history
-            ### Package Download
-            Please download the package at: https://test.pypi.org/project/${{ env.repo_name }}/
+          server_address: ${{ secrets.BUILD_NOTIFY_MAIL_SERVER }}
+          server_port: ${{ secrets.BUILD_NOTIFY_MAIL_PORT }}
+          username: ${{ secrets.BUILD_NOTIFY_MAIL_FROM }}
+          password: ${{ secrets.BUILD_NOTIFY_MAIL_PASSWORD }}
+          from: build-bot
+          to: ${{ secrets.BUILD_NOTIFY_MAIL_RCPT }}
+          subject: ${{ env.package_name }}.${{ env.package_version}} build ${{ steps.check.outputs.status }}
+          body: |
+            Change History:  https://${{ env.repo_owner }}.github.io/${{ env.repo_name }}/history
+            Package Download: https://pypi.org/project/${{ env.package_name }}/

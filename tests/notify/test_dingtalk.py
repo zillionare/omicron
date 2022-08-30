@@ -3,7 +3,7 @@ import unittest
 
 import cfg4py
 
-from omicron.notify.dingtalk import DingTalkMessage
+from omicron.notify.dingtalk import DingTalkMessage, ding
 from tests import init_test_env
 
 
@@ -18,3 +18,12 @@ class DingTalkTest(unittest.IsolatedAsyncioTestCase):
 
         rc = DingTalkMessage.text("UNIT TEST MESSAGE!")
         self.assertEqual(rc, '{"errcode":0,"errmsg":"ok"}')
+
+    async def test_ding(self):
+        await ding("hello world from unittest")
+        await ding(
+            {
+                "title": "hello from unittest",
+                "text": "# greetings from aaron!\n![](https://images.freeimages.com/images/large-previews/572/light-effect-1146280.jpg)",
+            }
+        )

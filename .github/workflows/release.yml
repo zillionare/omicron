@@ -63,7 +63,8 @@ jobs:
           poetry run mike set-default -p `poetry version --short`
 
       - name: Build wheels and source tarball
-        run: >-
+        run: |
+          poetry lock
           poetry build
 
       - name: Create Release

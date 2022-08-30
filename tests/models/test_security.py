@@ -1,30 +1,15 @@
 import datetime
-import os
-import pickle
 import unittest
-from unittest import mock
 
 import arrow
 import cfg4py
-import numpy as np
-import pandas as pd
-from coretypes import FrameType, SecurityType, bars_dtype, bars_with_limit_dtype
-from numpy.testing import assert_array_equal
 
 import omicron
-from omicron import tf
 from omicron.dal import cache
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.extensions.np import numpy_append_fields
 from omicron.models.security import Security, convert_nptime_to_datetime
 from omicron.models.stock import Stock
-from tests import (
-    assert_bars_equal,
-    bars_from_csv,
-    init_test_env,
-    set_security_data_to_db,
-    test_dir,
-)
+from tests import init_test_env, set_security_data_to_db
 
 cfg = cfg4py.get_instance()
 
@@ -149,12 +134,12 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertSetEqual({"000005.XSHE", "000007.XSHE"}, codes)
 
         query = Security.select()
-        query.types([]).include_exit().name("DM")
+        query.types([]).include_exit().name_like("DM")
         codes = set(await query.eval())
         self.assertSetEqual({"000406.XSHE"}, codes)
 
         query = Security.select()
-        query.types([]).alias("银行")
+        query.types([]).alias_like("银行")
         codes = set(await query.eval())
         self.assertSetEqual({"000001.XSHE", "600000.XSHG"}, codes)
 
@@ -250,7 +235,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
         await cache.security.set("security:latest_date", "2022-08-02")
         query = Security.select(dt)
-        query.types([]).name("PAY")
+        query.types([]).name_like("PAY")
         codes = set(await query.eval())
         exp = {"000001.XSHE"}
         self.assertSetEqual(exp, codes)
@@ -328,3 +313,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         items = await Security.get_xrxd_info(dt, "000001.XSHE")
         item = items[0]
         self.assertEqual(item["xr_date"], dt)
+
+    async def test_get_stock(self):
+        item = Security.get_stock("000001.XSHE")
+        self.assertEqual(item["alias"], "平安银行")

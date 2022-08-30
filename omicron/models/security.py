@@ -1,36 +1,27 @@
 import datetime
 import logging
 import re
-import time
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import arrow
 import cfg4py
 import numpy as np
-from coretypes import Frame, FrameType, SecurityType
+from coretypes import SecurityType, security_info_dtype
+from numpy.typing import ANDArray
 
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.influxclient import InfluxClient
-from omicron.dal.influx.serialize import EPOCH, DataframeDeserializer
+from omicron.dal.influx.serialize import DataframeDeserializer
 from omicron.models.timeframe import TimeFrame as tf
-from omicron.notify.dingtalk import DingTalkMessage
+from omicron.notify.dingtalk import ding
 
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
 
 
 security_db_dtype = [("frame", "O"), ("code", "U16"), ("info", "O")]
-
-security_info_dtype = [
-    ("code", "O"),
-    ("alias", "O"),
-    ("name", "O"),
-    ("ipo", "datetime64[s]"),
-    ("end", "datetime64[s]"),
-    ("type", "O"),
-]
 
 xrxd_info_dtype = [
     ("code", "O"),
@@ -86,6 +77,7 @@ class Query:
         self._only_st = False
 
     def only_cyb(self) -> "Query":
+        """返回结果中只包含创业板股票"""
         self._only_cyb = True  # 高优先级
         self._exclude_cyb = False
         self._only_kcb = False
@@ -93,6 +85,7 @@ class Query:
         return self
 
     def only_st(self) -> "Query":
+        """返回结果中只包含ST类型的证券"""
         self._only_st = True  # 高优先级
         self._exclude_st = False
         self._only_kcb = False
@@ -100,6 +93,7 @@ class Query:
         return self
 
     def only_kcb(self) -> "Query":
+        """返回结果中只包含科创板股票"""
         self._only_kcb = True  # 高优先级
         self._exclude_kcb = False
         self._only_cyb = False
@@ -107,30 +101,33 @@ class Query:
         return self
 
     def exclude_st(self) -> "Query":
+        """从返回结果中排除ST类型的股票"""
         self._exclude_st = True
         self._only_st = False
         return self
 
     def exclude_cyb(self) -> "Query":
+        """从返回结果中排除创业板类型的股票"""
         self._exclude_cyb = True
         self._only_cyb = False
         return self
 
     def exclude_kcb(self) -> "Query":
+        """从返回结果中排除科创板类型的股票"""
         self._exclude_kcb = True
         self._only_kcb = False
         return self
 
     def include_exit(self) -> "Query":
+        """从返回结果中排除已退市的证券"""
         self._include_exit = True
         return self
 
     def types(self, types: List[str]) -> "Query":
-        """按类型过滤
+        """选择类型在`types`中的证券品种
 
         Args:
-            # stock: {'index', 'stock'}
-            # funds: {'etf', 'fjb', 'mmf', 'reits', 'fja', 'fjm', 'lof'}
+            types: 有效的类型包括: 对股票指数而言是（'index', 'stock'），对基金而言则是（'etf', 'fjb', 'mmf', 'reits', 'fja', 'fjm', 'lof'）
         """
         if types is None or isinstance(types, List) is False:
             return self
@@ -143,7 +140,15 @@ class Query:
 
         return self
 
-    def name(self, name: str):
+    def name_like(self, name: str) -> "Query":
+        """查找股票/证券名称中出现`name`的品种
+
+        注意这里的证券名称并不是其显示名。比如对中国平安000001.XSHE来说，它的名称是ZGPA，而不是“中国平安”。
+
+        Args:
+            name: 待查找的名字，比如"ZGPA"
+
+        """
         if name is None or len(name) == 0:
             self._name_pattern = None
         else:
@@ -151,7 +156,12 @@ class Query:
 
         return self
 
-    def alias(self, display_name: str):
+    def alias_like(self, display_name: str) -> "Query":
+        """查找股票/证券显示名中出现`display_name的品种
+
+        Args:
+            display_name: 显示名，比如“中国平安"
+        """
         if display_name is None or len(display_name) == 0:
             self._alias_pattern = None
         else:
@@ -265,6 +275,13 @@ class Security:
 
     @classmethod
     async def init(cls):
+        """初始化Security.
+
+        一般而言，omicron的使用者无须调用此方法，它会在omicron初始化（通过`omicron.init`）时，被自动调用。
+
+        Raises:
+            DataNotReadyError:
+        """
         # read all securities from redis, 7111 records now
         # {'index', 'stock'}
         # {'fjb', 'mmf', 'reits', 'fja', 'fjm'}
@@ -283,7 +300,10 @@ class Security:
 
     @classmethod
     async def load_securities(cls):
-        """加载所有证券的信息，并缓存到内存中。"""
+        """加载所有证券的信息，并缓存到内存中
+
+        一般而言，omicron的使用者无须调用此方法，它会在omicron初始化（通过`omicron.init`）时，被自动调用。
+        """
         secs = await cache.security.lrange("security:all", 0, -1, encoding="utf-8")
         if len(secs) != 0:
             # using np.datetime64[s]
@@ -328,7 +348,24 @@ class Security:
             return None
 
     @classmethod
-    def get_stock(cls, code):
+    def get_stock(cls, code) -> ANDArray[security_info_dtype]:
+        """根据`code`来查找对应的股票（含指数）对象信息。
+
+        如果您只有股票代码，想知道该代码对应的股票名称、别名（显示名）、上市日期等信息，就可以使用此方法来获取相关信息。
+
+        返回类型为`security_info_dtype`的numpy数组，但仅包含一个元素。您可以象字典一样存取它，比如
+        ```python
+            item = Security.get_stock("000001.XSHE")
+            print(item["alias"])
+        ```
+        显示为"平安银行"
+
+        Args:
+            code: 待查询的股票/指数代码
+
+        Returns:
+            类型为`security_info_dtype`的numpy数组，但仅包含一个元素
+        """
         if len(cls._securities) == 0:
             return None
 
@@ -340,7 +377,9 @@ class Security:
         return None
 
     @classmethod
-    def fuzzy_match_ex(cls, query: str):
+    def fuzzy_match_ex(cls, query: str) -> Dict[str, Tuple]:
+        # fixme: 此方法与Stock.fuzzy_match重复，并且进行了类型限制，使得其不适合放在Security里，以及作为一个通用方法
+
         query = query.upper()
         if re.match(r"\d+", query):
             return {
@@ -537,7 +576,7 @@ class Security:
 
     @classmethod
     async def get_datescope_from_db(cls):
-        # fixme: 函数名无法反映用途，需要增加文档注释，说明该函数的作用
+        # fixme: 函数名无法反映用途，需要增加文档注释，说明该函数的作用,或者不应该出现在此类中？
         client = Security.get_influx_client()
         measurement = "security_list"
 
@@ -571,18 +610,19 @@ class Security:
 
     @classmethod
     async def _notify_special_bonusnote(cls, code, note, cancel_date):
+        # fixme: 这个函数应该出现在omega中？
         default_cancel_date = datetime.date(2099, 1, 1)  # 默认无取消公告
         # report this special event to notify user
         if cancel_date != default_cancel_date:
-            DingTalkMessage.text(
-                "security %s, bonus_cancel_pub_date %s" % (code, cancel_date)
-            )
+            ding("security %s, bonus_cancel_pub_date %s" % (code, cancel_date))
 
         if note.find("流通") != -1:  # 检查是否有“流通股”文字
-            DingTalkMessage.text("security %s, special xrxd note: %s" % (code, note))
+            ding("security %s, special xrxd note: %s" % (code, note))
 
     @classmethod
     async def save_xrxd_reports(cls, reports: List[str], dt: datetime.date):
+        # fixme: 此函数应该属于omega?
+
         """保存1年内的分红送股信息，并且存入influxdb，定时job调用本接口
 
         Args:
