@@ -324,7 +324,7 @@ class DataframeDeserializer(Serializer):
         Args:
             sort_values: sort the dataframe by the specified columns
             encoding: if the data is bytes, then encoding is required, due to pandas.read_csv only handle string array
-            sep: the seperator/delimiter of each fields
+            sep: the separator/delimiter of each fields
             header: the row number of the header, default is 'infer'
             names: the column names of the dataframe
             index_col: the column number or name of the index column

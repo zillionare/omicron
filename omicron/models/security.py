@@ -7,7 +7,7 @@ import arrow
 import cfg4py
 import numpy as np
 from coretypes import SecurityType, security_info_dtype
-from numpy.typing import ANDArray
+from numpy.typing import NDArray
 
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache
@@ -348,7 +348,7 @@ class Security:
             return None
 
     @classmethod
-    def get_stock(cls, code) -> ANDArray[security_info_dtype]:
+    def get_stock(cls, code) -> NDArray[security_info_dtype]:
         """根据`code`来查找对应的股票（含指数）对象信息。
 
         如果您只有股票代码，想知道该代码对应的股票名称、别名（显示名）、上市日期等信息，就可以使用此方法来获取相关信息。
