@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 import unittest
+from turtle import end_fill
 from unittest import mock
 
 import arrow
@@ -879,11 +880,27 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         feb9_0930 = datetime.datetime(2022, 2, 9, 9, 30)
         feb9_1030 = datetime.datetime(2022, 2, 9, 10, 30)
 
+        # end < cache_start and now.date() > end.date()
+        end_ = datetime.datetime(2022, 1, 28, 15)
+        start_ = datetime.datetime(2022, 1, 18, 15)
+        codes_ = ["000002.XSHE"]
+        with freeze_time("2022-08-09 09:31:00"):
+            async for code, bars in Stock.batch_get_min_level_bars_in_range(
+                codes_, FrameType.MIN30, start_, end_
+            ):
+                exp = bars_from_csv(code, "30m", start_, end_)
+                assert_bars_equal(exp, bars)
+
         # end < cache_start
         async for code, bars in Stock.batch_get_min_level_bars_in_range(
-            codes, FrameType.MIN30, start, feb9_0930
+            codes, FrameType.MIN30, start, feb9_1030
         ):
-            exp = bars_from_csv(code, "30m", start, feb9_0930)
+            exp = bars_from_csv(code, "30m", start, feb9_1030)
+            m1_bars = bars_from_csv(
+                code, "1m", datetime.datetime(2022, 2, 9, 9, 31), feb9_1030
+            )
+            m30 = Stock.resample(m1_bars, FrameType.MIN1, FrameType.MIN30)
+            exp = np.concatenate((exp, m30))
             assert_bars_equal(exp, bars)
 
             # check fq called
@@ -935,6 +952,8 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             cached = Stock.resample(min_bars, FrameType.MIN1, FrameType.MIN30)
             exp = np.concatenate((persisted, cached))
             assert_bars_equal(exp, bars)
+
+        # end < cached_start and now.date() != end.date()
 
     async def test_batch_get_cached_bars_n(self):
         codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]

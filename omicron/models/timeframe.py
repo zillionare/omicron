@@ -774,8 +774,8 @@ class TimeFrame:
             datetime.datetime(2019, 12, 31, 9, 31)
 
         Args:
-            day:
-            frame_type:
+            day: which day?
+            frame_type: which frame_type?
 
         Returns:
             `day`当日的第一帧

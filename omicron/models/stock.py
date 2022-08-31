@@ -208,14 +208,14 @@ class Stock(Security):
         """
         n = tf.count_frames(start, tf.floor(end, frame_type), frame_type)
         batch_size = cfg.influxdb.max_query_size // n + 1
-        ff = tf.first_min_frame(end, frame_type)
+        ff = tf.first_min_frame(datetime.datetime.now(), frame_type)
 
         for i in range(0, len(codes), batch_size):
             batch_codes = codes[i : i + batch_size]
 
             if end < ff:
                 part1 = await cls._batch_get_persisted_bars_in_range(
-                    batch_codes, frame_type, start, ff
+                    batch_codes, frame_type, start, min(end, ff)
                 )
                 part2 = pd.DataFrame([], columns=bars_dtype_with_code.names)
             elif start > ff:
