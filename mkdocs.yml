@@ -9,9 +9,9 @@ nav:
   - API文档:
     - omicron: api/omicron.md
     - timeframe: api/timeframe.md
-    - fund: api/funds.md
     - triggers: api/triggers.md
     - stock: api/stock.md
+    - security: api/security.md
     - metrics: api/metrics.md
     - talib: api/talib.md
     - dal:
@@ -41,3 +41,7 @@ plugins:
             - sys.path.append("omicron")
   - search
   - autorefs
+
+extra:
+  version:
+    provider: mike
