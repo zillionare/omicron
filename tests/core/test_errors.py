@@ -1,5 +1,4 @@
 import unittest
-from telnetlib import SE
 
 from omicron.core.errors import ServiceNotReadyError
 

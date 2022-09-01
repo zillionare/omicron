@@ -53,20 +53,6 @@ jobs:
         ports:
           - 6379:6379
 
-      postgres:
-        image: postgres
-        env: # this is defined by image postgres
-          POSTGRES_PASSWORD: 123456
-          POSTGRES_USER: zillionare
-          POSTGRES_DB: zillionare
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -91,14 +77,6 @@ jobs:
           echo "::set-output name=package_name::`poetry version | awk '{print $1}'`"
           echo "::set-output name=package_version::`poetry version --short`"
         shell: bash
-
-      - name: init POSTGRES db
-        run: |
-            ls
-            export TZ=Asia/Shanghai
-            sudo -E apt-get update
-            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v0.6.sql
-            PGPASSWORD=123456 psql -U zillionare -h localhost --dbname=zillionare --file=omicron/config/sql/v1.0.sql
 
       - name: init influxdb
         run: |
