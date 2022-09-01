@@ -819,8 +819,11 @@ class Stock(Security):
                 recs = await cache.security.hmget(key, *codes)
 
             barss = cls._deserialize_cached_bars(recs, frame_type)
-            barss = numpy_append_fields(barss, "code", codes, [("code", "O")])
-            return barss[cols].astype(bars_dtype_with_code)
+            if barss.size > 0:
+                barss = numpy_append_fields(barss, "code", codes, [("code", "O")])
+                return barss[cols].astype(bars_dtype_with_code)
+            else:
+                return np.array([], dtype=bars_dtype_with_code)
         else:
             end = end or arrow.now().naive
             close_end = tf.floor(end, frame_type)

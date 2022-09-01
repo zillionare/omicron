@@ -872,6 +872,22 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             exp = np.concatenate((persisted, cached))
             assert_bars_equal(exp, bars)
 
+        # when cache contains no data
+        await Stock.reset_cache()
+        async for code, bars in Stock.batch_get_day_level_bars_in_range(
+            codes,
+            FrameType.DAY,
+            arrow.get("2022-02-08").date(),
+            arrow.get("2022-02-09").date(),
+        ):
+            min_bars = bars_from_csv(code, "1m")
+            min_bars = min_bars[min_bars["frame"] >= datetime.datetime(2022, 2, 9)]
+            cached = Stock.resample(min_bars, FrameType.MIN1, FrameType.DAY)
+            persisted = bars_from_csv(code, "1d")
+            persisted = persisted[persisted["frame"] >= datetime.datetime(2022, 2, 8)]
+
+            assert_bars_equal(persisted, bars)
+
     @freeze_time("2022-02-09 10:33:00")
     async def test_batch_get_min_level_bars_in_range(self):
         codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
