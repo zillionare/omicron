@@ -280,7 +280,7 @@ class Security:
         一般而言，omicron的使用者无须调用此方法，它会在omicron初始化（通过`omicron.init`）时，被自动调用。
 
         Raises:
-            DataNotReadyError:
+            DataNotReadyError: 如果omicron未初始化，或者cache中未加载最新证券列表，则抛出此异常。
         """
         # read all securities from redis, 7111 records now
         # {'index', 'stock'}
@@ -332,7 +332,7 @@ class Security:
             return None
 
     @classmethod
-    def get_influx_client(cls):
+    def _get_influx_client(cls):
         cfg = cfg4py.get_instance()
         url = cfg.influxdb.url
         token = cfg.influxdb.token
@@ -518,7 +518,7 @@ class Security:
             return
 
         measurement = "security_list"
-        client = cls.get_influx_client()
+        client = cls._get_influx_client()
 
         # code, alias, name, start, end, type
         security_list = np.array(
@@ -539,7 +539,7 @@ class Security:
         if target_date is None:
             return None
 
-        client = Security.get_influx_client()
+        client = Security._get_influx_client()
         measurement = "security_list"
 
         flux = (
@@ -577,7 +577,7 @@ class Security:
     @classmethod
     async def get_datescope_from_db(cls):
         # fixme: 函数名无法反映用途，需要增加文档注释，说明该函数的作用,或者不应该出现在此类中？
-        client = Security.get_influx_client()
+        client = Security._get_influx_client()
         measurement = "security_list"
 
         date1 = arrow.get("2005-01-01").date()
@@ -683,7 +683,7 @@ class Security:
             return
 
         measurement = "security_xrxd_reports"
-        client = cls.get_influx_client()
+        client = cls._get_influx_client()
         # a_xr_date(_time), code(tag), info
         report_list = np.array(records, dtype=security_db_dtype)
         await client.save(report_list, measurement, time_key="frame", tag_keys=["code"])
@@ -695,7 +695,7 @@ class Security:
         if dt_start is None or dt_end is None:
             return []
 
-        client = Security.get_influx_client()
+        client = Security._get_influx_client()
         measurement = "security_xrxd_reports"
 
         flux = (

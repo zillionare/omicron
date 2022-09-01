@@ -23,12 +23,28 @@ theme:
   name: material
 
 markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.tabbed
+  - attr_list
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.highlight:
       linenums: true
   - pymdownx.superfences
+  - pymdownx.details
   - admonition
   - toc:
       baselevel: 2
+      permalink: true
+      slugify: !!python/name:pymdownx.slugs.uslugify
+  - meta
+  - footnotes
 plugins:
   - include-markdown
   - mkdocstrings:
