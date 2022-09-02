@@ -16,7 +16,6 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   test:
     env:
       JQ_ACCOUNT: "${{secrets.JQ_ACCOUNT}}"
@@ -31,7 +30,7 @@ jobs:
     # The type of runner that the job will run on
     strategy:
       matrix:
-        python-versions: [3.8]
+        python-versions: ['3.8']
         os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     # map step outputs to job outputs so they can be share among jobs
@@ -55,7 +54,6 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
