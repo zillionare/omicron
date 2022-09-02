@@ -109,6 +109,9 @@ jobs:
 
       - name: build documentation
         run: |
+          # the following 2 lines is required by building zigzag
+          pip install numpy
+          pip install Cython
           poetry install -E doc
           poetry run mkdocs build
           git config --global user.name Docs deploy
