@@ -116,8 +116,8 @@ jobs:
           mkdocs build
           git config --global user.name Docs deploy
           git config --global user.email docs@dummy.bot.com
-          run mike deploy -p -f --ignore "`poetry version --short`.dev"
-          run mike set-default -p "`poetry version --short`.dev"
+          mike deploy -p -f --ignore "`poetry version --short`.dev"
+          mike set-default -p "`poetry version --short`.dev"
 
       - uses: codecov/codecov-action@v3
         with:
