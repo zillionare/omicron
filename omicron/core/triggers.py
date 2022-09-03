@@ -36,9 +36,8 @@ class FrameTrigger(BaseTrigger):
         间是每个交易日的09:29:45, 09:59:45, ...
 
         Examples:
-            >>> FrameTrigger(FrameType.MIN30, '-15s')
-            ... # doctest: +ELLIPSIS
-            <triggers.FrameTrigger object at 0x...>
+            >>> FrameTrigger(FrameType.MIN30, '-15s') # doctest: +ELLIPSIS
+            <omicron.core.triggers.FrameTrigger object at 0x...>
 
         Args:
             frame_type:
