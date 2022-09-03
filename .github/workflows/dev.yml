@@ -62,7 +62,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install tox tox-gh-actions poetry
+          pip install tox tox-gh-actions
           sudo mkdir -p /var/log/zillionare/omicron
           sudo chmod 777 /var/log/zillionare/omicron
 
@@ -83,7 +83,7 @@ jobs:
           docker exec -i my_influxdb bash -c 'influx setup --username my-user --password my-password --org my-org --bucket my-bucket --token my-token --force'
 
       - name: test with tox
-        run: tox
+        run: tox -vvv
 
       - uses: codecov/codecov-action@v3
         with:
@@ -103,21 +103,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install poetry tox tox-gh-actions
+          pip install poetry
 
       - name: build documentation
         run: |
-          # the following 2 lines is required by building zigzag
-          pip install numpy
-          pip install Cython
-          rm -f dist/*
-          poetry build
-          pip install "`ls dist/*.whl`[test,dev,doc]"
-          mkdocs build
+          poetry install -E doc
+          poetry run mkdocs build
           git config --global user.name Docs deploy
           git config --global user.email docs@dummy.bot.com
-          mike deploy -p -f --ignore "`poetry version --short`.dev"
-          mike set-default -p "`poetry version --short`.dev"
+          poetry run mike deploy -p -f --ignore "`poetry version --short`.dev"
+          poetry run mike set-default -p "`poetry version --short`.dev"
 
       - name: Build wheels and source tarball
         run: |
