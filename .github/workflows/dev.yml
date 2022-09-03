@@ -119,11 +119,6 @@ jobs:
           mike deploy -p -f --ignore "`poetry version --short`.dev"
           mike set-default -p "`poetry version --short`.dev"
 
-      - uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
-          files: coverage.xml
-
       - name: Build wheels and source tarball
         run: |
           poetry version $(poetry version --short)-dev.$GITHUB_RUN_NUMBER
