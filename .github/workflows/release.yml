@@ -65,7 +65,7 @@ jobs:
           poetry run mkdocs build
           git config --global user.name Docs deploy
           git config --global user.email docs@dummy.bot.com
-          poetry run mike deploy -p -f --ignore `poetry version --short`
+          poetry run mike deploy -p -f --ignore `poetry version --short` latest
           poetry run mike set-default -p `poetry version --short`
 
       - name: Build wheels and source tarball
@@ -147,19 +147,19 @@ jobs:
             https://github.com/${{ needs.release.outputs.repo_owner }}/${{ needs.release.outputs.repo_name }}/actions
 
 
-      # - name: Dingtalk Robot Notify
-      #   if: always()
-      #   uses: leafney/dingtalk-action@v1.0.0
-      #   env:
-      #     DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
-      #     DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
-      #   with:
-      #     msgtype: markdown
-      #     title: CI Notification | Success
-      #     text: |
-      #       ### Build Success
-      #       ${{ needs.release.outputs.package_version_full }} is built and published to test pypi
-      #       ### Change History
-      #       Please check change history at https://${{ needs.release.outputs.repo_owner }}.github.io/${{ needs.release.outputs.repo_name }}/history
-      #       ### Package Download
-      #       Please download the package at: https://test.pypi.org/project/${{ needs.release.outputs.repo_name }}/
+      - name: Dingtalk Robot Notify
+        if: always()
+        uses: leafney/dingtalk-action@v1.0.0
+        env:
+          DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+        with:
+          msgtype: markdown
+          title: CI Notification | Success
+          text: |
+            ### Build Success
+            ${{ needs.release.outputs.package_version }} is built and published to PYPI
+            ### Change History
+            Please check change history at https://${{ needs.release.outputs.repo_owner }}.github.io/${{ needs.release.outputs.repo_name }}/latest/history
+            ### Package Download
+            Please download the package at: https://test.pypi.org/project/${{ needs.release.outputs.repo_name }}/
