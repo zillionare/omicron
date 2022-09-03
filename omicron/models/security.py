@@ -38,7 +38,7 @@ xrxd_info_dtype = [
 ]
 
 _delta = np.timedelta64(1, "s")
-_start = np.datetime64("1970-01-01T00:00:00Z")
+_start = np.datetime64("1970-01-01 00:00:00")
 
 
 def convert_nptime_to_datetime(x):
