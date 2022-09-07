@@ -1,4 +1,6 @@
 site_name: Omicron
+repo_url: https://github.com/zillionare/omicron
+repo_name: omicron
 
 nav:
   - 简介: index.md
