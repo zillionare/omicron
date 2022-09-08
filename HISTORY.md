@@ -1,10 +1,11 @@
 # History
 
-## 2.0.0-alpha.44 (2022-09-08)
+## 2.0.0-alpha.45 (2022-09-08)
 * [#39](https://github.com/zillionare/omicron/issues/39) fixed.
 * removed dependency of postgres
 * removed funds
 * update arrow's version to be great than 1.2
+* lock aiohttp's version to >3.8, <4.0>
 ## 2.0.0-alpha.35 (2022-07-13)
 
 * fix issue in security exit date comparison, Security.eval().
