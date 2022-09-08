@@ -972,7 +972,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         # end < cached_start and now.date() != end.date()
 
     async def test_batch_get_cached_bars_n(self):
-        codes = ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
+        codes = ["000002.XSHE", "000001.XSHE", "000004.XSHE"]
 
         # day level
         barss = await Stock._batch_get_cached_bars_n(
@@ -985,6 +985,21 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         actual_bar = barss[barss["code"] == "000001.XSHE"][bars_cols].astype(bars_dtype)
         assert_bars_equal(actual_bar, exp)
+
+        # issue 39
+        codes_ = ["000003.XSHE", "000001.XSHE", "000002.XSHE", "000004.XSHE"]
+        barss = await Stock._batch_get_cached_bars_n(
+            FrameType.DAY, 1, None, codes=codes_
+        )
+        np.testing.assert_array_equal(
+            barss["code"], ["000001.XSHE", "000002.XSHE", "000004.XSHE"]
+        )
+        m1_4 = bars_from_csv("000004.XSHE", "1m")
+        cached_4 = m1_4[m1_4["frame"] > datetime.datetime(2022, 2, 9)]
+        exp_4 = Stock.resample(cached_4, FrameType.MIN1, FrameType.DAY)
+        exp_4["frame"][0] = datetime.datetime(2022, 2, 9)
+        actual_bar = barss[barss["code"] == "000004.XSHE"][bars_cols].astype(bars_dtype)
+        assert_bars_equal(actual_bar, exp_4)
 
         # codes is None for day level
         barss = await Stock._batch_get_cached_bars_n(FrameType.DAY, 1, codes=None)
@@ -1008,6 +1023,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         exp = Stock.resample(cached, FrameType.MIN1, FrameType.MIN5)[:3]
         actual_bar = barss[barss["code"] == "000001.XSHE"][bars_cols].astype(bars_dtype)
         assert_bars_equal(exp, actual_bar)
+        self.assertSetEqual(set(barss["code"]), set(codes))
 
         # 5m, end >= lf, so unclosed is included
         end = datetime.datetime(2022, 2, 9, 10, 33)
@@ -1022,6 +1038,32 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         with mock.patch("arrow.now", return_value=arrow.get("2022-02-09 10:33:00")):
             barss = await Stock._batch_get_cached_bars_n(
                 FrameType.MIN5, 3, end=None, codes=codes
+            )
+            exp = Stock.resample(cached, FrameType.MIN1, FrameType.MIN5)[-3:]
+            actual_bar = barss[barss["code"] == "000001.XSHE"][bars_cols].astype(
+                bars_dtype
+            )
+            assert_bars_equal(exp, actual_bar)
+
+        # issue 39, 5m, 某支票当天停牌
+        codes = ["000003.XSHE", "000002.XSHE", "000001.XSHE", "000004.XSHE"]
+        with mock.patch("arrow.now", return_value=arrow.get("2022-02-09 10:33:00")):
+            barss = await Stock._batch_get_cached_bars_n(
+                FrameType.MIN5, 3, end=None, codes=codes
+            )
+            np.testing.assert_array_equal(
+                barss["code"],
+                [
+                    "000002.XSHE",
+                    "000002.XSHE",
+                    "000002.XSHE",
+                    "000001.XSHE",
+                    "000001.XSHE",
+                    "000001.XSHE",
+                    "000004.XSHE",
+                    "000004.XSHE",
+                    "000004.XSHE",
+                ],
             )
             exp = Stock.resample(cached, FrameType.MIN1, FrameType.MIN5)[-3:]
             actual_bar = barss[barss["code"] == "000001.XSHE"][bars_cols].astype(
@@ -1327,7 +1369,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     1.0,
                     3.23,
                     2.65,
-                ),
+                )
             ],
             dtype=[
                 ("frame", "O"),
@@ -1370,7 +1412,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
                     1.0,
                     3.23,
                     2.65,
-                ),
+                )
             ],
             dtype=[
                 ("frame", "O"),

@@ -81,11 +81,7 @@ class MailTest(unittest.IsolatedAsyncioTestCase):
             await mail_notify("test", body=body, msg=EmailMessage())
 
         with self.assertRaises(TypeError):
-            await mail_notify(
-                None,
-                None,
-                None,
-            )
+            await mail_notify(None, None, None)
 
         # send plain txt
         await mail_notify("test mail_notify", body="plain text body")

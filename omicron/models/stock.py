@@ -820,6 +820,11 @@ class Stock(Security):
 
             barss = cls._deserialize_cached_bars(recs, frame_type)
             if barss.size > 0:
+                if len(barss) != len(codes):
+                    # issue 39, 如果某支票当天停牌，则缓存中将不会有它的记录，此时需要移除其代码
+                    codes = [
+                        codes[i] for i, item in enumerate(recs) if item is not None
+                    ]
                 barss = numpy_append_fields(barss, "code", codes, [("code", "O")])
                 return barss[cols].astype(bars_dtype_with_code)
             else:
@@ -829,7 +834,9 @@ class Stock(Security):
             close_end = tf.floor(end, frame_type)
             all_bars = []
             if codes is None:
-                keys = await cache.security.keys(f"bars:{frame_type.value}:*")
+                keys = await cache.security.keys(
+                    f"bars:{frame_type.value}:*[^unclosed]"
+                )
                 codes = [key.split(":")[-1] for key in keys]
             else:
                 keys = [f"bars:{frame_type.value}:{code}" for code in codes]
