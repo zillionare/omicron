@@ -1647,7 +1647,7 @@ test = ["pytest", "black", "isort", "flake8", "flake8-docstrings", "pytest-cov",
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "6b0fc7daf68b3665852623bc47ce77a59790de0e495b017cbc1f1d19d595e35c"
+content-hash = "9193dcf67cb977ccae21d16b988b118b535f9b2692ad408f60908ceb610ac659"
 
 [metadata.files]
 aiohttp = [
