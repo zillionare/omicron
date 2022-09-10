@@ -89,7 +89,7 @@ jobs:
           ./configure --prefix=/usr
           make
           sudo make install
-
+          cd -
           tox -vvv
 
       - uses: codecov/codecov-action@v3
