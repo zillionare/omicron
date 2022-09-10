@@ -33,7 +33,7 @@ repos:
         additional_dependencies: [flake8-typing-imports==1.10.0]
         exclude: ^tests/
 -   repo: https://github.com/codespell-project/codespell
-    rev: v1.16.0
+    rev: v2.2.1
     hooks:
       - id: codespell
         name: codespell
@@ -41,3 +41,4 @@ repos:
         entry: codespell
         language: python
         types: [text]
+        exclude: poetry.lock
