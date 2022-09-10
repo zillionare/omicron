@@ -1,5 +1,10 @@
 # History
 
+
+## 2.0.0-alpha.46 (2022-09-10)
+* [#40](https://github.com/zillionare/omicron/issues/40) 增加k线图绘制功能。
+* 本次修订增加了对plotly, ckwrap的依赖。
+* 将原属于omicron.talib包中的bars_since, find_runs等跟数组相关的操作，移入omicron.extensions.np中。
 ## 2.0.0-alpha.45 (2022-09-08)
 * [#39](https://github.com/zillionare/omicron/issues/39) fixed.
 * removed dependency of postgres
