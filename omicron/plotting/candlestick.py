@@ -1,4 +1,3 @@
-import datetime
 from collections import defaultdict
 from typing import List, Tuple
 
@@ -6,9 +5,16 @@ import arrow
 import numpy as np
 import plotly.graph_objects as go
 import talib
+from coretypes import FrameType
 from plotly.subplots import make_subplots
 
-from omicron.talib import moving_average, peaks_and_valleys, support_resist_lines
+from omicron import tf
+from omicron.talib import (
+    moving_average,
+    peaks_and_valleys,
+    plateaus,
+    support_resist_lines,
+)
 from omicron.talib.core import clustering
 
 
@@ -108,12 +114,19 @@ class Candlestick:
         return fig
 
     def _format_tick(self, tm: np.array) -> str:
-        frame = tm[0]
-        if type(frame) == datetime.date:
-            return np.array([f"{x.year:02}-{x.month:02}-{x.day:02}" for x in tm])
+        if tm.item(0).hour == 0:  # assume it's date
+            return np.array(
+                [
+                    f"{x.item().year:02}-{x.item().month:02}-{x.item().day:02}"
+                    for x in tm
+                ]
+            )
         else:
             return np.array(
-                [f"{x.month:02}-{x.day:02} {x.hour:02}:{x.minute:02}" for x in tm]
+                [
+                    f"{x.item().month:02}-{x.item().day:02} {x.item().hour:02}:{x.item().minute:02}"
+                    for x in tm
+                ]
             )
 
     def add_main_trace(self, trace_name: str, **kwargs):
@@ -199,7 +212,7 @@ class Candlestick:
             min_size : 矩形框的最小长度
 
         """
-        boxes = clustering(self.bars["close"], min_size)
+        boxes = plateaus(self.bars["close"], min_size)
         self.add_main_trace("bbox", boxes=boxes)
 
     def mark_backtest_result(self, result: dict):
@@ -299,22 +312,35 @@ class Candlestick:
         """bbox是标记在k线图上某个区间内的矩形框，它以该区间最高价和最低价为上下边。
 
         Args:
-            boxes : 每个元素(start, width)表示各个bbox的起点和宽度。
+            boxes: 每个元素(start, width)表示各个bbox的起点和宽度。
         """
-        x, y = [], []
         for j, box in enumerate(boxes):
+            x, y = [], []
             i, width = box
             if len(x):
                 x.append(None)
                 y.append(None)
 
-            h = max(self.bars["high"][i : i + width])
-            low = min(self.bars["low"][i : i + width])
+            group = self.bars[i : i + width]
+
+            mean = np.mean(group["close"])
+            std = 2 * np.std(group["close"])
+
+            # 落在两个标准差以内的实体最上方和最下方值
+            hc = np.max(group[group["close"] < mean + std]["close"])
+            lc = np.min(group[group["close"] > mean - std]["close"])
+
+            ho = np.max(group[group["open"] < mean + std]["open"])
+            lo = np.min(group[group["open"] > mean - std]["open"])
+
+            h = max(hc, ho)
+            low = min(lo, lc)
+
             x.extend(self.ticks[[i, i + width - 1, i + width - 1, i, i]])
             y.extend((h, h, low, low, h))
 
-            hover = f"宽度: {width}<br> 振幅: {(h - low) / low:.2%}"
-            trace = go.Scatter(x=x, y=y, fill="toself", name="平台整理", text=hover)
+            hover = f"宽度: {width}<br>振幅: {h/low - 1:.2%}"
+            trace = go.Scatter(x=x, y=y, fill="toself", name=f"平台整理{j}", text=hover)
             self.main_traces[f"bbox-{j}"] = trace
 
     def add_indicator(self, indicator: str):
