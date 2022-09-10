@@ -156,6 +156,8 @@ def support_resist_lines(
         ts = ts.astype(np.float64)
 
     pivots = peak_valley_pivots(ts, upthres, downthres)
+    pivots[0] = 0
+    pivots[-1] = 0
 
     peaks_only = np.select([pivots == 1], [ts], 0)
     arg_max = sorted(top_n_argpos(peaks_only, 2))

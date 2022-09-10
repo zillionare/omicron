@@ -274,6 +274,18 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "ckwrap"
+version = "0.1.10"
+description = "Python wrapper for Ckmeans.1d.dp, 4.3.4."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+Cython = "*"
+numpy = "*"
+
+[[package]]
 name = "click"
 version = "8.1.3"
 description = "Composable command line interface toolkit"
@@ -965,6 +977,17 @@ docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx (>=4)", "sphinx-
 test = ["appdirs (==1.4.4)", "pytest (>=6)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)"]
 
 [[package]]
+name = "plotly"
+version = "5.10.0"
+description = "An open-source, interactive data visualization library for Python"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+tenacity = ">=6.2.0"
+
+[[package]]
 name = "pluggy"
 version = "1.0.0"
 description = "plugin and hook calling mechanisms for python"
@@ -1368,6 +1391,28 @@ optional = true
 python-versions = "*"
 
 [[package]]
+name = "TA-Lib"
+version = "0.4.25"
+description = "Python wrapper for TA-Lib"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
+name = "tenacity"
+version = "8.0.1"
+description = "Retry code until it succeeds"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+doc = ["reno", "sphinx", "tornado (>=4.5)"]
+
+[[package]]
 name = "termcolor"
 version = "1.1.0"
 description = "ANSII Color formatting for output in terminal."
@@ -1647,7 +1692,7 @@ test = ["pytest", "black", "isort", "flake8", "flake8-docstrings", "pytest-cov",
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "9193dcf67cb977ccae21d16b988b118b535f9b2692ad408f60908ceb610ac659"
+content-hash = "466975a8739e8969934e0535bda6b45d72b6844767bfaba9738693325dbfca45"
 
 [metadata.files]
 aiohttp = [
@@ -1929,6 +1974,44 @@ charset-normalizer = [
 ]
 ciso8601 = [
     {file = "ciso8601-2.2.0.tar.gz", hash = "sha256:14ad817ed31a698372d42afa81b0173d71cd1d0b48b7499a2da2a01dcc8695e6"},
+]
+ckwrap = [
+    {file = "ckwrap-0.1.10-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:69057fbbc9c5cd4852d8d15c4815ba5798fee1001679bb75c6989c9d22b7febf"},
+    {file = "ckwrap-0.1.10-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3bd76f979dfdf0e63688d212585b0a44e6673d53d2a07c87ca9502be44ccf023"},
+    {file = "ckwrap-0.1.10-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:438e42834e8bee351183c22e417f9358a7c21ae1af7ffa580b2f6a54229a4619"},
+    {file = "ckwrap-0.1.10-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:6190106f3e0630a1836327b56571a5a7a9298ad8467c9f515858f9e4ac369a44"},
+    {file = "ckwrap-0.1.10-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:03aecfabb8a52173a6e3c9c13e8844b1e86b59e4b31b6b06f7ba041e987932be"},
+    {file = "ckwrap-0.1.10-cp310-cp310-win32.whl", hash = "sha256:68ebdf008d6b0ce7cd8a537daaead40e5005c9b66866b86830fb2facd12b6411"},
+    {file = "ckwrap-0.1.10-cp310-cp310-win_amd64.whl", hash = "sha256:0e7e5b57d7274a57ee4905286c8aaa6b8455a0ff98e980a7e54cc6d1e88f9e51"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:04d1845cf6f82b44be188191dee4aefc012c760afe8444cacf60db87611a4eb8"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f0efcfed4e63e539359258d4da5fb31ff87dd5a6b55a84002d9a6a2f42812f87"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:607a12b2668787255d7e80cd9152ede322a44c126dc19036a8c738cb3b98461c"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:d29032fb326f04938fc12bf275ddc721b84898daa623ac8d6a314abe3c19f7ca"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:e6e60c9a19f26b75c7d40ced59f41b4415ce593cd613dfcf3c03c3e04d07eb7f"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-win32.whl", hash = "sha256:fa894570944cddbee29dd5b249b5a1e81cc3a5baa515121c9c2bffea3cc67297"},
+    {file = "ckwrap-0.1.10-cp36-cp36m-win_amd64.whl", hash = "sha256:e9f3d359f0a5781d717c84024b67873dbf688ca8b96a7f6bb9c434c1669770ec"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:0af0ea96b5677c84391025e45fab67ff7238d48339c26fe5457c009be5e4e5e1"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e21063e25a0ee2fadf81543b74e647249721d655cc7784c3ed4c2011950e66fc"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:3314ab8f781c51bff68c1896157802e91d31a9b31b8deb12bff96a899a17db0b"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:ae64dddbfcc3a1c5564e1ad7c794410b5495153922b9ea11f7e03448e3ee0b80"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:194c5f7337ce4e9dca81919bb21bc376e0538bd42ac4f6fe483d2b3ab4e9d45a"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-win32.whl", hash = "sha256:e27aaa624505bafeb6e17efac6c03f29c594aa219a78a58467b2797ae75c60a7"},
+    {file = "ckwrap-0.1.10-cp37-cp37m-win_amd64.whl", hash = "sha256:8925c1d59cc2fef24af03e21e4c3aadf13ac71d7cbc3fe5b3bc79ccc73daed3e"},
+    {file = "ckwrap-0.1.10-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:927098fdc5eb1aff9189b2772a9d7bb5f9ccb9e0c33f934cfde1e32e564b01ce"},
+    {file = "ckwrap-0.1.10-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d4dedfd82cc666caf15fc07bc76f9d4254298758389e792800491aa47104f5cc"},
+    {file = "ckwrap-0.1.10-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:67160b0ef8cd5f301ced72b22eb28424c0156b66830dbd7ad13c55d8b1a8a3c7"},
+    {file = "ckwrap-0.1.10-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:e3a6e3107466f8dd30bd60e90b7bcb86a620f0715ea576b281514a89fd21857f"},
+    {file = "ckwrap-0.1.10-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:29ee6b00fbae702940dae9413d12a6637dfd69bc391ee40d7a88ab2d4614d316"},
+    {file = "ckwrap-0.1.10-cp38-cp38-win32.whl", hash = "sha256:037e5ea2fae729bc82bb325ef2fd1ecb37a1c2002700c888d0c6b0d581fe7ffd"},
+    {file = "ckwrap-0.1.10-cp38-cp38-win_amd64.whl", hash = "sha256:bbd4402b32b953b2066a5e173194565310d416ff5b5918e5342eeaf1d451b6f6"},
+    {file = "ckwrap-0.1.10-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:5ed5962da5f80bdda54200dc14b2817869093703de5413fb89447e7eaccc0add"},
+    {file = "ckwrap-0.1.10-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:66fa85bac14deac6db4de0c851de433d2f3217ca6e28d9e9133f62829016966d"},
+    {file = "ckwrap-0.1.10-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:8eabcb36022e0ae8c5c1da1839579054ffc317c70b5f5a704b4678dd009f2b48"},
+    {file = "ckwrap-0.1.10-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:d3f34ded7ed3f014642c734fa0961caba926b0c645d0ccea168e2b6390d6f935"},
+    {file = "ckwrap-0.1.10-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:83853baba584fd77af7f836a853c968a8c7ee3eac6bf7e5603d9cc3a0c0f8c91"},
+    {file = "ckwrap-0.1.10-cp39-cp39-win32.whl", hash = "sha256:e4c0f58a866102dbea4ef035d8101c63666bd916ab12c7aaf46126b8729145ef"},
+    {file = "ckwrap-0.1.10-cp39-cp39-win_amd64.whl", hash = "sha256:1fb3b3a21c3fb54168ae664a6ddca6bd27bccdeb9bc85168dad49457922463b5"},
+    {file = "ckwrap-0.1.10.tar.gz", hash = "sha256:027200b6db89f6d8c7ead31b83a23fefe2916c83eabe488cdb670a6721c20cae"},
 ]
 click = [
     {file = "click-8.1.3-py3-none-any.whl", hash = "sha256:bb4d8133cb15a609f44e8213d9b391b0809795062913b383c62be0ee95b1db48"},
@@ -2570,6 +2653,10 @@ platformdirs = [
     {file = "platformdirs-2.5.2-py3-none-any.whl", hash = "sha256:027d8e83a2d7de06bbac4e5ef7e023c02b863d7ea5d079477e722bb41ab25788"},
     {file = "platformdirs-2.5.2.tar.gz", hash = "sha256:58c8abb07dcb441e6ee4b11d8df0ac856038f944ab98b7be6b27b2a3c7feef19"},
 ]
+plotly = [
+    {file = "plotly-5.10.0-py2.py3-none-any.whl", hash = "sha256:989b13825cc974390aa0169479485d9257d37848a47bc63957251f8e1a7046ba"},
+    {file = "plotly-5.10.0.tar.gz", hash = "sha256:4d36d9859b7a153b273562deeed8c292587a472eb1fd57cd4158ec89d9defadb"},
+]
 pluggy = [
     {file = "pluggy-1.0.0-py2.py3-none-any.whl", hash = "sha256:74134bbf457f031a36d68416e1509f34bd5ccc019f0bcc952c7b909d06b37bd3"},
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
@@ -2836,6 +2923,13 @@ sniffio = [
 snowballstemmer = [
     {file = "snowballstemmer-2.2.0-py2.py3-none-any.whl", hash = "sha256:c8e1716e83cc398ae16824e5572ae04e0d9fc2c6b985fb0f900f5f0c96ecba1a"},
     {file = "snowballstemmer-2.2.0.tar.gz", hash = "sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1"},
+]
+TA-Lib = [
+    {file = "TA-Lib-0.4.25.tar.gz", hash = "sha256:6c51c09fcc138367483bcce6db81329ae6851e6ca1a8ac1e50732e443d15602b"},
+]
+tenacity = [
+    {file = "tenacity-8.0.1-py3-none-any.whl", hash = "sha256:f78f4ea81b0fabc06728c11dc2a8c01277bfc5181b321a4770471902e3eb844a"},
+    {file = "tenacity-8.0.1.tar.gz", hash = "sha256:43242a20e3e73291a28bcbcacfd6e000b02d3857a9a9fff56b297a27afdc932f"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},

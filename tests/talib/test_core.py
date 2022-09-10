@@ -2,7 +2,8 @@ import unittest
 
 import numpy as np
 
-from omicron.talib import (
+from omicron.talib.core import (
+    clustering,
     exp_moving_average,
     mean_absolute_error,
     moving_average,
@@ -12,7 +13,7 @@ from omicron.talib import (
 )
 
 
-class TaLibTest(unittest.TestCase):
+class TaLibCoreTest(unittest.TestCase):
     def test_normalize(self):
         # unit_vector
         X = [[1.0, -1.0, 2.0], [2.0, 0.0, 0.0], [0.0, 1.0, -1.0]]
@@ -84,3 +85,8 @@ class TaLibTest(unittest.TestCase):
         y_hat[4] = 0
 
         print(pct_error(y, y_hat))
+
+    def test_clustering(self):
+        numbers = np.array([1, 1, 1, 2, 4, 6, 8, 7, 4, 5, 6])
+        actual = clustering(numbers, 2)
+        self.assertListEqual(actual, [(0, 4), (4, 7)])

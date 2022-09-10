@@ -16,6 +16,7 @@ nav:
     - security: api/security.md
     - metrics: api/metrics.md
     - talib: api/talib.md
+    - plotting: api/plotting.md
     - dal:
       - Flux: api/dal/flux.md
       - InfluxClient: api/dal/influxclient.md

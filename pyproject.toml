@@ -79,6 +79,9 @@ freezegun = {version = "^1.2.1", optional = true}
 httpx = "^0.23.0"
 deprecation = "^2.1.0"
 arrow = "^1.2"
+plotly = "^5.10.0"
+ckwrap = "^0.1.10"
+TA-Lib = "^0.4.25"
 
 [tool.poetry.extras]
 test = [
