@@ -1,11 +1,12 @@
 """形态检测相关方法"""
 from enum import IntEnum
-from typing import Callable, Tuple
+from typing import Callable, List, Tuple
 
 import numpy as np
 from zigzag import peak_valley_pivots
 
 from omicron.extensions.np import smallest_n_argpos, top_n_argpos
+from omicron.talib.core import clustering
 
 
 class CrossFlag(IntEnum):
@@ -211,3 +212,43 @@ def breakout(
             return BreakoutFlag.DOWN
 
     return BreakoutFlag.NONE
+
+
+def plateaus(
+    numbers: np.ndarray, min_size: int, fall_in_range_ratio: float = 0.97
+) -> List[Tuple]:
+    """统计数组`numbers`中的可能存在的平台整理。
+
+    如果一个数组中存在相邻的一个子数组，其中超过`fall_in_range_ratio`的元素都落在二个标准差以内，则认为该出有平台
+
+    Args:
+        numbers: 输入数组
+        min_size: 平台的最小长度
+        fall_in_range_ratio: 超过`fall_in_range_ratio`比例的元素落在二个标准差以内，就认为该子数组构成一个平台
+
+    Returns:
+        平台的起始位置和长度的数组
+    """
+    if numbers.size <= min_size:
+        n = 1
+    else:
+        n = numbers.size // min_size
+
+    clusters = clustering(numbers, n)
+
+    plats = []
+    for (start, length) in clusters:
+        if length < min_size:
+            continue
+
+        y = numbers[start : start + length]
+        mean = np.mean(y)
+        std = np.std(y)
+
+        inrange = len(y[np.abs(y - mean) < 2 * std])
+        ratio = inrange / length
+
+        if ratio >= fall_in_range_ratio:
+            plats.append((start, length))
+
+    return plats
