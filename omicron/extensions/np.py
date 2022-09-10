@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import datetime
 import math
-from typing import List, Tuple, Union
+from itertools import compress
+from typing import List, Sequence, Tuple, Union
 
 import numpy as np
+from deprecation import deprecated
 from numpy.lib.stride_tricks import sliding_window_view
 from numpy.typing import ArrayLike
 from pandas import DataFrame
@@ -446,17 +448,108 @@ def array_price_equal(price1: ArrayLike, price2: ArrayLike) -> np.ndarray:
     return abs(price1 - price2) < 1e-2
 
 
+@deprecated("2.0.0", details="use `tm.item()` instead")
 def to_pydatetime(tm: np.datetime64) -> datetime.datetime:
     """将numpy.datetime64对象转换成为python的datetime对象
+
+    numpy.ndarray.item()方法可用以将任何numpy对象转换成python对象，推荐在任何适用的地方使用.item()方法，而不是本方法。示例:
+    ```
+        arr = np.array(['2022-09-08', '2022-09-09'], dtype='datetime64[s]')
+        arr.item(0) # output is datetime.datetime(2022, 9, 8, 0, 0)
+
+        arr[1].item() # output is datetime.datetime(2022, 9, 9, 0, 0)
+    ```
 
     Args:
         tm : the input numpy datetime object
 
     Returns:
-        _description_
+        python datetime object
     """
     unix_epoch = np.datetime64(0, "s")
     one_second = np.timedelta64(1, "s")
     seconds_since_epoch = (tm - unix_epoch) / one_second
 
     return datetime.datetime.utcfromtimestamp(seconds_since_epoch)
+
+
+def bars_since(condition: Sequence[bool], default=None) -> int:
+    """
+    Return the number of bars since `condition` sequence was last `True`,
+    or if never, return `default`.
+
+        >>> condition = [True, True, False]
+        >>> bars_since(condition)
+        1
+    """
+    return next(compress(range(len(condition)), reversed(condition)), default)
+
+
+def find_runs(x: ArrayLike) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Find runs of consecutive items in an array.
+
+    Args:
+        x: the sequence to find runs in
+
+    Returns:
+        A tuple of unique values, start indices, and length of runs
+    """
+
+    # ensure array
+    x = np.asanyarray(x)
+    if x.ndim != 1:
+        raise ValueError("only 1D array supported")
+    n = x.shape[0]
+
+    # handle empty array
+    if n == 0:
+        return np.array([]), np.array([]), np.array([])
+
+    else:
+        # find run starts
+        loc_run_start = np.empty(n, dtype=bool)
+        loc_run_start[0] = True
+        np.not_equal(x[:-1], x[1:], out=loc_run_start[1:])
+        run_starts = np.nonzero(loc_run_start)[0]
+
+        # find run values
+        run_values = x[loc_run_start]
+
+        # find run lengths
+        run_lengths = np.diff(np.append(run_starts, n))
+
+        return run_values, run_starts, run_lengths
+
+
+def top_n_argpos(ts: np.array, n: int) -> np.array:
+    """get top n (max->min) elements and return argpos which its value ordered in descent
+
+    Example:
+        >>> top_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([2, 3])
+
+    Args:
+        ts (np.array): [description]
+        n (int): [description]
+
+    Returns:
+        np.array: [description]
+    """
+    return np.argsort(ts)[-n:][::-1]
+
+
+def smallest_n_argpos(ts: np.array, n: int) -> np.array:
+    """get smallest n (min->max) elements and return argpos which its value ordered in ascent
+
+    Example:
+        >>> smallest_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([7, 6])
+
+    Args:
+        ts (np.array): 输入的数组
+        n (int): 取最小的n个元素
+
+    Returns:
+        np.array: [description]
+    """
+    return np.argsort(ts)[:n]

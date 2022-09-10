@@ -1,12 +1,11 @@
+"""形态检测相关方法"""
 from enum import IntEnum
-from math import copysign
-from typing import Sequence, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
-from scipy.linalg import norm
-from scipy.signal import savgol_filter
+from zigzag import peak_valley_pivots
 
-from omicron.talib.metrics import mean_absolute_error, pct_error
+from omicron.extensions.np import smallest_n_argpos, top_n_argpos
 
 
 class CrossFlag(IntEnum):
@@ -15,102 +14,11 @@ class CrossFlag(IntEnum):
     NONE = 0
 
 
-def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
-    """对给定的时间序列进行直线/二次曲线拟合。
-
-    二次曲线可以拟合到反生反转的行情，如圆弧底、圆弧顶；也可以拟合到上述趋势中的单边走势，即其中一段曲线。对于如长期均线，在一段时间内走势可能呈现为一条直线，故也可用此函数进行直线拟合。
-
-    为便于在不同品种、不同的时间之间对误差、系数进行比较，请事先对ts进行归一化。
-    如果遇到无法拟合的情况（异常），将返回一个非常大的误差，并将其它项置为np.nan
-
-    Examples:
-        >>> ts = [i for i in range(5)]
-        >>> err, (a, b) = polyfit(ts, deg=1)
-        >>> print(round(err, 3), round(a, 1))
-        0.0 1.0
-
-    Args:
-        ts (Sequence): 待拟合的时间序列
-        deg (int): 如果要进行直线拟合，取1；二次曲线拟合取2. Defaults to 2
-        loss_func (str): 误差计算方法，取值为`mae`, `rmse`,`mse` 或`re`。Defaults to `re` (relative_error)
-    Returns:
-        [Tuple]: 如果为直线拟合，返回误差，(a,b)(一次项系数和常数)。如果为二次曲线拟合，返回
-        误差, (a,b,c)(二次项、一次项和常量）, (vert_x, vert_y)(顶点处的index，顶点值)
-    """
-    try:
-        if any(np.isnan(ts)):
-            raise ValueError("ts contains nan")
-
-        x = np.array(list(range(len(ts))))
-
-        z = np.polyfit(x, ts, deg=deg)
-
-        p = np.poly1d(z)
-        ts_hat = np.array([p(xi) for xi in x])
-
-        if loss_func == "mse":
-            error = np.mean(np.square(ts - ts_hat))
-        elif loss_func == "rmse":
-            error = np.sqrt(np.mean(np.square(ts - ts_hat)))
-        elif loss_func == "mae":
-            error = mean_absolute_error(ts, ts_hat)
-        else:  # defaults to relative error
-            error = pct_error(ts, ts_hat)
-
-        if deg == 2:
-            a, b, c = z[0], z[1], z[2]
-            axis_x = -b / (2 * a)
-            axis_y = (4 * a * c - b * b) / (4 * a)
-            return error, z, (axis_x, axis_y)
-        elif deg == 1:
-            return error, z
-    except Exception:
-        error = 1e9
-        return error, (np.nan, np.nan, np.nan), (np.nan, np.nan)
-
-
-def angle(ts, threshold=0.01, loss_func="re") -> Tuple[float, float]:
-    """求时间序列`ts`拟合直线相对于`x`轴的夹角的余弦值
-
-    本函数可以用来判断时间序列的增长趋势。当`angle`处于[-1, 0]时，越靠近0，下降越快；当`angle`
-    处于[0, 1]时，越接近0，上升越快。
-
-    如果`ts`无法很好地拟合为直线，则返回[float, None]
-
-    Examples:
-
-        >>> ts = np.array([ i for i in range(5)])
-        >>> round(angle(ts)[1], 3) # degree: 45, rad: pi/2
-        0.707
-
-        >>> ts = np.array([ np.sqrt(3) / 3 * i for i in range(10)])
-        >>> round(angle(ts)[1],3) # degree: 30, rad: pi/6
-        0.866
-
-        >>> ts = np.array([ -np.sqrt(3) / 3 * i for i in range(7)])
-        >>> round(angle(ts)[1], 3) # degree: 150, rad: 5*pi/6
-        -0.866
-
-    Args:
-        ts:
-
-    Returns:
-        返回 (error, consine(theta))，即拟合误差和夹角余弦值。
-
-    """
-    err, (a, b) = polyfit(ts, deg=1, loss_func=loss_func)
-    if err > threshold:
-        return (err, None)
-
-    v = np.array([1, a + b])
-    vx = np.array([1, 0])
-
-    return err, copysign(np.dot(v, vx) / (norm(v) * norm(vx)), a)
-
-
 def cross(f: np.ndarray, g: np.ndarray) -> CrossFlag:
-    """
-    判断序列f是否与g相交。如果两个序列有且仅有一个交点，则返回1表明f上交g；-1表明f下交g
+    """判断序列f是否与g相交。如果两个序列有且仅有一个交点，则返回1表明f上交g；-1表明f下交g
+
+    本方法可用以判断两条均线是否相交。
+
     returns:
         (flag, index), 其中flag取值为：
         0 无效
@@ -134,8 +42,7 @@ def cross(f: np.ndarray, g: np.ndarray) -> CrossFlag:
 
 
 def vcross(f: np.array, g: np.array) -> Tuple:
-    """
-    判断序列f是否与g存在类型v型的相交。即存在两个交点，第一个交点为向下相交，第二个交点为向上
+    """判断序列f是否与g存在类型v型的相交。即存在两个交点，第一个交点为向下相交，第二个交点为向上
     相交。一般反映为洗盘拉升的特征。
 
     Examples:
@@ -183,27 +90,122 @@ def inverse_vcross(f: np.array, g: np.array) -> Tuple:
     return False, (None, None)
 
 
-def slope(ts: np.array, loss_func="re"):
-    """求ts表示的直线（如果能拟合成直线的话）的斜率
+class BreakoutFlag(IntEnum):
+    UP = 1
+    DOWN = -1
+    NONE = 0
+
+
+def peaks_and_valleys(
+    ts: np.ndarray, up_thresh: float, down_thresh: float
+) -> np.ndarray:
+    """寻找ts中的波峰和波谷，返回数组指示在该位置上是否为波峰或波谷。如果为1，则为波峰；如果为-1，则为波谷。
+
+    本函数直接使用了zigzag中的peak_valley_pivots. 有很多方法可以实现本功能，比如scipy.signals.find_peaks_cwt, peak_valley_pivots等。本函数更适合金融时间序列，并且使用了cython加速。
 
     Args:
-        ts (np.array): [description]
-        loss_func (str, optional): [description]. Defaults to 're'.
+        ts (np.ndarray): 时间序列
+        up_thresh (float): 波峰的阈值
+        down_thresh (float): 波谷的阈值
+
+    Returns:
+        np.ndarray: 返回数组指示在该位置上是否为波峰或波谷。
     """
-    err, (a, b) = polyfit(ts, deg=1, loss_func=loss_func)
+    if ts.dtype != np.float64:
+        ts = ts.astype(np.float64)
 
-    return err, a
+    return peak_valley_pivots(ts, up_thresh, down_thresh)
 
 
-# pragma: no cover
-def smooth(ts: np.array, win: int, poly_order=1, mode="interp"):
-    """平滑序列ts，使用窗口大小为win的平滑模型，默认使用线性模型
+def support_resist_lines(
+    ts: np.ndarray, upthres: float = 0.01, downthres: float = -0.01
+) -> Tuple[Callable, Callable, np.ndarray]:
+    """计算时间序列的支撑线和阻力线
 
-    提供本函数主要基于这样的考虑： omicron的使用者可能并不熟悉信号处理的概念，这里相当于提供了相关功能的一个入口。
+    Examples:
+        ```python
+            def show_support_resist_lines(ts):
+                import plotly.graph_objects as go
+
+                fig = go.Figure()
+
+                support, resist, x_start = support_resist_lines(ts, 0.03, -0.03)
+                fig.add_trace(go.Scatter(x=np.arange(len(ts)), y=ts))
+
+                x = np.arange(len(ts))[x_start:]
+                fig.add_trace(go.Line(x=x, y = support(x)))
+                fig.add_trace(go.Line(x=x, y = resist(x)))
+
+                fig.show()
+
+            np.random.seed(1978)
+            X = np.cumprod(1 + np.random.randn(100) * 0.01)
+            show_support_resist_lines(X)
+        ```
+        the above code will show this ![](https://images.jieyu.ai/images/202204/support_resist.png)
 
     Args:
-        ts (np.array): [description]
-        win (int): [description]
-        poly_order (int, optional): [description]. Defaults to 1.
+        ts (np.ndarray): 时间序列
+        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+
+    Returns:
+        返回支撑线和阻力线的计算函数及起始点坐标，如果没有支撑线或阻力线，则返回None
     """
-    return savgol_filter(ts, win, poly_order, mode=mode)
+    if ts.dtype != np.float64:
+        ts = ts.astype(np.float64)
+
+    pivots = peak_valley_pivots(ts, upthres, downthres)
+
+    peaks_only = np.select([pivots == 1], [ts], 0)
+    arg_max = sorted(top_n_argpos(peaks_only, 2))
+
+    valleys_only = np.select([pivots == -1], [ts], np.max(ts))
+    arg_min = sorted(smallest_n_argpos(valleys_only, 2))
+
+    resist = None
+    support = None
+
+    if len(arg_max) >= 2:
+        y = ts[arg_max]
+        coeff = np.polyfit(arg_max, y, deg=1)
+
+        resist = np.poly1d(coeff)
+
+    if len(arg_min) >= 2:
+        y = ts[arg_min]
+        coeff = np.polyfit(arg_min, y, deg=1)
+
+        support = np.poly1d(coeff)
+
+    return support, resist, np.min([*arg_min, *arg_max])
+
+
+def breakout(
+    ts: np.ndarray, upthres: float = 0.01, downthres: float = -0.01, confirm: int = 1
+) -> BreakoutFlag:
+    """检测时间序列是否突破了压力线（整理线）
+
+    Args:
+        ts (np.ndarray): 时间序列
+        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        confirm (int, optional): 经过多少个bars后，才确认突破。默认为1
+
+    Returns:
+        如果上向突破压力线，返回1，如果向下突破压力线，返回-1，否则返回0
+    """
+    support, resist, _ = support_resist_lines(ts[:-confirm], upthres, downthres)
+
+    x0 = len(ts) - confirm - 1
+    x = list(range(len(ts) - confirm, len(ts)))
+
+    if resist is not None:
+        if np.all(ts[x] > resist(x)) and ts[x0] <= resist(x0):
+            return BreakoutFlag.UP
+
+    if support is not None:
+        if np.all(ts[x] < support(x)) and ts[x0] >= support(x0):
+            return BreakoutFlag.DOWN
+
+    return BreakoutFlag.NONE

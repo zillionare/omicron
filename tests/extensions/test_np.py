@@ -7,10 +7,12 @@ from numpy.testing import assert_array_equal
 from omicron.extensions.np import (
     array_math_round,
     array_price_equal,
+    bars_since,
     bin_cut,
     count_between,
     dataframe_to_structured_array,
     fill_nan,
+    find_runs,
     floor,
     join_by_left,
     numpy_append_fields,
@@ -18,7 +20,9 @@ from omicron.extensions.np import (
     replace_zero,
     rolling,
     shift,
+    smallest_n_argpos,
     to_pydatetime,
+    top_n_argpos,
 )
 
 
@@ -266,3 +270,38 @@ class NpTest(unittest.TestCase):
         self.assertEqual(
             datetime.datetime(2017, 10, 24, 5, 34, 20, 123456), to_pydatetime(dt64)
         )
+
+    def test_find_runs(self):
+        a = [1, 1, 2, 2, 3, 3, 3]
+        value, pos, length = find_runs(a)
+        self.assertListEqual([1, 2, 3], value.tolist())
+        self.assertListEqual([0, 2, 4], pos.tolist())
+        self.assertListEqual([2, 2, 3], length.tolist())
+
+    def test_barssince(self):
+        condition = [False, True]
+        self.assertEqual(0, bars_since(condition))
+
+        condition = [True, False]
+        self.assertEqual(1, bars_since(condition))
+
+        condition = [True, True, False]
+        self.assertEqual(1, bars_since(condition))
+
+        condition = [True, True, False, True]
+        self.assertEqual(0, bars_since(condition))
+
+        condition = [True, True, False, False]
+        self.assertEqual(2, bars_since(condition))
+
+    def test_top_n_argpos(self):
+        arr = [4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
+        actual = top_n_argpos(arr, 2)
+        exp = [2, 3]
+        self.assertListEqual(exp, actual.tolist())
+
+    def test_smallest_n_argpos(self):
+        arr = [7, 5, 1, 4, 0, 3, 2, 6, 9, 8]
+        actual = smallest_n_argpos(arr, 2)
+        exp = [4, 2]
+        self.assertListEqual(exp, actual.tolist())

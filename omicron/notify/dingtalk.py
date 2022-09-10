@@ -115,7 +115,7 @@ class DingTalkMessage:
             return r.content.decode()
 
     @classmethod
-    @deprecated()
+    @deprecated("2.0.0", details="use function `ding` instead")
     def text(cls, content):
         msg = {"text": {"content": content}, "msgtype": "text"}
         return cls._send(msg)

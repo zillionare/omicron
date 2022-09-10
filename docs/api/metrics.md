@@ -1,7 +1,3 @@
-::: omicron.talib.metrics
-    rendering:
-        heading_level: 1
-
 # 以下功能请使用empyrical包中相关的函数。
 
 **usage**:
