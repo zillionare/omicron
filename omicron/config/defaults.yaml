@@ -7,7 +7,7 @@ influxdb:
   org: ${INFLUXDB_ORG}
   bucket_name: ${INFLUXDB_BUCKET_NAME}
   enable_compress: true
-  max_query_size: 150000
+  max_query_size: 50000
 
 notify:
     mail_from: ${MAIL_FROM}

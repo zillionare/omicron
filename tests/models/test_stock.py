@@ -197,9 +197,10 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         except ValueError as e:
             self.assertEqual(str(e), "resampling from 1min must start from 9:31")
 
-    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
-    async def test_get_cached_bars_n(self, mock_now):
+    @freeze_time("2022-02-09 10:33:00")
+    async def test_get_cached_bars_n(self):
         """cache_bars, cache_unclosed_bars are tested also"""
+        now = arrow.get("2022-02-09 10:33:00").naive
         # 1. end < ff, 返回空数组
         code = "000001.XSHE"
         ff = arrow.get("2022-02-09 09:31:00").naive
@@ -210,7 +211,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(bars), 0)
 
         # 2 end < lf
-        tm = tf.floor(mock_now.return_value, FrameType.MIN5)
+        tm = tf.floor(now, FrameType.MIN5)
         bars = await Stock._get_cached_bars_n("000001.XSHE", 15, FrameType.MIN5, end=tm)
         self.assertEqual(len(bars), 12)
         self.assertEqual(
@@ -969,7 +970,18 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
             exp = np.concatenate((persisted, cached))
             assert_bars_equal(exp, bars)
 
-        # end < cached_start and now.date() != end.date()
+        # start > cache_start
+        start = datetime.datetime(2022, 2, 9, 9, 35)
+        end = datetime.datetime(2022, 2, 9, 10, 33)
+        async for code, bars in Stock.batch_get_min_level_bars_in_range(
+            codes, FrameType.MIN5, start, end
+        ):
+            min_bars = bars_from_csv(
+                code, "1m", datetime.datetime(2022, 2, 9, 9, 31), end
+            )
+
+            exp = Stock.resample(min_bars, FrameType.MIN1, FrameType.MIN5)
+            assert_bars_equal(exp, bars)
 
     async def test_batch_get_cached_bars_n(self):
         codes = ["000002.XSHE", "000001.XSHE", "000004.XSHE"]
@@ -1035,7 +1047,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         assert_bars_equal(exp, actual_bar)
 
         # 5m, end is none, so unclosed is included
-        with mock.patch("arrow.now", return_value=arrow.get("2022-02-09 10:33:00")):
+        with freeze_time("2022-02-09 10:33:00"):
             barss = await Stock._batch_get_cached_bars_n(
                 FrameType.MIN5, 3, end=None, codes=codes
             )
@@ -1047,7 +1059,7 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         # issue 39, 5m, 某支票当天停牌
         codes = ["000003.XSHE", "000002.XSHE", "000001.XSHE", "000004.XSHE"]
-        with mock.patch("arrow.now", return_value=arrow.get("2022-02-09 10:33:00")):
+        with freeze_time("2022-02-09 10:33:00"):
             barss = await Stock._batch_get_cached_bars_n(
                 FrameType.MIN5, 3, end=None, codes=codes
             )
@@ -1440,11 +1452,12 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         date_str = await cache.security.get(TRADE_PRICE_LIMITS_DATE)
         self.assertFalse(date_str)
 
-    @mock.patch.object(arrow, "now", return_value=arrow.get("2022-02-09 10:33:00"))
-    async def test_get_bars_in_range(self, mocked_now):
+    @freeze_time("2022-02-09 10:33:00")
+    async def test_get_bars_in_range(self):
         code = "000001.XSHE"
         start = datetime.datetime(2022, 2, 8, 10)
-        end = mocked_now.return_value.naive
+        now = datetime.datetime(2022, 2, 9, 10, 33)
+        end = now
 
         # 1. include unclosed, end = lf
         bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start, end)
@@ -1460,6 +1473,23 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(datetime.datetime(2022, 2, 8, 10), bars[0]["frame"])
         self.assertEqual(datetime.datetime(2022, 2, 9, 10, 30), bars[-1]["frame"])
 
+        # end < cache_start and now.date() > end.date()
+        start_ = datetime.datetime(2022, 2, 8, 10)
+        end_ = datetime.datetime(2022, 2, 8, 15)
+        code_ = "000001.XSHE"
+        with freeze_time("2022-09-09 15:00:00"):
+            bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start, end)
+            exp = bars_from_csv(code_, "30m", start_, end_)
+            assert_bars_equal(exp, bars)
+
+        # end < cache_start
+        start_ = datetime.datetime(2022, 2, 8, 10)
+        end_ = datetime.datetime(2022, 2, 8, 15)
+        code_ = "000001.XSHE"
+        bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start_, end_)
+        exp = bars_from_csv(code_, "30m", start_, end_)
+        assert_bars_equal(exp, bars)
+
         # 3. test ff < end < last frame
         bars = await Stock.get_bars_in_range(
             code, FrameType.MIN30, start, datetime.datetime(2022, 2, 9, 9, 31)
@@ -1467,6 +1497,15 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(8, len(bars))
         self.assertEqual(datetime.datetime(2022, 2, 8, 10), bars[0]["frame"])
         self.assertEqual(datetime.datetime(2022, 2, 8, 15), bars[-1]["frame"])
+
+        # test start >= ff
+        start_ = datetime.datetime(2022, 2, 9, 9, 40)
+        end_ = datetime.datetime(2022, 2, 9, 10, 30)
+        code_ = "000001.XSHE"
+        bars = await Stock.get_bars_in_range(code, FrameType.MIN5, start_, end_)
+        exp = bars_from_csv(code_, "1m", datetime.datetime(2022, 2, 9, 9, 31), end_)
+        exp = Stock.resample(exp, FrameType.MIN1, FrameType.MIN5)[1:]
+        assert_bars_equal(exp, bars)
 
         # test end is None
         bars = await Stock.get_bars_in_range(code, FrameType.MIN30, start)

@@ -38,6 +38,8 @@ from omicron.models.security import Security, convert_nptime_to_datetime
 logger = logging.getLogger(__name__)
 cfg = cfg4py.get_instance()
 
+INFLUXDB_MAX_QUERY_SIZE = 250 * 200
+
 
 def ciso8601_parse_date(x):
     return ciso8601.parse_datetime(x).date()
@@ -206,8 +208,10 @@ class Stock(Security):
         Returns:
             Generator[Dict[str, BarsArray], None, None]: 迭代器，每次返回一个字典，其中key为代码，value为行情数据
         """
-        n = tf.count_frames(start, tf.floor(end, frame_type), frame_type)
-        batch_size = cfg.influxdb.max_query_size // n + 1
+        closed_end = tf.floor(end, frame_type)
+        n = tf.count_frames(start, closed_end, frame_type)
+        max_query_size = min(cfg.influxdb.max_query_size, INFLUXDB_MAX_QUERY_SIZE)
+        batch_size = max(1, max_query_size // n)
         ff = tf.first_min_frame(datetime.datetime.now(), frame_type)
 
         for i in range(0, len(codes), batch_size):
@@ -215,21 +219,22 @@ class Stock(Security):
 
             if end < ff:
                 part1 = await cls._batch_get_persisted_bars_in_range(
-                    batch_codes, frame_type, start, min(end, ff)
+                    batch_codes, frame_type, start, end
                 )
                 part2 = pd.DataFrame([], columns=bars_dtype_with_code.names)
-            elif start > ff:
+            elif start >= ff:
                 part1 = pd.DataFrame([], columns=bars_dtype_with_code.names)
-                n = tf.get_frames(start, tf.floor(end, frame_type), frame_type) + 1
+                n = tf.count_frames(start, closed_end, frame_type) + 1
                 cached = await cls._batch_get_cached_bars_n(
                     frame_type, n, end, batch_codes
                 )
+                cached = cached[cached["frame"] >= start]
                 part2 = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
             else:
                 part1 = await cls._batch_get_persisted_bars_in_range(
                     batch_codes, frame_type, start, ff
                 )
-                n = tf.count_frames(start, tf.floor(end, frame_type), frame_type) + 1
+                n = tf.count_frames(start, closed_end, frame_type) + 1
                 cached = await cls._batch_get_cached_bars_n(
                     frame_type, n, end, batch_codes
                 )
@@ -287,24 +292,33 @@ class Stock(Security):
         else:
             from_cache = False
 
-        if from_cache:
-            cached = await cls._batch_get_cached_bars_n(frame_type, 1, end, codes)
-            cached = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
-        else:
-            cached = pd.DataFrame([], columns=bars_dtype_with_code.names)
+        n = tf.count_frames(start, end, frame_type)
+        max_query_size = min(cfg.influxdb.max_query_size, INFLUXDB_MAX_QUERY_SIZE)
+        batch_size = max(max_query_size // n, 1)
 
-        persisted = await cls._batch_get_persisted_bars_in_range(
-            codes, frame_type, start, end
-        )
+        for i in range(0, len(codes), batch_size):
+            batch_codes = codes[i : i + batch_size]
+            persisted = await cls._batch_get_persisted_bars_in_range(
+                batch_codes, frame_type, start, end
+            )
 
-        df = pd.concat([persisted, cached])
-        for code in codes:
-            filtered = df[df["code"] == code][bars_cols]
-            bars = filtered.to_records(index=False).astype(bars_dtype)
-            if fq:
-                bars = cls.qfq(bars)
+            if from_cache:
+                cached = await cls._batch_get_cached_bars_n(
+                    frame_type, 1, end, batch_codes
+                )
+                cached = pd.DataFrame(cached, columns=bars_dtype_with_code.names)
 
-            yield code, bars
+                df = pd.concat([persisted, cached])
+            else:
+                df = persisted
+
+            for code in batch_codes:
+                filtered = df[df["code"] == code][bars_cols]
+                bars = filtered.to_records(index=False).astype(bars_dtype)
+                if fq:
+                    bars = cls.qfq(bars)
+
+                yield code, bars
 
     @classmethod
     async def get_bars_in_range(
@@ -326,9 +340,10 @@ class Stock(Security):
             fq : 是否对行情数据执行前复权操作
             unclosed : 是否包含未收盘的数据
         """
+        now = datetime.datetime.now()
         if frame_type in tf.day_level_frames:
-            end = end or arrow.now().date()
-            if unclosed and tf.day_shift(end, 0) == arrow.now().date():
+            end = end or now.date()
+            if unclosed and tf.day_shift(end, 0) == now.date():
                 part2 = await cls._get_cached_bars_n(code, 1, frame_type)
             else:
                 part2 = np.array([], dtype=bars_dtype)
@@ -337,18 +352,26 @@ class Stock(Security):
             part1 = await cls._get_persisted_bars_in_range(code, frame_type, start, end)
             bars = np.concatenate((part1, part2))
         else:
-            end = end or arrow.now().naive
-            ff = tf.first_min_frame(arrow.now(), frame_type)
-            if start < ff:
+            end = end or now
+            closed_end = tf.floor(end, frame_type)
+            ff = tf.first_min_frame(now, frame_type)
+            if end < ff:
+                part1 = await cls._get_persisted_bars_in_range(
+                    code, frame_type, start, end
+                )
+                part2 = np.array([], dtype=bars_dtype)
+            elif start >= ff:  # all in cache
+                part1 = np.array([], dtype=bars_dtype)
+                n = tf.count_frames(start, closed_end, frame_type) + 1
+                part2 = await cls._get_cached_bars_n(code, n, frame_type, end)
+                part2 = part2[part2["frame"] >= start]
+            else:  # in both cache and persisted
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, ff
                 )
-            else:
-                part1 = np.array([], dtype=bars_dtype)
+                n = tf.count_frames(ff, closed_end, frame_type) + 1
+                part2 = await cls._get_cached_bars_n(code, n, frame_type, end)
 
-            closed_end = tf.floor(end, frame_type)
-            n = tf.count_frames(ff, closed_end, frame_type)
-            part2 = await cls._get_cached_bars_n(code, n + 1, frame_type, end)
             if not unclosed:
                 part2 = part2[part2["frame"] <= closed_end]
             bars = np.concatenate((part1, part2))
@@ -451,7 +474,7 @@ class Stock(Security):
         Returns:
             返回dtype为`coretypes.bars_dtype`的一维numpy数组。
         """
-        end = end or arrow.now().naive
+        end = end or datetime.datetime.now()
 
         keep_cols = ["_time"] + list(bars_cols[1:])
 
@@ -590,12 +613,14 @@ class Stock(Security):
             DataFrame, columns为`code`, `frame`, `open`, `high`, `low`, `close`, `volume`, `amount`, `factor`
 
         """
-        if len(codes) * min(n + 20, 2 * n) > cfg.influxdb.max_query_size:
+        max_query_size = min(cfg.influxdb.max_query_size, INFLUXDB_MAX_QUERY_SIZE)
+
+        if len(codes) * min(n + 20, 2 * n) > max_query_size:
             raise BadParameterError(
-                f"codes的数量和n的乘积超过了influxdb的最大查询数量限制{cfg.influxdb.max_query_size}"
+                f"codes的数量和n的乘积超过了influxdb的最大查询数量限制{max_query_size}"
             )
 
-        end = end or arrow.now().naive
+        end = end or datetime.datetime.now()
         close_end = tf.floor(end, frame_type)
         begin = tf.shift(close_end, -1 * min(n + 20, n * 2), frame_type)
 
@@ -653,9 +678,10 @@ class Stock(Security):
         end = end or datetime.datetime.now()
 
         n = tf.count_frames(begin, end, frame_type)
-        if len(codes) * n > cfg.influxdb.max_query_size:
+        max_query_size = min(cfg.influxdb.max_query_size, INFLUXDB_MAX_QUERY_SIZE)
+        if len(codes) * n > max_query_size:
             raise BadParameterError(
-                f"asked records is {len(codes) * n}, which is too large than {cfg.influxdb.max_query_size}"
+                f"asked records is {len(codes) * n}, which is too large than {max_query_size}"
             )
 
         # influxdb的查询结果格式类似于CSV，其列顺序为_, result_alias, table_seq, _time, tags, fields,其中tags和fields都是升序排列
@@ -830,7 +856,7 @@ class Stock(Security):
             else:
                 return np.array([], dtype=bars_dtype_with_code)
         else:
-            end = end or arrow.now().naive
+            end = end or datetime.datetime.now()
             close_end = tf.floor(end, frame_type)
             all_bars = []
             if codes is None:
@@ -1167,7 +1193,7 @@ class Stock(Security):
     ):
         date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
         if date_str:
-            date_in_cache = arrow.get(date_str).naive.date()
+            date_in_cache = arrow.get(date_str).date()
             if date_in_cache < begin or date_in_cache > end:
                 return None
         else:
@@ -1239,7 +1265,7 @@ class Stock(Security):
             date_str = await cache._security_.get(TRADE_PRICE_LIMITS_DATE)
             if not date_str:
                 return  # skip clear action if date not found in cache
-            date_in_cache = arrow.get(date_str).naive.date()
+            date_in_cache = arrow.get(date_str).date()
             if dt is None or date_in_cache != dt:  # 更新的时间和cache的时间相同，则清除cache
                 return  # skip clear action
 
