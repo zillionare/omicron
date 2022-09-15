@@ -70,7 +70,7 @@ class Query:
         self._exclude_kcb = False  # 科创板
         self._exclude_cyb = False  # 创业板
         self._exclude_st = False  # ST
-        self._include_exit = False  # 是否包含已退市证券(默认包括当天退市的)
+        self._include_exit = False  # 是否包含已退市证券(默认不包括当天退市的)
         # 下列开关优先级高于上面的
         self._only_kcb = False
         self._only_cyb = False
@@ -119,7 +119,7 @@ class Query:
         return self
 
     def include_exit(self) -> "Query":
-        """从返回结果中排除已退市的证券"""
+        """从返回结果中包含已退市的证券"""
         self._include_exit = True
         return self
 

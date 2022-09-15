@@ -10,7 +10,7 @@ name = "zillionare-omicron"
 packages = [
     {include = "omicron"}
 ]
-version = "2.0.0a47"
+version = "2.0.0a48"
 description = "Core Library for Zillionare"
 authors = ["jieyu <code@jieyu.ai>"]
 license = "MIT"
@@ -81,7 +81,7 @@ deprecation = "^2.1.0"
 arrow = "^1.2"
 plotly = "^5.10.0"
 ckwrap = "^0.1.10"
-TA-Lib = "^0.4.25"
+TA-Lib = {version = "^0.4.25", platform = "linux"}
 
 [tool.poetry.extras]
 test = [

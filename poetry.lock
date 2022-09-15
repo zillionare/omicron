@@ -1392,7 +1392,7 @@ python-versions = "*"
 
 [[package]]
 name = "TA-Lib"
-version = "0.4.25"
+version = "0.4.24"
 description = "Python wrapper for TA-Lib"
 category = "main"
 optional = false
@@ -1400,6 +1400,10 @@ python-versions = "*"
 
 [package.dependencies]
 numpy = "*"
+
+[package.source]
+type = "file"
+url = "packages/TA_Lib-0.4.24-cp38-cp38-win_amd64.whl"
 
 [[package]]
 name = "tenacity"
@@ -1692,7 +1696,7 @@ test = ["pytest", "black", "isort", "flake8", "flake8-docstrings", "pytest-cov",
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.9"
-content-hash = "466975a8739e8969934e0535bda6b45d72b6844767bfaba9738693325dbfca45"
+content-hash = "043d390c42f7e22ed49e528197b1331159d7c5c4b63b6161696983b0ba11fd7c"
 
 [metadata.files]
 aiohttp = [
@@ -2925,7 +2929,7 @@ snowballstemmer = [
     {file = "snowballstemmer-2.2.0.tar.gz", hash = "sha256:09b16deb8547d3412ad7b590689584cd0fe25ec8db3be37788be3810cbf19cb1"},
 ]
 TA-Lib = [
-    {file = "TA-Lib-0.4.25.tar.gz", hash = "sha256:6c51c09fcc138367483bcce6db81329ae6851e6ca1a8ac1e50732e443d15602b"},
+    {file = "TA_Lib-0.4.24-cp38-cp38-win_amd64.whl", hash = "sha256:26d934a971a39a18e265f8b5999eb1a7d6c8fb8fca36a88881fcbb05d6138bc4"},
 ]
 tenacity = [
     {file = "tenacity-8.0.1-py3-none-any.whl", hash = "sha256:f78f4ea81b0fabc06728c11dc2a8c01277bfc5181b321a4770471902e3eb844a"},

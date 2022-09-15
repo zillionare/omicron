@@ -11,11 +11,15 @@
 
 omicron依赖numpy, pandas, scipy, sklearn。这些库的体积比较大，因此在安装omicron时，请保持网络连接畅通，必要时，请添加阿里或者清华的PyPI镜像。
 
-omicron还依赖于talib。omicron已经包含了ta-lib的python wrapper，但这个wrapper还依赖于ta-lib原生库，这部分需要您自行安装。
+omicron还依赖于talib, zigzag, ciso8601等高性能的C/C++库。安装这些库往往需要在您本机执行一个编译过程。请遵循以下步骤完成：
 
-!!! 安装ta-lib
+!!! 安装原生库
+    === "Windows"
+        **注意我们不支持32位windows**
+
+        请跟随[windows下安装omicron](_static/Omicron_Windows10.docx)来完成安装。
     === "Linux"
-        请执行下面的脚本以完成安装：
+        1. 请执行下面的脚本以完成ta-lib的安装
         ```bash
         sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
         sudo apt-get install build-essential -y
@@ -25,11 +29,16 @@ omicron还依赖于talib。omicron已经包含了ta-lib的python wrapper，但�
         make
         sudo make install
         ```
-    === "Windows"
-        omicron仅在Ubuntu上进行过良好的测试。一般而言，Omicron也应该能够运行在64bit的windows上。但不推荐使用32bit windows。
+        1. 现在安装omicron，所有其它依赖的安装将自动完成。
 
-        如果您是64位windows，请下载[ta-lib for 64bit windows](https://download.lfd.uci.edu/pythonlibs/archived/TA_Lib-0.4.24-cp38-cp38-win_amd64.whl)。然后通过 pip install {file_name} 来完成安装。
     === "MacOS"
-        请通过`brew install ta-lib`来完成安装
+        1. 请通过`brew install ta-lib`来完成ta-lib的安装
+        2. 现在安装omicron，所有其它依赖的安装都将自动完成。
 
-    如果在安装中遇到任何问题，请参考[这篇文章](https://blog.quantinsti.com/install-ta-lib-python/)
+# 2. 常见问题
+## 无法访问aka.ms
+如果遇到aka.ms无法访问的问题，有可能是IP地址解析的问题。请以管理员权限，打开并编辑位于c:\windows\system32\drivers\etc\下的hosts文件，将此行加入到文件中：
+```
+23.41.86.106 aka.ms
+```
+![](https://images.jieyu.ai/images/202209/20220915185255.png)
