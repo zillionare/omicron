@@ -288,11 +288,12 @@ class Candlestick:
         flags = peaks_and_valleys(
             bars["close"].astype(np.float64), up_thres, down_thres
         )
-        ticks_up = self.ticks[flags == 1]
-        y_up = bars["high"][flags == 1] * 1.03
 
+        marker_margin = (max(bars["high"]) - min(bars["low"])) * 0.05
+        ticks_up = self.ticks[flags == 1]
+        y_up = bars["high"][flags == 1] + marker_margin
         ticks_down = self.ticks[flags == -1]
-        y_down = bars["low"][flags == -1] * 0.97
+        y_down = bars["low"][flags == -1] - marker_margin
 
         trace = go.Scatter(
             mode="markers", x=ticks_up, y=y_up, marker_symbol="triangle-down", name="峰"

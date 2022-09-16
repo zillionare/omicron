@@ -1,9 +1,14 @@
 # History
 
 
+## 2.0.0-alpha.49 (2022-09-16)
+* 修订了安装文档。
+* 移除了windows下对ta-lib的依赖。请参考[安装指南](docs/installation.md)以获取在windows下安装ta-lib的方法。
+* 更新了poetry.lock文件。在上一版中，该文件与pyproject.toml不同步，导致安装时进行版本锁定，延长了安装时间。
+* 修复了k线图标记顶和底时，标记离被标注的点太远的问题。
 ## 2.0.0-alpha.46 (2022-09-10)
 * [#40](https://github.com/zillionare/omicron/issues/40) 增加k线图绘制功能。
-* 本次修订增加了对plotly, ckwrap的依赖。
+* 本次修订增加了对plotly, ckwrap, ta-lib的依赖。
 * 将原属于omicron.talib包中的bars_since, find_runs等跟数组相关的操作，移入omicron.extensions.np中。
 ## 2.0.0-alpha.45 (2022-09-08)
 * [#39](https://github.com/zillionare/omicron/issues/39) fixed.
