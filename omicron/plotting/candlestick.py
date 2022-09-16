@@ -5,17 +5,14 @@ import arrow
 import numpy as np
 import plotly.graph_objects as go
 import talib
-from coretypes import FrameType
 from plotly.subplots import make_subplots
 
-from omicron import tf
 from omicron.talib import (
     moving_average,
     peaks_and_valleys,
     plateaus,
     support_resist_lines,
 )
-from omicron.talib.core import clustering
 
 
 class Candlestick:
@@ -288,6 +285,10 @@ class Candlestick:
         flags = peaks_and_valleys(
             bars["close"].astype(np.float64), up_thres, down_thres
         )
+
+        # 移除首尾的顶底标记，一般情况下它们都不是真正的顶和底。
+        flags[0] = 0
+        flags[-1] = 0
 
         marker_margin = (max(bars["high"]) - min(bars["low"])) * 0.05
         ticks_up = self.ticks[flags == 1]
