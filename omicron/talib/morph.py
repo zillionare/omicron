@@ -98,7 +98,7 @@ class BreakoutFlag(IntEnum):
 
 
 def peaks_and_valleys(
-    ts: np.ndarray, up_thresh: float, down_thresh: float
+    ts: np.ndarray, up_thresh: float = None, down_thresh: float = None
 ) -> np.ndarray:
     """寻找ts中的波峰和波谷，返回数组指示在该位置上是否为波峰或波谷。如果为1，则为波峰；如果为-1，则为波谷。
 
@@ -106,8 +106,8 @@ def peaks_and_valleys(
 
     Args:
         ts (np.ndarray): 时间序列
-        up_thresh (float): 波峰的阈值
-        down_thresh (float): 波谷的阈值
+        up_thresh (float): 波峰的阈值，如果为None,则使用ts变化率的二倍标准差
+        down_thresh (float): 波谷的阈值，如果为None,则使用ts变化率的二倍标准差乘以-1
 
     Returns:
         np.ndarray: 返回数组指示在该位置上是否为波峰或波谷。
@@ -115,11 +115,17 @@ def peaks_and_valleys(
     if ts.dtype != np.float64:
         ts = ts.astype(np.float64)
 
+    if any([up_thresh is None, down_thresh is None]):
+        change_rate = ts[1:] / ts[:-1] - 1
+        std = np.std(change_rate)
+        up_thresh = up_thresh or 2 * std
+        down_thresh = down_thresh or -2 * std
+
     return peak_valley_pivots(ts, up_thresh, down_thresh)
 
 
 def support_resist_lines(
-    ts: np.ndarray, upthres: float = 0.01, downthres: float = -0.01
+    ts: np.ndarray, upthres: float = None, downthres: float = None
 ) -> Tuple[Callable, Callable, np.ndarray]:
     """计算时间序列的支撑线和阻力线
 
