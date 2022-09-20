@@ -272,7 +272,7 @@ class Candlestick:
 
         self.main_traces["bs"] = trace
 
-    def mark_peaks_and_valleys(self, up_thres: float = 0.03, down_thres: float = -0.03):
+    def mark_peaks_and_valleys(self, up_thres: float = None, down_thres: float = None):
         """在K线图上标注峰谷点
 
         Args:
