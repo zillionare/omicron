@@ -855,15 +855,15 @@ class TimeFrame:
         if frame_type == FrameType.DAY:
             end = cls.date2int(end)
             pos = np.searchsorted(cls.day_frames, end, side="right")
-            return cls.day_frames[max(0, pos - n) : pos]
+            return cls.day_frames[max(0, pos - n) : pos].tolist()
         elif frame_type == FrameType.WEEK:
             end = cls.date2int(end)
             pos = np.searchsorted(cls.week_frames, end, side="right")
-            return cls.week_frames[max(0, pos - n) : pos]
+            return cls.week_frames[max(0, pos - n) : pos].tolist()
         elif frame_type == FrameType.MONTH:
             end = cls.date2int(end)
             pos = np.searchsorted(cls.month_frames, end, side="right")
-            return cls.month_frames[max(0, pos - n) : pos]
+            return cls.month_frames[max(0, pos - n) : pos].tolist()
         elif frame_type in {
             FrameType.MIN1,
             FrameType.MIN5,

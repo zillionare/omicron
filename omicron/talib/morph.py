@@ -162,7 +162,7 @@ def support_resist_lines(
     if ts.dtype != np.float64:
         ts = ts.astype(np.float64)
 
-    pivots = peak_valley_pivots(ts, upthres, downthres)
+    pivots = peaks_and_valleys(ts, upthres, downthres)
     pivots[0] = 0
     pivots[-1] = 0
 

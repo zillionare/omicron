@@ -607,10 +607,10 @@ class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
             self.assertListEqual(expected, actual)
 
         actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.MONTH)
-        self.assertListEqual([20191129, 20191231, 20200123], actual.tolist())
+        self.assertListEqual([20191129, 20191231, 20200123], actual)
 
         actual = tf.get_frames_by_count(datetime.date(2020, 2, 12), 3, FrameType.WEEK)
-        self.assertListEqual([20200117, 20200123, 20200207], actual.tolist())
+        self.assertListEqual([20200117, 20200123, 20200207], actual)
 
     def test_get_frames(self):
         days = [
