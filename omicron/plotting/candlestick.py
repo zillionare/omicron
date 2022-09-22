@@ -168,7 +168,7 @@ class Candlestick:
         self.main_traces[trace_name] = line
 
     def mark_support_resist_lines(
-        self, upthres: float = 0.03, downthres: float = -0.03, use_close=True, win=60
+        self, upthres: float = None, downthres: float = None, use_close=True, win=60
     ):
         """在K线图上标注支撑线和压力线
 

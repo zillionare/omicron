@@ -129,6 +129,8 @@ def support_resist_lines(
 ) -> Tuple[Callable, Callable, np.ndarray]:
     """计算时间序列的支撑线和阻力线
 
+    使用最近的两个高点连接成阴力线，两个低点连接成支撑线。
+
     Examples:
         ```python
             def show_support_resist_lines(ts):
@@ -166,22 +168,21 @@ def support_resist_lines(
     pivots[0] = 0
     pivots[-1] = 0
 
-    peaks_only = np.select([pivots == 1], [ts], 0)
-    arg_max = sorted(top_n_argpos(peaks_only, 2))
-
-    valleys_only = np.select([pivots == -1], [ts], np.max(ts))
-    arg_min = sorted(smallest_n_argpos(valleys_only, 2))
+    arg_max = np.argwhere(pivots == 1).flatten()
+    arg_min = np.argwhere(pivots == -1).flatten()
 
     resist = None
     support = None
 
     if len(arg_max) >= 2:
+        arg_max = arg_max[-2:]
         y = ts[arg_max]
         coeff = np.polyfit(arg_max, y, deg=1)
 
         resist = np.poly1d(coeff)
 
     if len(arg_min) >= 2:
+        arg_min = arg_min[-2:]
         y = ts[arg_min]
         coeff = np.polyfit(arg_min, y, deg=1)
 
