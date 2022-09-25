@@ -20,6 +20,7 @@ class RedisCache:
     _sys_: Redis
     _temp_: Redis
     _feature_: Redis
+    _app_: Redis
 
     _initialized = False
 
@@ -51,6 +52,13 @@ class RedisCache:
         else:
             return self._feature_
 
+    @property
+    def app(self) -> Redis:
+        if self._initialized is False:
+            return None
+        else:
+            return self._app_
+
     def __init__(self):
         self._initialized = False
 
@@ -66,10 +74,13 @@ class RedisCache:
                 redis.close()
                 await redis.wait_closed()
 
+            self.app.close()
+            await self.app.wait_closed()
+
             self._initialized = False
             logger.info("redis caches are all closed")
 
-    async def init(self):
+    async def init(self, app: int = 5):
         global _cache_lock
 
         async with _cache_lock:
@@ -84,6 +95,15 @@ class RedisCache:
                 )
                 await db.set("__meta__.database", name)
                 setattr(self, name, db)
+
+            # init app pool
+            if app < 5 or app > 15:
+                app = 5
+            db = await aioredis.create_redis_pool(
+                cfg.redis.dsn, encoding="utf-8", maxsize=10, db=app
+            )
+            await db.set("__meta__.database", "__app__")
+            setattr(self, "_app_", db)
 
             self._initialized = True
             logger.info("redis cache is inited")

@@ -11,7 +11,7 @@ __version__ = pkg_resources.get_distribution("zillionare-omicron").version
 logger = logging.getLogger(__name__)
 
 
-async def init():
+async def init(app_cache: int = 5):
     """初始化Omicron
 
     初始化influxDB, 缓存等连接， 并加载日历和证券列表
@@ -20,7 +20,7 @@ async def init():
     """
     global cache
 
-    await cache.init()
+    await cache.init(app=app_cache)
     await tf.init()
 
     from omicron.models.security import Security
