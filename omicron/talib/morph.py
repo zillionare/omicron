@@ -3,7 +3,9 @@ from enum import IntEnum
 from typing import Callable, List, Tuple
 
 import numpy as np
+import pandas as pd
 from zigzag import peak_valley_pivots
+import talib as ta
 
 from omicron.extensions.np import smallest_n_argpos, top_n_argpos
 from omicron.talib.core import clustering
@@ -258,3 +260,141 @@ def plateaus(
             plats.append((start, length))
 
     return plats
+
+
+def rsi_bottom_dev_detect(
+    close: np.ndarray, thresh: Tuple[float, float], rsi_limit: float=30) -> Tuple[float, float]:  
+    '''寻找rsi底背离， 返回数组第一个值指示在该位置之前是否发生了直接背离还是间隔底背离，如果为1，则发生直接底背离，如果为2，则发生间隔底背离。
+    第二个表示监测点距离底背离发生点的最近时间单位。
+
+    本函数直接使用了zigzag中的peak_valley_pivots. 有很多方法可以实现本功能，比如scipy.signals.find_peaks_cwt, peak_valley_pivots等。本函数更适合金融时间序列，并且使用了cython加速。
+    
+    Args: 
+        close (np.ndarray): 时间序列收盘价
+        thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        rsi_limit (float, optional): RSI发生底背离时的阈值   
+    
+    Returns: 
+        返回数组，数组第一个值为1，则在该位置之前发生了直接背离，值为2，则发生间隔背离，如果没有发生底背离，则返回值为0
+        数组第二个值表示最后底背离点距最终时间的时间单位， 没有底背离，则返回None。 
+    '''
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+    rsi = ta.RSI(close, 6)
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
+    
+    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+    pivots[0], pivots[-1]=0, 0   # 掐头去尾
+    valley_pivots = -1*(((pivots==-1)&(rsi<=rsi_limit)).astype('int')) 
+    bottom_dev_type=0
+    bottom_dev_distance=None
+    length=len(valley_pivots)
+    valley_index=np.where(valley_pivots==-1)[0]
+    if len(valley_index)>=2:   # 单个底背离
+        if (close[valley_index[-1]]-close[valley_index[-2]])*(rsi[valley_index[-1]]-rsi[valley_index[-2]])<0:
+            bottom_dev_type=1
+            bottom_dev_distance=length-1-valley_index[-1]
+   
+        elif len(valley_index)>=3: # 间隔背离点
+            if (close[valley_index[-1]]-close[valley_index[-3]])*(rsi[valley_index[-1]]-rsi[valley_index[-3]])<0:
+                bottom_dev_type=2
+                bottom_dev_distance=length-1-valley_index[-1]
+        else:
+            pass
+    return bottom_dev_type, bottom_dev_distance 
+
+
+def rsi_watermarks(
+    close: np.ndarray, thresh: Tuple[float, float])->Tuple[float, float]:
+    '''给定一段行情数据和用以检测顶和底的阈值，返回该段行情中，谷和峰处RSI均值。
+
+    其中bars的长度一般不小于60，不大于120。返回值中，前一个为low_wartermark（谷底处RSI值），
+    后一个为high_wartermark（高峰处RSI值)。 
+    
+    Args: 
+        close (np.ndarray): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+
+    Returns: 
+        返回数组[low_watermark, high_watermark], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
+        若传入收盘价只有一个最值，则只返回一个。没有最值，则返回None。
+    '''
+
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+    rsi = ta.RSI(close, 6)
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
+    
+    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+    pivots[0], pivots[-1]=0, 0   # 掐头去尾
+
+    # 峰值RSI>70; 谷处的RSI<30;
+    peaks_rsi_index = np.where((rsi>70)&(pivots==1))[0]
+    valleys_rsi_index = np.where((rsi<30)&(pivots==-1))[0]
+
+    if len(peaks_rsi_index) == 0:
+        high_watermark = None
+    elif len(peaks_rsi_index) == 1:
+        high_watermark = rsi[peaks_rsi_index[0]]
+    else: # 有两个以上的峰，通过最近的两个峰均值来确定走势
+        high_watermark = np.nanmean(rsi[peaks_rsi_index[-2:]])
+        
+    if len(valleys_rsi_index) == 0:
+        low_watermark = None
+    elif len(valleys_rsi_index) == 1:
+        low_watermark = rsi[valleys_rsi_index[0]]
+    else: # 有两个以上的峰，通过最近的两个峰来确定走势
+        low_watermark = np.nanmean(rsi[valleys_rsi_index[-2:]])
+   
+    return low_watermark, high_watermark
+
+
+def rsi_predict_price(
+    close: np.ndarray, thresh: Tuple[float, float]) -> Tuple[float, float]:
+    '''给定一段行情，根据最近的两个RSI的极小值和极大值预测下一个周期可能达到的最低价格和最高价格。
+    
+    其原理是，以预测最近的两个最高价和最低价，求出其相对应的RSI值，求出最高价和最低价RSI的均值，
+    若只有一个则取最近的一个。再由RSI公式，反推价格。此时返回值为(None, float)，即只有最高价，没有最低价。反之亦然。
+
+    Args: 
+        close (np.ndarray): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+
+    Returns: 
+        返回数组[predicted_low_price, predicted_high_price], 数组第一个值为利用达到之前最低收盘价的RSI预测的最低价。
+        第二个值为利用达到之前最高收盘价的RSI预测的最高价。
+    '''
+
+    if close.dtype != np.float64: 
+        close = close.astype(np.float64)
+
+    valley_rsi, peak_rsi = rsi_watermarks(close, thresh=thresh) 
+    pivot = peak_valley_pivots(close, thresh[0], thresh[1])
+    pivot[0], pivot[-1]=0, 0   # 掐头去尾
+    
+    price_change = pd.Series(close).diff(1).values
+    ave_price_change = (abs(price_change)[-6:].mean())*5
+    ave_price_raise = (np.maximum(price_change, 0)[-6:].mean())*5
+
+    if valley_rsi!=None: 
+        predicted_low_change = (ave_price_change)-ave_price_raise/(0.01*valley_rsi)
+        if predicted_low_change>0: 
+            predicted_low_change=0
+        predicted_low_price = close[-1] + predicted_low_change
+    else: 
+        predicted_low_price = None
+
+    if peak_rsi!=None: 
+        predicted_high_change = (ave_price_raise-ave_price_change)/(0.01*peak_rsi-1)-ave_price_change
+        if predicted_high_change<0: 
+            predicted_high_change=0
+        predicted_high_price = close[-1] + predicted_high_change
+    else: 
+        predicted_high_price = None
+        
+    return predicted_low_price, predicted_high_price
+
+
+
