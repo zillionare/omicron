@@ -410,6 +410,8 @@ class Stock(Security):
         """
         now = datetime.datetime.now()
         try:
+            cached = np.array([], dtype=bars_dtype)
+
             if frame_type in tf.day_level_frames:
                 if end is None:
                     end = now.date()
@@ -791,16 +793,20 @@ class Stock(Security):
         Returns:
             BarsArray: 行情数据
         """
+        fix_date = False
         if ft in tf.minute_level_frames:
             convert = tf.int2time
         else:
             convert = tf.int2date
+            fix_date = True
         recs = []
         # it's possible to treat raw as csv and use pandas to parse, however, the performance is 10 times worse than this method
         for raw_rec in raw:
             if raw_rec is None:
                 continue
             f, o, h, l, c, v, m, fac = raw_rec.split(",")
+            if fix_date:
+                f = f[:8]
             recs.append(
                 (
                     convert(f),
