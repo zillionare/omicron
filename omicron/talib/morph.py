@@ -280,14 +280,14 @@ def rsi_bottom_dev_detect(
         返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表示没有发生背离，1，表明出现了直接底背离，2表明出现了间隔底背离。
         数组第二个值表示最后底背离点距最终时间的时间单位，在没有底背离的情况下，返回None。
     """
-    assert len(close) > 60, "must provide an array with at least 61 length!"
+    assert len(close) >= 60, "must provide an array with at least 61 length!"
     if close.dtype != np.float64:
         close = close.astype(np.float64)
     rsi = ta.RSI(close, 6)
 
-    if thresh is None: 
-        std = np.std(close[-60:]/close[-61:-1]-1)
-        thresh = (2*std, -2*std)
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
 
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
     pivots[0], pivots[-1] = 0, 0  # 掐头去尾
@@ -330,16 +330,15 @@ def rsi_watermarks(
         返回数组[low_watermark, high_watermark], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
         若传入收盘价只有一个最值，则只返回一个。没有最值，则返回None。
     """
-    assert len(close) > 60, "must provide an array with at least 61 length!"
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
 
-    if thresh is None: 
-        std = np.std(close[-60:]/close[-61:-1]-1)
-        thresh = (2*std, -2*std)
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
 
     if close.dtype != np.float64:
         close = close.astype(np.float64)
     rsi = ta.RSI(close, 6)
-    
 
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
     pivots[0], pivots[-1] = 0, 0  # 掐头去尾
@@ -381,11 +380,11 @@ def rsi_predict_price(
         返回数组[predicted_low_price, predicted_high_price], 数组第一个值为利用达到之前最低收盘价的RSI预测的最低价。
         第二个值为利用达到之前最高收盘价的RSI预测的最高价。
     """
-    assert len(close) > 60, "must provide an array with at least 61 length!"
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
 
-    if thresh is None: 
-        std = np.std(close[-60:]/close[-61:-1]-1)
-        thresh = (2*std, -2*std)
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
 
     if close.dtype != np.float64:
         close = close.astype(np.float64)
