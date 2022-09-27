@@ -228,12 +228,12 @@ def plateaus(
 ) -> List[Tuple]:
     """统计数组`numbers`中的可能存在的平台整理。
 
-    如果一个数组中存在相邻的一个子数组，其中超过`fall_in_range_ratio`的元素都落在二个标准差以内，则认为该出有平台
+    如果一个数组中存在着子数组，使得其元素与均值的距离落在三个标准差以内的比例超过`fall_in_range_ratio`的，则认为该子数组满足平台整理。
 
     Args:
         numbers: 输入数组
         min_size: 平台的最小长度
-        fall_in_range_ratio: 超过`fall_in_range_ratio`比例的元素落在二个标准差以内，就认为该子数组构成一个平台
+        fall_in_range_ratio: 超过`fall_in_range_ratio`比例的元素落在均值的三个标准差以内，就认为该子数组构成一个平台
 
     Returns:
         平台的起始位置和长度的数组
@@ -254,7 +254,7 @@ def plateaus(
         mean = np.mean(y)
         std = np.std(y)
 
-        inrange = len(y[np.abs(y - mean) < 2 * std])
+        inrange = len(y[np.abs(y - mean) < 3 * std])
         ratio = inrange / length
 
         if ratio >= fall_in_range_ratio:
