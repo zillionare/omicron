@@ -81,6 +81,9 @@ def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
         [Tuple]: 如果为直线拟合，返回误差，(a,b)(一次项系数和常数)。如果为二次曲线拟合，返回
         误差, (a,b,c)(二次项、一次项和常量）, (vert_x, vert_y)(顶点处的index，顶点值)
     """
+    if deg not in (1, 2):
+        raise ValueError("deg must be 1 or 2")
+
     try:
         if any(np.isnan(ts)):
             raise ValueError("ts contains nan")
@@ -110,7 +113,10 @@ def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
             return error, z
     except Exception:
         error = 1e9
-        return error, (np.nan, np.nan, np.nan), (np.nan, np.nan)
+        if deg == 1:
+            return error, (np.nan, np.nan)
+        else:
+            return error, (np.nan, np.nan, np.nan), (np.nan, np.nan)
 
 
 def slope(ts: np.array, loss_func="re"):
