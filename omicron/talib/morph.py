@@ -316,7 +316,7 @@ def rsi_bottom_dev_detect(
 
 def rsi_watermarks(
     close: np.ndarray, thresh: Tuple[float, float] = None
-) -> Tuple[float, float]:
+) -> Tuple[float, float, float]:
     """给定一段行情数据和用以检测顶和底的阈值，返回该段行情中，谷和峰处RSI均值，最后一个RSI6值。
 
     其中bars的长度一般不小于60，不大于120。返回值中，一个为low_wartermark（谷底处RSI值），
