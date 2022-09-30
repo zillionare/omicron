@@ -361,7 +361,7 @@ def rsi_watermarks(
     else:  # 有两个以上的峰，通过最近的两个峰来确定走势
         low_watermark = np.nanmean(rsi[valleys_rsi_index[-2:]])
 
-    return low_watermark, high_watermark
+    return low_watermark, high_watermark, rsi[-1]
 
 
 def rsi_predict_price(
@@ -389,7 +389,7 @@ def rsi_predict_price(
     if close.dtype != np.float64:
         close = close.astype(np.float64)
 
-    valley_rsi, peak_rsi = rsi_watermarks(close, thresh=thresh)
+    valley_rsi, peak_rsi, _ = rsi_watermarks(close, thresh=thresh)
     pivot = peak_valley_pivots(close, thresh[0], thresh[1])
     pivot[0], pivot[-1] = 0, 0  # 掐头去尾
 
