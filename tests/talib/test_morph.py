@@ -878,14 +878,14 @@ class MorphTest(unittest.TestCase):
 
         data = np.array(price, dtype=[("close", "f4")])
         thresh = [0.01, -0.01]
-        low_watermark, high_watermark = rsi_watermarks(data, thresh)
+        low_watermark, high_watermark, _ = rsi_watermarks(data, thresh)
         exp = (16.72408, 78.37833)
 
         self.assertAlmostEqual(low_watermark, exp[0], places=2)
         self.assertAlmostEqual(high_watermark, exp[1], places=2)
 
         thresh = [0.1, -0.1]
-        low_watermark, high_watermark = rsi_watermarks(data, thresh)
+        low_watermark, high_watermark, _ = rsi_watermarks(data, thresh)
 
         self.assertTrue(low_watermark == None)
         self.assertTrue(high_watermark == None)

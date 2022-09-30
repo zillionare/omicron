@@ -317,18 +317,18 @@ def rsi_bottom_dev_detect(
 def rsi_watermarks(
     close: np.ndarray, thresh: Tuple[float, float] = None
 ) -> Tuple[float, float]:
-    """给定一段行情数据和用以检测顶和底的阈值，返回该段行情中，谷和峰处RSI均值。
+    """给定一段行情数据和用以检测顶和底的阈值，返回该段行情中，谷和峰处RSI均值，最后一个RSI6值。
 
-    其中bars的长度一般不小于60，不大于120。返回值中，前一个为low_wartermark（谷底处RSI值），
-    后一个为high_wartermark（高峰处RSI值)。
+    其中bars的长度一般不小于60，不大于120。返回值中，一个为low_wartermark（谷底处RSI值），
+    一个为high_wartermark（高峰处RSI值)，一个为RSI6的最后一个值，用以对比前两个警戒值。
 
     Args:
         close (np.ndarray): 具有时间序列的收盘价
         thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
 
     Returns:
-        返回数组[low_watermark, high_watermark], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
-        若传入收盘价只有一个最值，则只返回一个。没有最值，则返回None。
+        返回数组[low_watermark, high_watermark， rsi[-1]], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
+        若传入收盘价只有一个最值，只返回一个。没有最值，则返回None, 第三个为实际的最后RSI6的值。
     """
     assert len(close) >= 60, "must provide an array with at least 60 length!"
 
@@ -361,7 +361,7 @@ def rsi_watermarks(
     else:  # 有两个以上的峰，通过最近的两个峰来确定走势
         low_watermark = np.nanmean(rsi[valleys_rsi_index[-2:]])
 
-    return low_watermark, high_watermark
+    return low_watermark, high_watermark, rsi[-1]
 
 
 def rsi_predict_price(
@@ -389,7 +389,7 @@ def rsi_predict_price(
     if close.dtype != np.float64:
         close = close.astype(np.float64)
 
-    valley_rsi, peak_rsi = rsi_watermarks(close, thresh=thresh)
+    valley_rsi, peak_rsi, _ = rsi_watermarks(close, thresh=thresh)
     pivot = peak_valley_pivots(close, thresh[0], thresh[1])
     pivot[0], pivot[-1] = 0, 0  # 掐头去尾
 
