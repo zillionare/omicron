@@ -25,11 +25,10 @@ class MockException(Exception):
 
 async def clear_cache(dsn):
     try:
-        redis = await aioredis.create_redis(dsn)
+        redis = aioredis.from_url(dsn)
         await redis.flushall()
     finally:
-        redis.close()
-        await redis.wait_closed()
+        await redis.close()
 
 
 _stocks_for_test = [
@@ -114,15 +113,16 @@ async def init_test_env():
 
     cfg = cfg4py.init(config_path, False)
 
-    redis = await aioredis.create_redis(cfg.redis.dsn, db=1)
+    redis = aioredis.from_url(
+        cfg.redis.dsn, encoding="utf-8", decode_responses=True, db=1
+    )
 
     try:
         await set_calendar_data(redis)
         await set_security_data(redis)
     finally:
         if redis:
-            redis.close()
-            await redis.wait_closed()
+            await redis.close()
 
     return cfg
 

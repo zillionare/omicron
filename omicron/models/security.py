@@ -206,7 +206,7 @@ class Query:
 
         records = None
         if self.target_date == _date:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
-            secs = await cache.security.lrange("security:all", 0, -1, encoding="utf-8")
+            secs = await cache.security.lrange("security:all", 0, -1)
             if len(secs) != 0:
                 # using np.datetime64[s]
                 records = np.array(
@@ -304,7 +304,7 @@ class Security:
 
         一般而言，omicron的使用者无须调用此方法，它会在omicron初始化（通过`omicron.init`）时，被自动调用。
         """
-        secs = await cache.security.lrange("security:all", 0, -1, encoding="utf-8")
+        secs = await cache.security.lrange("security:all", 0, -1)
         if len(secs) != 0:
             # using np.datetime64[s]
             _securities = np.array(

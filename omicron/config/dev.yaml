@@ -1,5 +1,6 @@
 redis:
   dsn: redis://localhost:6379
+
 influxdb:
   url: http://localhost:8086
   token: my-token
@@ -7,10 +8,6 @@ influxdb:
   bucket_name: my-bucket
   enable_compress: true
   max_query_size: 150000
-omega:
-  home: ~/.zillionare/omega
-  urls:
-    quotes_server: http://localhost:3181
 
 notify:
     mail_from: ${MAIL_FROM}

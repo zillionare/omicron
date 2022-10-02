@@ -1829,9 +1829,9 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_get_latest_price(self):
-        cache.feature.hset(TRADE_LATEST_PRICE, "000001", 10.2)
-        cache.feature.hset(TRADE_LATEST_PRICE, "002227", 12.1)
-        cache.feature.hset(TRADE_LATEST_PRICE, "601398", 5)
+        await cache.feature.hset(TRADE_LATEST_PRICE, "000001", 10.2)
+        await cache.feature.hset(TRADE_LATEST_PRICE, "002227", 12.1)
+        await cache.feature.hset(TRADE_LATEST_PRICE, "601398", 5)
 
         codes = ["000001.XSHE"]
         rc = await Stock.get_latest_price(codes)

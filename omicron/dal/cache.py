@@ -5,7 +5,7 @@ from asyncio import Lock
 
 import aioredis
 import cfg4py
-from aioredis.commands import Redis
+from aioredis.client import Redis
 
 logger = logging.getLogger(__file__)
 
@@ -71,11 +71,9 @@ class RedisCache:
 
             logger.info("closing redis cache...")
             for redis in [self.sys, self.security, self.temp, self.feature]:
-                redis.close()
-                await redis.wait_closed()
+                await redis.close()
 
-            self.app.close()
-            await self.app.wait_closed()
+            await self.app.close()
 
             self._initialized = False
             logger.info("redis caches are all closed")
@@ -90,8 +88,15 @@ class RedisCache:
             logger.info("init redis cache...")
             cfg = cfg4py.get_instance()
             for i, name in enumerate(self.databases):
-                db = await aioredis.create_redis_pool(
-                    cfg.redis.dsn, encoding="utf-8", maxsize=10, db=i
+                auto_decode = True
+                if name == "_temp_":
+                    auto_decode = False
+                db = aioredis.from_url(
+                    cfg.redis.dsn,
+                    encoding="utf-8",
+                    decode_responses=auto_decode,
+                    max_connections=10,
+                    db=i,
                 )
                 await db.set("__meta__.database", name)
                 setattr(self, name, db)
@@ -99,8 +104,12 @@ class RedisCache:
             # init app pool
             if app < 5 or app > 15:
                 app = 5
-            db = await aioredis.create_redis_pool(
-                cfg.redis.dsn, encoding="utf-8", maxsize=10, db=app
+            db = aioredis.from_url(
+                cfg.redis.dsn,
+                encoding="utf-8",
+                decode_responses=True,
+                max_connections=10,
+                db=app,
             )
             await db.set("__meta__.database", "__app__")
             setattr(self, "_app_", db)
