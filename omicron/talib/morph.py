@@ -423,8 +423,8 @@ def rsi_predict_price(
     return predicted_low_price, predicted_high_price
 
 
-def energy_hump(bars: bars_dtype, thresh=2) -> Optional[int]:
-    """检测`bars`中是否存在两波以上量能剧烈增加的情形（能量驼峰），返回最后一波距现在的位置。
+def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
+    """检测`bars`中是否存在两波以上量能剧烈增加的情形（能量驼峰），返回最后一波距现在的位置及区间长度。
 
     注意如果最后一个能量驼峰距现在过远（比如超过10个bar),可能意味着资金已经逃离，能量已经耗尽。
 
@@ -432,7 +432,7 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[int]:
         bars: 行情数据
         thresh: 最后一波量必须大于20天均量的倍数。
     Returns:
-        如果不存在能量驼峰的情形，则返回None，否则返回最后一个驼峰离现在的距离。
+        如果不存在能量驼峰的情形，则返回None，否则返回最后一个驼峰离现在的距离及区间长度。
     """
     vol = bars["volume"]
 
@@ -464,4 +464,4 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[int]:
         )
         return None
 
-    return len(bars) - real_peaks[-1]
+    return len(bars) - real_peaks[-1], real_peaks[-1] - real_peaks[0]

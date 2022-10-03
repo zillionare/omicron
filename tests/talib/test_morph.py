@@ -1030,7 +1030,7 @@ class MorphTest(unittest.TestCase):
 
     def test_energy_hump(self):
         # fmt off
-        # code: 600698
+        # code: 600698, 2022-9-23
         vol = np.array(
             [
                 13305200.0,
@@ -1168,8 +1168,9 @@ class MorphTest(unittest.TestCase):
         bars["volume"] = vol
         bars["frame"] = frames
 
-        dist = energy_hump(bars)
+        dist, length = energy_hump(bars)
         self.assertEqual(3, dist)
+        self.assertEqual(44, length)
 
-        dist = energy_hump(bars, 10)
-        self.assertIsNone(dist)
+        result = energy_hump(bars, 10)
+        self.assertIsNone(result)
