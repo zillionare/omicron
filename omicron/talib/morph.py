@@ -1,14 +1,17 @@
 """形态检测相关方法"""
+import logging
 from enum import IntEnum
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import talib as ta
+from coretypes import bars_dtype
 from zigzag import peak_valley_pivots
 
-from omicron.extensions.np import smallest_n_argpos, top_n_argpos
-from omicron.talib.core import clustering
+from omicron.talib.core import clustering, moving_average
+
+logger = logging.getLogger(__name__)
 
 
 class CrossFlag(IntEnum):
@@ -418,3 +421,47 @@ def rsi_predict_price(
         predicted_high_price = None
 
     return predicted_low_price, predicted_high_price
+
+
+def energy_hump(bars: bars_dtype, thresh=2) -> Optional[int]:
+    """检测`bars`中是否存在两波以上量能剧烈增加的情形（能量驼峰），返回最后一波距现在的位置。
+
+    注意如果最后一个能量驼峰距现在过远（比如超过10个bar),可能意味着资金已经逃离，能量已经耗尽。
+
+    Args:
+        bars: 行情数据
+        thresh: 最后一波量必须大于20天均量的倍数。
+    Returns:
+        如果不存在能量驼峰的情形，则返回None，否则返回最后一个驼峰离现在的距离。
+    """
+    vol = bars["volume"]
+
+    std = np.std(vol[1:] / vol[:-1])
+    pvs = peak_valley_pivots(vol, std, 0)
+
+    frames = bars["frame"]
+
+    pvs[0] = 0
+    pvs[-1] = -1
+    peaks = np.argwhere(pvs == 1)
+
+    mn = np.mean(vol[peaks])
+
+    # 顶点不能缩量到尖峰均值以下
+    real_peaks = np.intersect1d(np.argwhere(vol > mn), peaks)
+
+    if len(real_peaks) < 2:
+        return None
+
+    logger.debug("found %s peaks at %s", len(real_peaks), frames[real_peaks])
+    lp = real_peaks[-1]
+    ma = moving_average(vol, 20)[lp]
+    if vol[lp] < ma * thresh:
+        logger.debug(
+            "vol of last peak[%s] is less than mean_vol(20) * thresh[%s]",
+            vol[lp],
+            ma * thresh,
+        )
+        return None
+
+    return len(bars) - real_peaks[-1]
