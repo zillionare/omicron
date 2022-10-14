@@ -30,9 +30,9 @@ from omicron.core.constants import (
 from omicron.core.errors import BadParameterError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
 from omicron.extensions.np import array_price_equal, numpy_append_fields
+from omicron.models import get_influx_client
 from omicron.models.security import Security, convert_nptime_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -513,12 +513,7 @@ class Stock(Security):
             parse_dates=["frame"],
         )
 
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        bucket = cfg.influxdb.bucket_name
-        org = cfg.influxdb.org
-
-        client = InfluxClient(url, token, bucket, org)
+        client = get_influx_client()
         result = await client.query(flux, serializer)
         return result.to_records(index=False).astype(bars_dtype)
 
@@ -586,12 +581,7 @@ class Stock(Security):
             parse_dates=["frame"],
         )
 
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        bucket = cfg.influxdb.bucket_name
-        org = cfg.influxdb.org
-
-        client = InfluxClient(url, token, bucket, org)
+        client = get_influx_client()
         result = await client.query(flux, serializer)
         return result.to_records(index=False).astype(bars_dtype)
 
@@ -655,7 +645,7 @@ class Stock(Security):
             engine="c",
         )
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         return await client.query(flux, deserializer)
 
     @classmethod
@@ -712,7 +702,7 @@ class Stock(Security):
             engine="c",
         )
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         df = await client.query(flux, deserializer)
         return df
 
@@ -1014,18 +1004,6 @@ class Stock(Security):
         await cache.security.hset(key, code, ",".join(map(str, val)))
 
     @classmethod
-    def _get_influx_client(cls):
-        client = InfluxClient(
-            cfg.influxdb.url,
-            cfg.influxdb.token,
-            cfg.influxdb.bucket_name,
-            cfg.influxdb.org,
-            enable_compress=cfg.influxdb.enable_compress,
-        )
-
-        return client
-
-    @classmethod
     async def persist_bars(
         cls,
         frame_type: FrameType,
@@ -1042,7 +1020,7 @@ class Stock(Security):
         Raises:
             InfluxDBWriteError: if influxdb write failed
         """
-        client = cls._get_influx_client()
+        client = get_influx_client()
 
         measurement = cls._measurement_name(frame_type)
         logger.info("persisting bars to influxdb: %s, %d secs", measurement, len(bars))
@@ -1240,7 +1218,7 @@ class Stock(Security):
 
         data_in_cache = await cls._get_price_limit_in_cache(code, begin, end)
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
@@ -1311,7 +1289,7 @@ class Stock(Security):
             await pl.execute()
         else:
             # to influxdb， 每个交易日的第二天早上2点保存
-            client = cls._get_influx_client()
+            client = get_influx_client()
             await client.save(
                 price_limits,
                 cls._measurement_name(FrameType.DAY),
@@ -1334,7 +1312,7 @@ class Stock(Security):
             涨跌停标志列表(buy, sell)
         """
         cols = ["_time", "close", "high_limit", "low_limit"]
-        client = cls._get_influx_client()
+        client = get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
