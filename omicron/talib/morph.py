@@ -267,17 +267,17 @@ def plateaus(
 
 
 def rsi_bottom_dev_detect(
-    close: np.ndarray, thresh: Tuple[float, float] = None, rsi_limit: float = 30
+    close: np.ndarray, thresh: Tuple[float, float] = (0.05,-0.02), rsi_limit: float = 20
 ) -> Tuple[int, int]:
     """寻找rsi底背离
 
-    返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表示没有发生背离，1，表明出现了直接底背离，2表明出现了间隔底背离。
+    返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表明没有发生背离，1表明出现了直接底背离，2表明出现了间隔底背离。
     第二个表示监测点距离底背离发生点的最近时间单位。
 
     Args:
         close (np.ndarray): 时间序列收盘价
         thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
-        rsi_limit (float, optional): RSI发生底背离时的阈值
+        rsi_limit (float, optional): RSI发生底背离时的阈值, 默认值20
 
     Returns:
         返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表示没有发生背离，1，表明出现了直接底背离，2表明出现了间隔底背离。
@@ -317,6 +317,43 @@ def rsi_bottom_dev_detect(
     return bottom_dev_type, bottom_dev_distance
 
 
+def valley_detect(
+    close: np.ndarray, thresh: Tuple[float, float] = (0.05, -0.02)
+) -> int: 
+    """给定一段行情数据和用以检测近期已发生反转的最低点，返回该段行情中，最后一次发生最低点到最后一个数据的距离
+    如果给定行情中未找到满足参数的最低点，则返回空值。
+
+    其中bars的长度一般不小于60，不大于120。此函数采用了zigzag中的谷峰检测方法，其中参数默认(0.05,-0.02), 
+    此参数对所有股票数据都适用。返回值中，如果距离为1，说明最后一次发生最低点在倒数第二个数据。
+
+    Args:
+        close (np.ndarray): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
+
+    Returns:
+        返回数据类型为整数，为距离上一次发生最低点的长度, 如果给定行情中未找到满足参数的最低点，则返回空值。 
+    """
+
+    assert len(close) > 60, "must provide an array with at least 61 length!"
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+
+    if thresh is None: 
+        std = np.std((close[-60:]-close[-61:-1])/close[-61:-1]-1)
+        thresh = (2*std, -2*std)
+    
+    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+    pivots[0], pivots[-1]=0, 0   # 掐头去尾
+    lowest_distance=None
+    length=len(pivots)
+    valley_index=np.where(pivots==-1)[0]
+    if len(valley_index)>=1:   
+        lowest_distance=int(length-1-valley_index[-1])
+
+    return lowest_distance
+
+
 def rsi_watermarks(
     close: np.ndarray, thresh: Tuple[float, float] = None
 ) -> Tuple[float, float, float]:
@@ -327,7 +364,7 @@ def rsi_watermarks(
 
     Args:
         close (np.ndarray): 具有时间序列的收盘价
-        thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
+        thresh (Tuple[float, float]) : None适用所有股票，不必更改
 
     Returns:
         返回数组[low_watermark, high_watermark， rsi[-1]], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
@@ -465,3 +502,5 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
         return None
 
     return len(bars) - real_peaks[-1], real_peaks[-1] - real_peaks[0]
+
+
