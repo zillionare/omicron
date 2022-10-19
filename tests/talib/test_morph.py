@@ -862,12 +862,14 @@ class MorphTest(unittest.TestCase):
        17.2     , 17.54    , 17.57    , 17.49    , 17.85    , 17.3     ,
        17.13    , 17.18    , 17.35    , 16.89    , 16.21    , 17.83    ])
         actual = valley_detect(data, thresh=(0.05,-0.02))
-        exp = int(1)
-        self.assertEqual(actual, exp)
+        exp = (int(1), 0.099938)
+        self.assertAlmostEqual(actual[0], exp[0], 4)
+        self.assertAlmostEqual(actual[1], exp[1], 4)
 
         actual = valley_detect(data, thresh=(0.5,-0.5))
-        exp = None
-        self.assertEqual(actual, exp)
+        exp = (None, None)
+        self.assertEqual(actual[0], exp[0])
+        self.assertEqual(actual[1], exp[1])
 
     def test_rsi_predict_price(self):
 

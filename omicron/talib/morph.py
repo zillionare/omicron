@@ -320,18 +320,19 @@ def rsi_bottom_dev_detect(
 def valley_detect(
     close: np.ndarray, thresh: Tuple[float, float] = (0.05, -0.02)
 ) -> int: 
-    """给定一段行情数据和用以检测近期已发生反转的最低点，返回该段行情中，最后一次发生最低点到最后一个数据的距离
-    如果给定行情中未找到满足参数的最低点，则返回空值。
+    """给定一段行情数据和用以检测近期已发生反转的最低点，返回该段行情中，最低点到最后一个数据的距离和收益率数组，
+    如果给定行情中未找到满足参数的最低点，则返回两个空值数组。
 
     其中bars的长度一般不小于60，不大于120。此函数采用了zigzag中的谷峰检测方法，其中参数默认(0.05,-0.02), 
-    此参数对所有股票数据都适用。返回值中，如果距离为1，说明最后一次发生最低点在倒数第二个数据。
+    此参数对所有股票数据都适用。若满足参数，返回值中，距离为大于0的整数，收益率是0~1的小数。
 
     Args:
         close (np.ndarray): 具有时间序列的收盘价
         thresh (Tuple[float, float]) : 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
 
     Returns:
-        返回数据类型为整数，为距离上一次发生最低点的长度, 如果给定行情中未找到满足参数的最低点，则返回空值。 
+        返回该段行情中，最低点到最后一个数据的距离和收益率数组，
+        如果给定行情中未找到满足参数的最低点，则返回两个空值数组。
     """
 
     assert len(close) > 60, "must provide an array with at least 61 length!"
@@ -344,14 +345,16 @@ def valley_detect(
         thresh = (2*std, -2*std)
     
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
-    pivots[0], pivots[-1]=0, 0   # 掐头去尾
+    flags = pivots[pivots!=0]
+    increased=None
     lowest_distance=None
-    length=len(pivots)
-    valley_index=np.where(pivots==-1)[0]
-    if len(valley_index)>=1:   
+    if (flags[-2] == -1) and (flags[-1] == 1) :
+        length=len(pivots)
+        valley_index=np.where(pivots==-1)[0]
+        increased = (close[-1]-close[valley_index[-1]])/close[valley_index[-1]]
         lowest_distance=int(length-1-valley_index[-1])
 
-    return lowest_distance
+    return lowest_distance, increased
 
 
 def rsi_watermarks(
