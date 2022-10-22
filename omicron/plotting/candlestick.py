@@ -1,4 +1,5 @@
 from collections import defaultdict
+from tkinter.messagebox import showwarning
 from typing import List, Tuple
 
 import arrow
@@ -24,14 +25,28 @@ class Candlestick:
     def __init__(
         self,
         bars: np.ndarray,
-        ma_groups: List[int] = [5, 10, 20, 60],
+        ma_groups: List[int] = None,
+        win_size: int = 120,
         title: str = None,
         show_volume=True,
+        show_rsi=True,
         show_peaks=False,
         **kwargs,
     ):
+        """构造函数
+
+        Args:
+            bars: 行情数据
+            ma_groups: 均线组参数。比如[5, 10, 20]表明向k线图中添加5, 10, 20日均线。如果不提供，将从数组[5, 10, 20, 30, 60, 120, 250]中取直到与`len(bars) - 5`匹配的参数为止。比如bars长度为30，则将取[5, 10, 20]来绘制均线。
+            win_size: 缺省绘制多少个bar，超出部分将不显示。
+            title: k线图的标题
+            show_volume: 是否显示成交量图
+            show_rsi: 是否显示RSI图。缺省显示参数为6的RSI图。
+            show_peaks: 是否标记检测出来的峰跟谷。
+        """
         self.title = title
         self.bars = bars
+        self.win_size = win_size
 
         # traces for main area
         self.main_traces = {}
@@ -39,7 +54,7 @@ class Candlestick:
         # traces for indicator area
         self.ind_traces = {}
 
-        self.ticks = self._format_tick(bars["frame"])
+        self.ticks = self._format_tick(bars["frame"][-win_size:])
 
         # for every candlestick, it must contain a candlestick plot
         cs = go.Candlestick(
@@ -67,7 +82,19 @@ class Candlestick:
         if show_peaks:
             self.add_main_trace("peaks")
 
+        if show_rsi:
+            self.add_indicator("rsi")
+
         # 增加均线
+        if ma_groups is None:
+            nbars = len(bars)
+            if nbars < 9:
+                ma_groups = []
+            else:
+                groups = np.array([5, 10, 20, 30, 60, 120, 250])
+                idx = max(np.argwhere(groups < (nbars - 5))).item() + 1
+                ma_groups = groups[:idx]
+
         for win in ma_groups:
             name = f"ma{win}"
             if win > len(bars):
@@ -106,7 +133,7 @@ class Candlestick:
         fig.update(layout_xaxis_rangeslider_visible=False)
         fig.update_yaxes(showgrid=True, gridcolor=self.LIGHT_GRAY)
         fig.update_layout(plot_bgcolor=self.TRANSPARENT)
-        fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 3)
+        fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
 
         return fig
 

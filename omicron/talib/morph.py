@@ -267,7 +267,9 @@ def plateaus(
 
 
 def rsi_bottom_dev_detect(
-    close: np.ndarray, thresh: Tuple[float, float] = (0.05,-0.02), rsi_limit: float = 20
+    close: np.ndarray,
+    thresh: Tuple[float, float] = (0.05, -0.02),
+    rsi_limit: float = 20,
 ) -> Tuple[int, int]:
     """寻找rsi底背离
 
@@ -319,11 +321,11 @@ def rsi_bottom_dev_detect(
 
 def valley_detect(
     close: np.ndarray, thresh: Tuple[float, float] = (0.05, -0.02)
-) -> int: 
+) -> int:
     """给定一段行情数据和用以检测近期已发生反转的最低点，返回该段行情中，最低点到最后一个数据的距离和收益率数组，
     如果给定行情中未找到满足参数的最低点，则返回两个空值数组。
 
-    其中bars的长度一般不小于60，不大于120。此函数采用了zigzag中的谷峰检测方法，其中参数默认(0.05,-0.02), 
+    其中bars的长度一般不小于60，不大于120。此函数采用了zigzag中的谷峰检测方法，其中参数默认(0.05,-0.02),
     此参数对所有股票数据都适用。若满足参数，返回值中，距离为大于0的整数，收益率是0~1的小数。
 
     Args:
@@ -340,19 +342,19 @@ def valley_detect(
     if close.dtype != np.float64:
         close = close.astype(np.float64)
 
-    if thresh is None: 
-        std = np.std((close[-60:]-close[-61:-1])/close[-61:-1]-1)
-        thresh = (2*std, -2*std)
-    
+    if thresh is None:
+        std = np.std((close[-60:] - close[-61:-1]) / close[-61:-1] - 1)
+        thresh = (2 * std, -2 * std)
+
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
-    flags = pivots[pivots!=0]
-    increased=None
-    lowest_distance=None
-    if (flags[-2] == -1) and (flags[-1] == 1) :
-        length=len(pivots)
-        valley_index=np.where(pivots==-1)[0]
-        increased = (close[-1]-close[valley_index[-1]])/close[valley_index[-1]]
-        lowest_distance=int(length-1-valley_index[-1])
+    flags = pivots[pivots != 0]
+    increased = None
+    lowest_distance = None
+    if (flags[-2] == -1) and (flags[-1] == 1):
+        length = len(pivots)
+        valley_index = np.where(pivots == -1)[0]
+        increased = (close[-1] - close[valley_index[-1]]) / close[valley_index[-1]]
+        lowest_distance = int(length - 1 - valley_index[-1])
 
     return lowest_distance, increased
 
@@ -505,5 +507,3 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
         return None
 
     return len(bars) - real_peaks[-1], real_peaks[-1] - real_peaks[0]
-
-
