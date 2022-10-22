@@ -21,6 +21,15 @@ class Candlestick:
     GREEN = "#3DAA70"
     TRANSPARENT = "rgba(0,0,0,0)"
     LIGHT_GRAY = "rgba(0, 0, 0, 0.1)"
+    MA_COLORS = {
+        5: "#1432F5",
+        10: "#EB52F7",
+        20: "#C0C0C0",
+        30: "#882111",
+        60: "#5E8E28",
+        120: "#4294F7",
+        250: "#F09937",
+    }
 
     def __init__(
         self,
@@ -100,7 +109,12 @@ class Candlestick:
             if win > len(bars):
                 continue
             ma = moving_average(bars["close"], win)
-            line = go.Scatter(y=ma, x=self.ticks, name=name, line=dict(width=1))
+            line = go.Scatter(
+                y=ma,
+                x=self.ticks,
+                name=name,
+                line=dict(width=1, color=self.MA_COLORS.get(win)),
+            )
             self.main_traces[name] = line
 
     @property
