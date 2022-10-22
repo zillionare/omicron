@@ -54,7 +54,7 @@ class Candlestick:
         # traces for indicator area
         self.ind_traces = {}
 
-        self.ticks = self._format_tick(bars["frame"][-win_size:])
+        self.ticks = self._format_tick(bars["frame"])
 
         # for every candlestick, it must contain a candlestick plot
         cs = go.Candlestick(
@@ -100,8 +100,7 @@ class Candlestick:
             if win > len(bars):
                 continue
             ma = moving_average(bars["close"], win)
-            n = len(ma)
-            line = go.Scatter(y=ma, x=self.ticks[-n:], name=name, line=dict(width=1))
+            line = go.Scatter(y=ma, x=self.ticks, name=name, line=dict(width=1))
             self.main_traces[name] = line
 
     @property
@@ -134,6 +133,9 @@ class Candlestick:
         fig.update_yaxes(showgrid=True, gridcolor=self.LIGHT_GRAY)
         fig.update_layout(plot_bgcolor=self.TRANSPARENT)
         fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
+        end = len(self.ticks)
+        start = end - self.win_size
+        fig.update_xaxes(range=[start, end])
 
         return fig
 
