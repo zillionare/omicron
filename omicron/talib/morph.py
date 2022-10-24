@@ -337,13 +337,13 @@ def valley_detect(
         如果给定行情中未找到满足参数的最低点，则返回两个空值数组。
     """
 
-    assert len(close) > 60, "must provide an array with at least 61 length!"
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
 
     if close.dtype != np.float64:
         close = close.astype(np.float64)
 
     if thresh is None:
-        std = np.std((close[-60:] - close[-61:-1]) / close[-61:-1] - 1)
+        std = np.std(close[-59:] / close[-60:-1] - 1)
         thresh = (2 * std, -2 * std)
 
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
