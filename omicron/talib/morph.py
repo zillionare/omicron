@@ -341,7 +341,7 @@ def valley_detect(
         close = close.astype(np.float64)
 
     if thresh is None: 
-        std = np.std((close[-60:]-close[-61:-1])/close[-61:-1]-1)
+        std = np.std(close[-59:]/close[-60:-1] - 1)
         thresh = (2*std, -2*std)
     
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
