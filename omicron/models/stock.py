@@ -20,6 +20,7 @@ from coretypes import (
     bars_dtype,
     bars_dtype_with_code,
 )
+from deprecation import deprecated
 
 from omicron import tf
 from omicron.core.constants import (
@@ -31,7 +32,7 @@ from omicron.core.errors import BadParameterError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
 from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
-from omicron.extensions.np import array_price_equal, numpy_append_fields
+from omicron.extensions import array_price_equal, numpy_append_fields, price_equal
 from omicron.models import get_influx_client
 from omicron.models.security import Security, convert_nptime_to_datetime
 
@@ -1298,10 +1299,14 @@ class Stock(Security):
             )
 
     @classmethod
+    @deprecated("2.0.0", details="use `trade_price_limit_flags_ex` instead")
     async def trade_price_limit_flags(
         cls, code: str, start: datetime.date, end: datetime.date
     ) -> Tuple[List[bool]]:
         """获取个股在[start, end]之间的涨跌停标志
+
+        !!!Note
+            本函数返回的序列在股票有停牌的情况下，将不能与[start, end]一一对应。
 
         Args:
             code: 个股代码
@@ -1346,6 +1351,60 @@ class Stock(Security):
             array_price_equal(result["close"], result["high_limit"]),
             array_price_equal(result["close"], result["low_limit"]),
         )
+
+    @classmethod
+    async def trade_price_limit_flags_ex(
+        cls, code: str, start: datetime.date, end: datetime.date
+    ) -> Dict[datetime.date, Tuple[bool, bool]]:
+        """获取股票`code`在`[start, end]`区间的涨跌停标志
+
+        !!!Note:
+            如果end为当天，注意在未收盘之前，这个涨跌停标志都是不稳定的
+
+        Args:
+            code: 股票代码
+            start: 起始日期
+            end: 结束日期
+
+        Returns:
+            以日期为key，（涨停，跌停）为值的dict
+        """
+        limit_prices = await cls.get_trade_price_limits(code, start, end)
+        bars = await Stock.get_bars_in_range(
+            code, FrameType.DAY, start=start, end=end, fq=False
+        )
+
+        close = bars["close"]
+
+        results = {}
+
+        # aligned = True
+        for i in range(len(bars)):
+            if bars[i]["frame"].item().date() != limit_prices[i]["frame"]:
+                # aligned = False
+                logger.warning("数据同步错误，涨跌停价格与收盘价时间不一致: %s, %s", code, bars[i]["frame"])
+                break
+
+            results[limit_prices[i]["frame"]] = (
+                price_equal(limit_prices[i]["high_limit"], close[i]),
+                price_equal(limit_prices[i]["low_limit"], close[i]),
+            )
+
+        # if not aligned:
+        #     bars = bars[i:]
+        #     limit_prices = limit_prices[i:]
+
+        #     for frame in bars["frame"]:
+        #         frame = frame.item().date()
+        #         close = bars[bars["frame"].item().date() == frame]["close"].item()
+        #         high = limit_prices[limit_prices["frame"] == frame]["high_limit"].item()
+        #         low = limit_prices[limit_prices["frame"] == frame]["low_limit"].item()
+        #         results[frame] = (
+        #             price_equal(high, close),
+        #             price_equal(low, close)
+        #         )
+
+        return results
 
     @classmethod
     async def get_latest_price(cls, codes: Iterable[str]) -> List[str]:
