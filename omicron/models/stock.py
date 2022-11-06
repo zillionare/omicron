@@ -1299,7 +1299,6 @@ class Stock(Security):
             )
 
     @classmethod
-    @deprecated("2.0.0", details="use `trade_price_limit_flags_ex` instead")
     async def trade_price_limit_flags(
         cls, code: str, start: datetime.date, end: datetime.date
     ) -> Tuple[List[bool]]:
