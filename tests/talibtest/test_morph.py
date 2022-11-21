@@ -13,8 +13,8 @@ from omicron.talib import (
     peaks_and_valleys,
     plateaus,
     polyfit,
-    rsi_bottom_dev_detect,
-    rsi_top_dev_detect,
+    rsi_bottom_divergent,
+    rsi_top_divergent,
     valley_detect,
     rsi_predict_price,
     rsi_watermarks,
@@ -361,7 +361,7 @@ class MorphTest(unittest.TestCase):
         y = np.concatenate([X, [0.8, 0.75]])
         self.assertEqual(BreakoutFlag.NONE, breakout(y, 0.03, -0.03, confirm=2))
 
-    def test_rsi_bottom_dev_detect(self):
+    def test_rsi_bottom_divergent(self):
         # test rsi bottom deviation type and disance by zigzag
         X = [
             7.340107,
@@ -606,12 +606,12 @@ class MorphTest(unittest.TestCase):
             12.26,
         ]
         X = np.array(X)
-        bottom_dev_distance = rsi_bottom_dev_detect(
+        bottom_dev_distance = rsi_bottom_divergent(
             X, (0.04, -0.04), 30
         )
         self.assertTrue(bottom_dev_distance == 6)
 
-    def test_rsi_top_dev_detect(self):
+    def test_rsi_top_divergent(self):
         X = np.array([
         7.340107,
         7.011891,
@@ -855,7 +855,7 @@ class MorphTest(unittest.TestCase):
         12.26,
     ])
 
-        top_dev_distance = rsi_top_dev_detect(X, (0.02, -0.02), 70)
+        top_dev_distance = rsi_top_divergent(X, (0.02, -0.02), 70)
         self.assertTrue(top_dev_distance == 69)
 
     def test_valley_detect(self):

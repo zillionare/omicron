@@ -266,7 +266,7 @@ def plateaus(
     return plats
 
 
-def rsi_bottom_dev_detect(
+def rsi_bottom_divergent(
     close: np.array, thresh: Tuple[float, float] = None, rsi_limit: float = 30
 ) -> int:
     """寻找最近满足条件的rsi底背离。
@@ -306,7 +306,7 @@ def rsi_bottom_dev_detect(
             return bottom_dev_distance
 
 
-def rsi_top_dev_detect(
+def rsi_top_divergent(
     close: np.array, thresh: Tuple[float, float] = None, rsi_limit: float = 70
 ) -> Tuple[int, int]:
     """寻找最近满足条件的rsi顶背离。
@@ -439,7 +439,8 @@ def rsi_watermarks(
 def rsi_bottom_distance(
     close: np.array, thresh: Tuple[float, float] = None) -> int:
     '''根据给定的收盘价，计算最后一个数据到上一个发出rsi低水平的距离，
-    如果从上一个最低点rsi到最后一个数据并未发出低水平信号，则返回None。
+    如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
+    返回最后一个数据到上一个发出最低点rsi的距离。
 
     其中close的长度一般不小于60。
     返回值为距离整数，不满足条件则返回None。
@@ -449,7 +450,10 @@ def rsi_bottom_distance(
         thresh (Tuple[float, float]) : None适用所有股票，不必更改，也可自行设置。
 
     Returns:
-        返回最后一个数据到上一个发出rsi低水平的距离。如果未发出低水平信号，返回None'''
+        返回最后一个数据到上一个发出rsi低水平的距离。
+        如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
+        返回最后一个数据到上一个发出最低点rsi的距离。
+        除此之外，返回None。'''
 
 
     assert len(close) >= 60, "must provide an array with at least 60 length!"
@@ -463,27 +467,32 @@ def rsi_bottom_distance(
 
     rsi = ta.RSI(close, 6)
 
-    low_watermark, _, _ = rsi_watermarks(close, thresh)
-    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
-    pivots[0], pivots[-1] = 0, 0
+    watermarks = rsi_watermarks(close, thresh)
+    if watermarks is not None:
+        low_watermark, _, _ = watermarks
+        pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+        pivots[0], pivots[-1] = 0, 0
 
-    # 谷值RSI<30
-    last_valley_rsi_index = np.where((rsi < 30) & (pivots == -1))[0][-1]
+        # 谷值RSI<30
+        valley_rsi_index = np.where((rsi < 30) & (pivots == -1))[0]
 
-    # RSI低水平的最大值：低水平*1.01
-    low_rsi_index = np.where(rsi<=low_watermark*1.01)[0]
+        # RSI低水平的最大值：低水平*1.01
+        low_rsi_index = np.where(rsi<=low_watermark*1.01)[0]
 
-    if len(low_rsi_index)>0:
-        if low_rsi_index[-1]>=last_valley_rsi_index:
-            distance = len(rsi)-1-low_rsi_index[-1]
-
+        
+        if len(valley_rsi_index) >0:
+            distance = len(rsi)-1-valley_rsi_index[-1]
+            if len(low_rsi_index)>0:
+                if low_rsi_index[-1]>=valley_rsi_index[-1]:
+                    distance = len(rsi)-1-low_rsi_index[-1]
             return distance
-
+            
 
 def rsi_top_distance(
     close: np.array, thresh: Tuple[float, float] = None) -> int:
     '''根据给定的收盘价，计算最后一个数据到上一个发出rsi高水平的距离，
-    如果从上一个最高点rsi到最后一个数据并未发出高水平信号，则返回None。
+    如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
+    返回最后一个数据到上一个发出最高点rsi的距离。
 
     其中close的长度一般不小于60。
     返回值为距离整数，不满足条件则返回None。
@@ -493,7 +502,11 @@ def rsi_top_distance(
         thresh (Tuple[float, float]) : None适用所有股票，不必更改，也可自行设置。
 
     Returns:
-        返回最后一个数据到上一个发出rsi高水平的距离。如果未发出高水平信号，返回None'''
+        返回最后一个数据到上一个发出rsi高水平的距离。
+        如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
+        返回最后一个数据到上一个发出最高点rsi的距离。
+        除此之外，返回None。'''
+
 
     assert len(close) >= 60, "must provide an array with at least 60 length!"
 
@@ -506,23 +519,24 @@ def rsi_top_distance(
 
     rsi = ta.RSI(close, 6)
 
-    _, high_watermark, _ = rsi_watermarks(close, thresh)
-    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
-    pivots[0], pivots[-1] = 0, 0
+    watermarks = rsi_watermarks(close, thresh)
+    if watermarks is not None:
+        _, high_watermark, _ = watermarks
+        pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+        pivots[0], pivots[-1] = 0, 0
 
-    # 峰值RSI>70
-    last_high_rsi_index = np.where((rsi > 70) & (pivots == 1))[0][-1]
+        # 峰值RSI>70
+        peak_rsi_index = np.where((rsi > 70) & (pivots == 1))[0]
 
-    # RSI高水平的最小值：高水平*0.99
-    high_rsi_index = np.where(rsi>=high_watermark*0.99)[0]
+        # RSI高水平的最小值：高水平*0.99
+        high_rsi_index = np.where(rsi>=high_watermark*0.99)[0]
 
-    if len(high_rsi_index)>0:
-        if high_rsi_index[-1]>=last_high_rsi_index:
-            distance = len(rsi)-1-high_rsi_index[-1]
-
+        if len(peak_rsi_index)>0:
+            distance = len(rsi)-1-peak_rsi_index[-1]
+            if len(high_rsi_index)>0:
+                if high_rsi_index[-1]>=peak_rsi_index[-1]:
+                    distance = len(rsi)-1-high_rsi_index[-1]
             return distance
-
-
 
 
 def rsi_predict_price(
