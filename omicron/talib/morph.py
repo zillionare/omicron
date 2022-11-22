@@ -266,26 +266,23 @@ def plateaus(
     return plats
 
 
-def rsi_bottom_dev_detect(
-    close: np.ndarray,
-    thresh: Tuple[float, float] = (0.05, -0.02),
-    rsi_limit: float = 20,
-) -> Tuple[int, int]:
-    """寻找rsi底背离
+def rsi_bottom_divergent(
+    close: np.array, thresh: Tuple[float, float] = None, rsi_limit: float = 30
+) -> int:
+    """寻找最近满足条件的rsi底背离。
 
-    返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表明没有发生背离，1表明出现了直接底背离，2表明出现了间隔底背离。
-    第二个表示监测点距离底背离发生点的最近时间单位。
+    返回最后一个数据到最近底背离发生点的距离；没有满足条件的底背离，返回None。
 
     Args:
-        close (np.ndarray): 时间序列收盘价
+        close (np.array): 时间序列收盘价
         thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
-        rsi_limit (float, optional): RSI发生底背离时的阈值, 默认值20
+        rsi_limit (float, optional): RSI发生底背离时的阈值, 默认值30（20效果更佳，但是检测出来数量太少），
+        即只过滤RSI6<30的局部最低收盘价。
 
     Returns:
-        返回一个Tuple，其中第一个值指示在该位置发生背离的类型：0表示没有发生背离，1，表明出现了直接底背离，2表明出现了间隔底背离。
-        数组第二个值表示最后底背离点距最终时间的时间单位，在没有底背离的情况下，返回None。
+        返回int类型的整数，表示最后一个数据到最近底背离发生点的距离；没有满足条件的底背离，返回None。
     """
-    assert len(close) >= 60, "must provide an array with at least 61 length!"
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
     if close.dtype != np.float64:
         close = close.astype(np.float64)
     rsi = ta.RSI(close, 6)
@@ -295,28 +292,58 @@ def rsi_bottom_dev_detect(
         thresh = (2 * std, -2 * std)
 
     pivots = peak_valley_pivots(close, thresh[0], thresh[1])
-    pivots[0], pivots[-1] = 0, 0  # 掐头去尾
-    valley_pivots = -1 * (((pivots == -1) & (rsi <= rsi_limit)).astype("int"))
-    bottom_dev_type = 0
-    bottom_dev_distance = None
-    length = len(valley_pivots)
-    valley_index = np.where(valley_pivots == -1)[0]
-    if len(valley_index) >= 2:  # 单个底背离
-        if (close[valley_index[-1]] - close[valley_index[-2]]) * (
-            rsi[valley_index[-1]] - rsi[valley_index[-2]]
-        ) < 0:
-            bottom_dev_type = 1
+    pivots[0], pivots[-1] = 0, 0
+
+    length = len(close)
+    valley_index = np.where((pivots == -1) & (rsi <= rsi_limit))[0]
+
+    if len(valley_index) >= 2: 
+        if ((close[valley_index[-1]] < close[valley_index[-2]]) and (
+            rsi[valley_index[-1]] > rsi[valley_index[-2]]
+        )) :
             bottom_dev_distance = length - 1 - valley_index[-1]
 
-        elif len(valley_index) >= 3:  # 间隔背离点
-            if (close[valley_index[-1]] - close[valley_index[-3]]) * (
-                rsi[valley_index[-1]] - rsi[valley_index[-3]]
-            ) < 0:
-                bottom_dev_type = 2
-                bottom_dev_distance = length - 1 - valley_index[-1]
-        else:
-            pass
-    return bottom_dev_type, bottom_dev_distance
+            return bottom_dev_distance
+
+
+def rsi_top_divergent(
+    close: np.array, thresh: Tuple[float, float] = None, rsi_limit: float = 70
+) -> Tuple[int, int]:
+    """寻找最近满足条件的rsi顶背离。
+
+    返回最后一个数据到最近顶背离发生点的距离；没有满足条件的顶背离，返回None。
+
+    Args:
+        close (np.array): 时间序列收盘价
+        thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
+        rsi_limit (float, optional): RSI发生顶背离时的阈值, 默认值70（80效果更佳，但是检测出来数量太少），
+        即只过滤RSI6>70的局部最高收盘价。
+
+    Returns:
+        返回int类型的整数，表示最后一个数据到最近顶背离发生点的距离；没有满足条件的顶背离，返回None。
+    """
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+    rsi = ta.RSI(close, 6)
+
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
+
+    pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+    pivots[0], pivots[-1] = 0, 0
+
+    length = len(close)
+    peak_index = np.where((pivots == 1) & (rsi >= rsi_limit))[0]
+
+    if len(peak_index) >= 2: 
+        if ((close[peak_index[-1]] > close[peak_index[-2]]) and (
+            rsi[peak_index[-1]] < rsi[peak_index[-2]]
+        )) :
+            top_dev_distance = length - 1 - peak_index[-1]
+
+            return top_dev_distance
 
 
 def valley_detect(
@@ -360,16 +387,16 @@ def valley_detect(
 
 
 def rsi_watermarks(
-    close: np.ndarray, thresh: Tuple[float, float] = None
+    close: np.array, thresh: Tuple[float, float] = None
 ) -> Tuple[float, float, float]:
     """给定一段行情数据和用以检测顶和底的阈值，返回该段行情中，谷和峰处RSI均值，最后一个RSI6值。
 
-    其中bars的长度一般不小于60，不大于120。返回值中，一个为low_wartermark（谷底处RSI值），
+    其中close的长度一般不小于60，不大于120。返回值中，一个为low_wartermark（谷底处RSI值），
     一个为high_wartermark（高峰处RSI值)，一个为RSI6的最后一个值，用以对比前两个警戒值。
 
     Args:
-        close (np.ndarray): 具有时间序列的收盘价
-        thresh (Tuple[float, float]) : None适用所有股票，不必更改
+        close (np.array): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : None适用所有股票，不必更改，也可自行设置。
 
     Returns:
         返回数组[low_watermark, high_watermark， rsi[-1]], 第一个为最近两个最低收盘价的RSI均值， 第二个为最近两个最高收盘价的RSI均值。
@@ -407,6 +434,109 @@ def rsi_watermarks(
         low_watermark = np.nanmean(rsi[valleys_rsi_index[-2:]])
 
     return low_watermark, high_watermark, rsi[-1]
+
+
+def rsi_bottom_distance(
+    close: np.array, thresh: Tuple[float, float] = None) -> int:
+    '''根据给定的收盘价，计算最后一个数据到上一个发出rsi低水平的距离，
+    如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
+    返回最后一个数据到上一个发出最低点rsi的距离。
+
+    其中close的长度一般不小于60。
+    返回值为距离整数，不满足条件则返回None。
+
+    Args:
+        close (np.array): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : None适用所有股票，不必更改，也可自行设置。
+
+    Returns:
+        返回最后一个数据到上一个发出rsi低水平的距离。
+        如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
+        返回最后一个数据到上一个发出最低点rsi的距离。
+        除此之外，返回None。'''
+
+
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
+
+    rsi = ta.RSI(close, 6)
+
+    watermarks = rsi_watermarks(close, thresh)
+    if watermarks is not None:
+        low_watermark, _, _ = watermarks
+        pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+        pivots[0], pivots[-1] = 0, 0
+
+        # 谷值RSI<30
+        valley_rsi_index = np.where((rsi < 30) & (pivots == -1))[0]
+
+        # RSI低水平的最大值：低水平*1.01
+        low_rsi_index = np.where(rsi<=low_watermark*1.01)[0]
+
+        
+        if len(valley_rsi_index) >0:
+            distance = len(rsi)-1-valley_rsi_index[-1]
+            if len(low_rsi_index)>0:
+                if low_rsi_index[-1]>=valley_rsi_index[-1]:
+                    distance = len(rsi)-1-low_rsi_index[-1]
+            return distance
+            
+
+def rsi_top_distance(
+    close: np.array, thresh: Tuple[float, float] = None) -> int:
+    '''根据给定的收盘价，计算最后一个数据到上一个发出rsi高水平的距离，
+    如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
+    返回最后一个数据到上一个发出最高点rsi的距离。
+
+    其中close的长度一般不小于60。
+    返回值为距离整数，不满足条件则返回None。
+
+    Args:
+        close (np.array): 具有时间序列的收盘价
+        thresh (Tuple[float, float]) : None适用所有股票，不必更改，也可自行设置。
+
+    Returns:
+        返回最后一个数据到上一个发出rsi高水平的距离。
+        如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
+        返回最后一个数据到上一个发出最高点rsi的距离。
+        除此之外，返回None。'''
+
+
+    assert len(close) >= 60, "must provide an array with at least 60 length!"
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+
+    if thresh is None:
+        std = np.std(close[-59:] / close[-60:-1] - 1)
+        thresh = (2 * std, -2 * std)
+
+    rsi = ta.RSI(close, 6)
+
+    watermarks = rsi_watermarks(close, thresh)
+    if watermarks is not None:
+        _, high_watermark, _ = watermarks
+        pivots = peak_valley_pivots(close, thresh[0], thresh[1])
+        pivots[0], pivots[-1] = 0, 0
+
+        # 峰值RSI>70
+        peak_rsi_index = np.where((rsi > 70) & (pivots == 1))[0]
+
+        # RSI高水平的最小值：高水平*0.99
+        high_rsi_index = np.where(rsi>=high_watermark*0.99)[0]
+
+        if len(peak_rsi_index)>0:
+            distance = len(rsi)-1-peak_rsi_index[-1]
+            if len(high_rsi_index)>0:
+                if high_rsi_index[-1]>=peak_rsi_index[-1]:
+                    distance = len(rsi)-1-high_rsi_index[-1]
+            return distance
 
 
 def rsi_predict_price(
@@ -507,3 +637,8 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
         return None
 
     return len(bars) - real_peaks[-1], real_peaks[-1] - real_peaks[0]
+
+
+
+
+
