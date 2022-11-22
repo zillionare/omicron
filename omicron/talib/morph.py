@@ -297,10 +297,10 @@ def rsi_bottom_divergent(
     length = len(close)
     valley_index = np.where((pivots == -1) & (rsi <= rsi_limit))[0]
 
-    if len(valley_index) >= 2: 
-        if ((close[valley_index[-1]] < close[valley_index[-2]]) and (
+    if len(valley_index) >= 2:
+        if (close[valley_index[-1]] < close[valley_index[-2]]) and (
             rsi[valley_index[-1]] > rsi[valley_index[-2]]
-        )) :
+        ):
             bottom_dev_distance = length - 1 - valley_index[-1]
 
             return bottom_dev_distance
@@ -337,10 +337,10 @@ def rsi_top_divergent(
     length = len(close)
     peak_index = np.where((pivots == 1) & (rsi >= rsi_limit))[0]
 
-    if len(peak_index) >= 2: 
-        if ((close[peak_index[-1]] > close[peak_index[-2]]) and (
+    if len(peak_index) >= 2:
+        if (close[peak_index[-1]] > close[peak_index[-2]]) and (
             rsi[peak_index[-1]] < rsi[peak_index[-2]]
-        )) :
+        ):
             top_dev_distance = length - 1 - peak_index[-1]
 
             return top_dev_distance
@@ -436,9 +436,8 @@ def rsi_watermarks(
     return low_watermark, high_watermark, rsi[-1]
 
 
-def rsi_bottom_distance(
-    close: np.array, thresh: Tuple[float, float] = None) -> int:
-    '''根据给定的收盘价，计算最后一个数据到上一个发出rsi低水平的距离，
+def rsi_bottom_distance(close: np.array, thresh: Tuple[float, float] = None) -> int:
+    """根据给定的收盘价，计算最后一个数据到上一个发出rsi低水平的距离，
     如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
     返回最后一个数据到上一个发出最低点rsi的距离。
 
@@ -453,8 +452,7 @@ def rsi_bottom_distance(
         返回最后一个数据到上一个发出rsi低水平的距离。
         如果从上一个最低点rsi到最后一个数据并未发出低水平信号，
         返回最后一个数据到上一个发出最低点rsi的距离。
-        除此之外，返回None。'''
-
+        除此之外，返回None。"""
 
     assert len(close) >= 60, "must provide an array with at least 60 length!"
 
@@ -477,20 +475,18 @@ def rsi_bottom_distance(
         valley_rsi_index = np.where((rsi < 30) & (pivots == -1))[0]
 
         # RSI低水平的最大值：低水平*1.01
-        low_rsi_index = np.where(rsi<=low_watermark*1.01)[0]
+        low_rsi_index = np.where(rsi <= low_watermark * 1.01)[0]
 
-        
-        if len(valley_rsi_index) >0:
-            distance = len(rsi)-1-valley_rsi_index[-1]
-            if len(low_rsi_index)>0:
-                if low_rsi_index[-1]>=valley_rsi_index[-1]:
-                    distance = len(rsi)-1-low_rsi_index[-1]
+        if len(valley_rsi_index) > 0:
+            distance = len(rsi) - 1 - valley_rsi_index[-1]
+            if len(low_rsi_index) > 0:
+                if low_rsi_index[-1] >= valley_rsi_index[-1]:
+                    distance = len(rsi) - 1 - low_rsi_index[-1]
             return distance
-            
 
-def rsi_top_distance(
-    close: np.array, thresh: Tuple[float, float] = None) -> int:
-    '''根据给定的收盘价，计算最后一个数据到上一个发出rsi高水平的距离，
+
+def rsi_top_distance(close: np.array, thresh: Tuple[float, float] = None) -> int:
+    """根据给定的收盘价，计算最后一个数据到上一个发出rsi高水平的距离，
     如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
     返回最后一个数据到上一个发出最高点rsi的距离。
 
@@ -505,8 +501,7 @@ def rsi_top_distance(
         返回最后一个数据到上一个发出rsi高水平的距离。
         如果从上一个最高点rsi到最后一个数据并未发出高水平信号，
         返回最后一个数据到上一个发出最高点rsi的距离。
-        除此之外，返回None。'''
-
+        除此之外，返回None。"""
 
     assert len(close) >= 60, "must provide an array with at least 60 length!"
 
@@ -529,13 +524,13 @@ def rsi_top_distance(
         peak_rsi_index = np.where((rsi > 70) & (pivots == 1))[0]
 
         # RSI高水平的最小值：高水平*0.99
-        high_rsi_index = np.where(rsi>=high_watermark*0.99)[0]
+        high_rsi_index = np.where(rsi >= high_watermark * 0.99)[0]
 
-        if len(peak_rsi_index)>0:
-            distance = len(rsi)-1-peak_rsi_index[-1]
-            if len(high_rsi_index)>0:
-                if high_rsi_index[-1]>=peak_rsi_index[-1]:
-                    distance = len(rsi)-1-high_rsi_index[-1]
+        if len(peak_rsi_index) > 0:
+            distance = len(rsi) - 1 - peak_rsi_index[-1]
+            if len(high_rsi_index) > 0:
+                if high_rsi_index[-1] >= peak_rsi_index[-1]:
+                    distance = len(rsi) - 1 - high_rsi_index[-1]
             return distance
 
 
@@ -637,8 +632,3 @@ def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
         return None
 
     return len(bars) - real_peaks[-1], real_peaks[-1] - real_peaks[0]
-
-
-
-
-
