@@ -23,6 +23,8 @@ from omicron.talib import (
     slope,
     support_resist_lines,
     vcross,
+    rsi_to_close, 
+    close_to_rsi
 )
 
 
@@ -890,7 +892,6 @@ class MorphTest(unittest.TestCase):
         self.assertEqual(actual[1], exp[1])
 
     def test_rsi_predict_price(self):
-
         np.random.seed(78)
         pct_change = np.random.random(120) / 10
         signal = np.array(
@@ -904,7 +905,7 @@ class MorphTest(unittest.TestCase):
         data = np.array(price, dtype=[("close", "f4")])["close"]
         thresh = [0.01, -0.01]
         actual = rsi_predict_price(data[:-1], thresh=thresh)
-        exp = (11.181273684882008, 12.931359226859442)
+        exp = (11.28, 13.05)
 
         self.assertAlmostEqual(actual[0], exp[0], places=2)
         self.assertAlmostEqual(actual[1], exp[1], places=2)
@@ -1265,3 +1266,40 @@ class MorphTest(unittest.TestCase):
 
         result = energy_hump(bars, 10)
         self.assertIsNone(result)
+
+    def test_rsi_to_close(self):
+        np.random.seed(78)
+        pct_change = np.random.random(120) / 10
+        signal = np.array(
+            np.random.choice(
+                list(np.repeat([1, -1], len(pct_change) / 2)), len(pct_change)
+            )
+        )
+        pct_change *= signal
+        price = 10 + np.cumprod(pct_change + 1)
+
+        data = np.array(price, dtype=[("close", "f4")])["close"]
+        actual = rsi_to_close(cur_rsi = 65.04, exp_rsi = 70, close = data)
+        exp = 12.76
+        self.assertAlmostEqual(actual, exp, places=2)
+
+        actual = rsi_to_close(cur_rsi = 65.04, exp_rsi = 30, close = data)
+        exp = 12.07
+        self.assertAlmostEqual(actual, exp, places=2)
+
+
+    def test_close_to_rsi(self):
+        np.random.seed(78)
+        pct_change = np.random.random(120) / 10
+        signal = np.array(
+        np.random.choice(
+        list(np.repeat([1, -1], len(pct_change) / 2)), len(pct_change)
+        )
+        )
+        pct_change *= signal
+        price = 10 + np.cumprod(pct_change + 1)
+
+        data = np.array(price, dtype=[("close", "f4")])["close"]
+        actual = close_to_rsi(close = data, exp_close=14)
+        exp = 90.25
+        self.assertAlmostEqual(actual, exp, places=2)

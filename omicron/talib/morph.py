@@ -9,6 +9,8 @@ import talib as ta
 from coretypes import bars_dtype
 from zigzag import peak_valley_pivots
 
+from sympy import *
+
 from omicron.talib.core import clustering, moving_average
 
 logger = logging.getLogger(__name__)
@@ -539,6 +541,13 @@ def rsi_top_distance(
             return distance
 
 
+def SMA(S, N):   #中国式的SMA,至少需要120周期才精确 
+    K = np.append(pd.Series(S[:-1]).rolling(6).mean().values, S[-6:].mean())   
+    for i in range(N+1, len(S)):  
+        K[i] = (1 * S[i] + (N -1) * K[i-1]) / N  # 因为要取K[i-1]，所以 range(N+1, len(S))        
+    return K 
+
+
 def rsi_predict_price(
     close: np.ndarray, thresh: Tuple[float, float] = None
 ) -> Tuple[float, float]:
@@ -553,46 +562,101 @@ def rsi_predict_price(
 
     Returns:
         返回数组[predicted_low_price, predicted_high_price], 数组第一个值为利用达到之前最低收盘价的RSI预测的最低价。
-        第二个值为利用达到之前最高收盘价的RSI预测的最高价。
+        第二个值为利用达到之前最高收盘价的RSI预测的最高价。在指定参数下，没有满足条件的最高，最低收盘价，则返回相应的None。
     """
     assert len(close) >= 60, "must provide an array with at least 60 length!"
-
-    if thresh is None:
-        std = np.std(close[-59:] / close[-60:-1] - 1)
-        thresh = (2 * std, -2 * std)
 
     if close.dtype != np.float64:
         close = close.astype(np.float64)
 
-    valley_rsi, peak_rsi, _ = rsi_watermarks(close, thresh=thresh)
-    pivot = peak_valley_pivots(close, thresh[0], thresh[1])
-    pivot[0], pivot[-1] = 0, 0  # 掐头去尾
+    valley_rsi, peak_rsi, cur_rsi = rsi_watermarks(close, thresh=thresh)
 
-    price_change = pd.Series(close).diff(1).values
-    ave_price_change = (abs(price_change)[-6:].mean()) * 5
-    ave_price_raise = (np.maximum(price_change, 0)[-6:].mean()) * 5
+    x = Symbol('x')
+    close = np.append(close, x)
+    DIF = close - pd.Series(close).shift(1).values 
+    predicted_low_price, predicted_high_price = None, None
 
     if valley_rsi is not None:
-        predicted_low_change = (ave_price_change) - ave_price_raise / (
-            0.01 * valley_rsi
-        )
-        if predicted_low_change > 0:
-            predicted_low_change = 0
-        predicted_low_price = close[-1] + predicted_low_change
-    else:
-        predicted_low_price = None
+        if valley_rsi < cur_rsi:
+            molecular = SMA(np.append(np.maximum(DIF[:-1], 0), 0), 6) 
+            denominator = SMA(np.append(np.abs(DIF[:-1]), -DIF[-1]), 6) 
+            rsi = molecular / denominator * 100 
+            predicted_low_price = round(solve(rsi[-1]-valley_rsi, x)[0], 2)
+        else:
+            predicted_low_price = close[-1]
 
     if peak_rsi is not None:
-        predicted_high_change = (ave_price_raise - ave_price_change) / (
-            0.01 * peak_rsi - 1
-        ) - ave_price_change
-        if predicted_high_change < 0:
-            predicted_high_change = 0
-        predicted_high_price = close[-1] + predicted_high_change
-    else:
-        predicted_high_price = None
+        if peak_rsi > cur_rsi:
+            molecular = SMA(np.append(np.maximum(DIF[:-1],0), DIF[-1]), 6) 
+            denominator = SMA(np.append(np.abs(DIF[:-1]), DIF[-1]), 6) 
+            rsi = molecular / denominator * 100
+            predicted_high_price = round(solve(rsi[-1]-peak_rsi, x)[0], 2)
+        else: 
+            predicted_high_price = close[-1]
 
     return predicted_low_price, predicted_high_price
+
+
+def rsi_to_close(cur_rsi: float, exp_rsi: float, close: np.ndarray) -> float:
+    """利用现有的最后一个RSI，收盘价反推出，特定的期望rsi下的收盘价。
+        传入的两个RSI值不可相等。
+
+    Args:
+        cur_rsi(float): 现有的最后一位RSI
+        exp_rsi(float): 期望RSI
+        close (np.ndarray): 具有时间序列的收盘价，长度不少于120
+
+    Returns:
+        特定的期望rsi下的收盘价
+    """
+
+    assert len(close) >= 60, "must provide an array with at least 120 length!"
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+
+    x = Symbol('x')
+    close = np.append(close, x)
+    DIF = close - pd.Series(close).shift(1).values 
+    exp_close = None
+
+    # 当传入的期望的rsi小于现有的：
+    if exp_rsi < cur_rsi:
+        molecular = SMA(np.append(np.maximum(DIF[:-1], 0), 0), 6) 
+        denominator = SMA(np.append(np.abs(DIF[:-1]), -DIF[-1]), 6) 
+        rsi = molecular / denominator * 100 
+        exp_close = round(solve(rsi[-1]-exp_rsi, x)[0], 2)
+
+    # 当传入的期望的rsi大于现有的：
+    elif exp_rsi > cur_rsi:
+        molecular = SMA(np.append(np.maximum(DIF[:-1],0), DIF[-1]), 6) 
+        denominator = SMA(np.append(np.abs(DIF[:-1]), DIF[-1]), 6) 
+        rsi = molecular / denominator * 100
+        exp_close = round(solve(rsi[-1]-exp_rsi, x)[0], 2)
+
+    return exp_close
+
+
+def close_to_rsi(close:np.ndarray, exp_close: float) -> float: 
+    """根据传入的期望收盘价，计算期望RSI6
+
+    Args:
+        close (np.ndarray): 具有时间序列的收盘价，长度不少于120
+        exp_close (float): 期望收盘价
+
+    Returns:
+        期望RSI6
+    """
+
+    assert len(close) >= 60, "must provide an array with at least 120 length!"
+
+    if close.dtype != np.float64:
+        close = close.astype(np.float64)
+
+    close = np.append(close, exp_close)
+    rsi = ta.RSI(close, 6)
+
+    return round(rsi[-1], 2)
 
 
 def energy_hump(bars: bars_dtype, thresh=2) -> Optional[Tuple[int, int]]:
