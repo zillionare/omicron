@@ -295,13 +295,13 @@ class NpTest(unittest.TestCase):
         self.assertEqual(2, bars_since(condition))
 
     def test_top_n_argpos(self):
-        arr = [4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
+        arr = [np.nan, 4, 3, 9, 8, 5, 2, 1, 0, 6, 7]
         actual = top_n_argpos(arr, 2)
-        exp = [2, 3]
+        exp = [3, 4]
         self.assertListEqual(exp, actual.tolist())
 
     def test_smallest_n_argpos(self):
-        arr = [7, 5, 1, 4, 0, 3, 2, 6, 9, 8]
+        arr = [np.nan, 7, 5, 1, 4, 0, 3, 2, 6, 9, 8]
         actual = smallest_n_argpos(arr, 2)
-        exp = [4, 2]
+        exp = [5, 3]
         self.assertListEqual(exp, actual.tolist())
