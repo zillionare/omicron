@@ -9,7 +9,7 @@ import talib as ta
 from coretypes import bars_dtype
 from zigzag import peak_valley_pivots
 
-from sympy import *
+from sympy import solve, Symbol
 
 from omicron.talib.core import clustering, moving_average
 

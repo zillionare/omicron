@@ -82,6 +82,7 @@ freezegun = {version = "^1.2.1", optional = true}
 
 plotly = "^5.10.0"
 TA-Lib = {version = "^0.4.25", platform = "linux"}
+sympy = "^1.11.1"
 
 [tool.poetry.extras]
 test = [
