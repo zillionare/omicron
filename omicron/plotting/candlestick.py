@@ -218,8 +218,8 @@ class Candlestick:
         在`win`个k线内，找出所有的局部峰谷点，并以最高的两个峰连线生成压力线，以最低的两个谷连线生成支撑线。
 
         Args:
-            upthres : 用来检测峰谷时使用的阈值，参见`omicron.talib.patterns.peaks_and_valleys`
-            downthres : 用来检测峰谷时使用的阈值，参见`omicron.talib.patterns.peaks_and_valleys`.
+            upthres : 用来检测峰谷时使用的阈值，参见`omicron.talib.morph.peaks_and_valleys`
+            downthres : 用来检测峰谷时使用的阈值，参见`omicron.talib.morph.peaks_and_valleys`.
             use_close : 是否使用收盘价来进行检测。如果为False，则使用high来检测压力线，使用low来检测支撑线.
             win : 检测局部高低点的窗口.
         """

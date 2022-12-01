@@ -160,8 +160,8 @@ def support_resist_lines(
 
     Args:
         ts (np.ndarray): 时间序列
-        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
-        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
+        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
 
     Returns:
         返回支撑线和阻力线的计算函数及起始点坐标，如果没有支撑线或阻力线，则返回None
@@ -203,8 +203,8 @@ def breakout(
 
     Args:
         ts (np.ndarray): 时间序列
-        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
-        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.patterns.peaks_and_valleys]
+        upthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
+        downthres (float, optional): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
         confirm (int, optional): 经过多少个bars后，才确认突破。默认为1
 
     Returns:
@@ -276,8 +276,7 @@ def rsi_bottom_divergent(
     Args:
         close (np.array): 时间序列收盘价
         thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
-        rsi_limit (float, optional): RSI发生底背离时的阈值, 默认值30（20效果更佳，但是检测出来数量太少），
-        即只过滤RSI6<30的局部最低收盘价。
+        rsi_limit (float, optional): RSI发生底背离时的阈值, 默认值30（20效果更佳，但是检测出来数量太少），即只过滤RSI6<30的局部最低收盘价。
 
     Returns:
         返回int类型的整数，表示最后一个数据到最近底背离发生点的距离；没有满足条件的底背离，返回None。
@@ -316,8 +315,7 @@ def rsi_top_divergent(
     Args:
         close (np.array): 时间序列收盘价
         thresh (Tuple[float, float]): 请参考[peaks_and_valleys][omicron.talib.morph.peaks_and_valleys]
-        rsi_limit (float, optional): RSI发生顶背离时的阈值, 默认值70（80效果更佳，但是检测出来数量太少），
-        即只过滤RSI6>70的局部最高收盘价。
+        rsi_limit (float, optional): RSI发生顶背离时的阈值, 默认值70（80效果更佳，但是检测出来数量太少），即只过滤RSI6>70的局部最高收盘价。
 
     Returns:
         返回int类型的整数，表示最后一个数据到最近顶背离发生点的距离；没有满足条件的顶背离，返回None。
