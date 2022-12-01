@@ -231,9 +231,8 @@ class Query:
 
             # 创业板，科创板，ST暂时限定为股票类型
             if self._only_cyb:
-                if (
-                    record["type"] != "stock"
-                    or record["code"].startswith("300") is False
+                if record["type"] != "stock" or not (
+                    record["code"][:3] in ("300", "301")
                 ):
                     continue
             if self._only_kcb:
@@ -246,7 +245,7 @@ class Query:
                 if record["type"] != "stock" or record["alias"].find("ST") == -1:
                     continue
             if self._exclude_cyb:
-                if record["type"] == "stock" and record["code"].startswith("300"):
+                if record["type"] == "stock" and record["code"][:3] in ("300", "301"):
                     continue
             if self._exclude_st:
                 if record["type"] == "stock" and record["alias"].find("ST") != -1:
