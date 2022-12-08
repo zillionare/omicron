@@ -70,10 +70,16 @@ class RedisCache:
                 return True
 
             logger.info("closing redis cache...")
-            for redis in [self.sys, self.security, self.temp, self.feature]:
-                await redis.close()
-
-            await self.app.close()
+            await self._sys_.close()
+            self._sys_ = None
+            await self._security_.close()
+            self._security_ = None
+            await self._temp_.close()
+            self._temp_ = None
+            await self._feature_.close()
+            self._feature_ = None
+            await self._app_.close()
+            self._app_ = None
 
             self._initialized = False
             logger.info("redis caches are all closed")
