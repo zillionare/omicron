@@ -932,6 +932,9 @@ class Stock(Security):
                 unclosed = await cache.security.hget(key, code)
                 unclosed = cls._deserialize_cached_bars([unclosed], frame_type)
 
+                if len(unclosed) == 0:
+                    return recs[-n:]
+
                 if end < unclosed[0]["frame"].item():
                     # 如果unclosed为9:36, 调用者要求取9:29的5m数据，则取到的unclosed不合要求，抛弃。似乎没有更好的方法检测end与unclosed的关系
                     return recs[-n:]
