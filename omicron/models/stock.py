@@ -356,7 +356,7 @@ class Stock(Security):
             end = end or now
             closed_end = tf.floor(end, frame_type)
             ff = tf.first_min_frame(now, frame_type)
-            if end < ff:
+            if end < ff or tf.day_shift(end, 0) < now.date():
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, end
                 )
