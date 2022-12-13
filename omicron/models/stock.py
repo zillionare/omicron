@@ -151,6 +151,28 @@ class Stock(Security):
     def simplify_code(code) -> str:
         return re.sub(r"\.XSH[EG]", "", code)
 
+    @staticmethod
+    def format_code(code) -> str:
+        """新三板和北交所的股票, 暂不支持, 默认返回None
+        上证A股: 600、601、603、605
+        深证A股: 000、001
+        中小板:  002、003
+        创业板:  300/301
+        科创板:  688
+        新三板:  82、83、87、88、430、420、400
+        北交所:  43、83、87、88
+        """
+        if not code or len(code) != 6:
+            return None
+
+        prefix = code[0]
+        if prefix in ("0", "3"):
+            return f"{code}.XSHE"
+        elif prefix == "6":
+            return f"{code}.XSHG"
+        else:
+            return None
+
     def days_since_ipo(self) -> int:
         """获取上市以来经过了多少个交易日
 
