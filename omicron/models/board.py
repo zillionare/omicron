@@ -35,13 +35,9 @@ class Board:
     measurement = "board_bars_1d"
 
     @classmethod
-    def _convert_stock_code(cls, code: str):
-        if not code:
-            return None
-        if code[0] == "0":
-            return f"{code}.XSHE"
-        else:
-            return f"{code}.XSHG"
+    def init(cls, ip: str, port: int = 3180):
+        cls.server_ip = ip
+        cls.server_port = port
 
     @classmethod
     async def _rpc_call(cls, url: str, param: str):
@@ -180,11 +176,6 @@ class Board:
         cls, industry=None, with_concepts: Optional[List[str]] = None, without=[]
     ):
         raise NotImplementedError("not ready")
-
-    @classmethod
-    def init(cls, ip: str, port: int = 3180):
-        cls.server_ip = ip
-        cls.server_port = port
 
     @classmethod
     async def save_bars(cls, bars):

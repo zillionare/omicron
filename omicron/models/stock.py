@@ -942,11 +942,11 @@ class Stock(Security):
 
             frames = (tf.get_frames(cache_start, closed, frame_type))[-n:]
             if len(frames) == 0:
-                return np.empty(shape=(0,), dtype=bars_dtype)
-
-            key = f"bars:{frame_type.value}:{code}"
-            recs = await cache.security.hmget(key, *frames)
-            recs = cls._deserialize_cached_bars(recs, frame_type)
+                recs = np.empty(shape=(0,), dtype=bars_dtype)
+            else:
+                key = f"bars:{frame_type.value}:{code}"
+                recs = await cache.security.hmget(key, *frames)
+                recs = cls._deserialize_cached_bars(recs, frame_type)
 
             if closed < end:
                 # for unclosed
