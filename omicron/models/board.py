@@ -243,6 +243,7 @@ class Board:
             返回dtype为`coretypes.bars_dtype`的一维numpy数组。
         """
         end = end or datetime.datetime.now()
+        code = f"{code}.THS"
 
         keep_cols = ["_time"] + list(bars_cols[1:])
 
