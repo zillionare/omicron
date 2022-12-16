@@ -364,6 +364,7 @@ class Stock(Security):
             unclosed : 是否包含未收盘的数据
         """
         now = datetime.datetime.now()
+
         if frame_type in tf.day_level_frames:
             end = end or now.date()
             if unclosed and tf.day_shift(end, 0) == now.date():
@@ -377,18 +378,19 @@ class Stock(Security):
         else:
             end = end or now
             closed_end = tf.floor(end, frame_type)
-            ff = tf.first_min_frame(now, frame_type)
-            if end < ff or tf.day_shift(end, 0) < now.date():
+            ff_min1 = tf.first_min_frame(now, FrameType.MIN1)
+            if tf.day_shift(end, 0) < now.date() or end < ff_min1:
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, end
                 )
                 part2 = np.array([], dtype=bars_dtype)
-            elif start >= ff:  # all in cache
+            elif start >= ff_min1:  # all in cache
                 part1 = np.array([], dtype=bars_dtype)
                 n = tf.count_frames(start, closed_end, frame_type) + 1
                 part2 = await cls._get_cached_bars_n(code, n, frame_type, end)
                 part2 = part2[part2["frame"] >= start]
             else:  # in both cache and persisted
+                ff = tf.first_min_frame(now, frame_type)
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, ff
                 )
