@@ -107,7 +107,10 @@ def polyfit(ts: Sequence, deg: int = 2, loss_func="re") -> Tuple:
         if deg == 2:
             a, b, c = z[0], z[1], z[2]
             axis_x = -b / (2 * a)
-            axis_y = (4 * a * c - b * b) / (4 * a)
+            if a != 0:
+                axis_y = (4 * a * c - b * b) / (4 * a)
+            else:
+                axis_y = None
             return error, z, (axis_x, axis_y)
         elif deg == 1:
             return error, z

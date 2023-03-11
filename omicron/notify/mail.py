@@ -3,10 +3,12 @@ import logging
 import mimetypes
 import os
 from email.message import EmailMessage
-from typing import Awaitable, List, Union
+from typing import Awaitable, List
 
 import aiosmtplib
+import aiosmtplib.errors
 import cfg4py
+from retry import retry
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,7 @@ def mail_notify(
     )
 
 
+@retry(aiosmtplib.errors.SMTPConnectError, tries=3, backoff=2, delay=30, logger=logger)
 def send_mail(
     sender: str,
     receivers: List[str],

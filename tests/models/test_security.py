@@ -45,7 +45,13 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         query.types([]).exclude_st().exclude_kcb()
         codes = set(await query.eval())
 
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        exp = {
+            "000001.XSHE",
+            "300001.XSHE",
+            "301001.XSHE",
+            "600000.XSHG",
+            "000001.XSHG",
+        }
         self.assertSetEqual(exp, codes)
 
         # 允许ST
@@ -56,6 +62,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
             "000001.XSHE",
             "000005.XSHE",
             "300001.XSHE",
+            "301001.XSHE",
             "600000.XSHG",
             "000007.XSHE",
             "000001.XSHG",
@@ -69,6 +76,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         exp = {
             "000001.XSHE",
             "300001.XSHE",
+            "301001.XSHE",
             "600000.XSHG",
             "688001.XSHG",
             "000001.XSHG",
@@ -80,7 +88,7 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         query.types(["stock"]).exclude_st().exclude_kcb()
         codes = set(await query.eval())
 
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG"}
+        exp = {"000001.XSHE", "300001.XSHE", "301001.XSHE", "600000.XSHG"}
         self.assertSetEqual(exp, codes)
 
         # index only
@@ -104,12 +112,12 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         query = Security.select(dt)
         query.types([]).exclude_st().only_cyb()
         actual = await query.eval()
-        self.assertListEqual(["300001.XSHE"], actual)
+        self.assertListEqual(["300001.XSHE", "301001.XSHE"], actual)
 
         # to check if we could omit `types` method
         query.exclude_st().only_cyb()
         actual = await query.eval()
-        self.assertListEqual(["300001.XSHE"], actual)
+        self.assertListEqual(["300001.XSHE", "301001.XSHE"], actual)
 
     async def test_choose_kcb(self):
         dt = datetime.date(2022, 5, 20)
@@ -125,7 +133,13 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         query = Security.select()
         query.types([]).exclude_st().exclude_kcb()
         codes = set(await query.eval())
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        exp = {
+            "000001.XSHE",
+            "300001.XSHE",
+            "301001.XSHE",
+            "600000.XSHG",
+            "000001.XSHG",
+        }
         self.assertSetEqual(exp, codes)
 
         query = Security.select()
@@ -150,7 +164,13 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         query = Security.select()
         query.types([]).exclude_st().exclude_kcb()
         codes = set(await query.eval())
-        exp = {"000001.XSHE", "300001.XSHE", "600000.XSHG", "000001.XSHG"}
+        exp = {
+            "000001.XSHE",
+            "300001.XSHE",
+            "301001.XSHE",
+            "600000.XSHG",
+            "000001.XSHG",
+        }
         self.assertSetEqual(exp, codes)
 
         await cache.security.set("security:latest_date", "2022-05-20")

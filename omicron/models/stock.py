@@ -20,6 +20,7 @@ from coretypes import (
     bars_dtype,
     bars_dtype_with_code,
 )
+from deprecation import deprecated
 
 from omicron import tf
 from omicron.core.constants import (
@@ -30,9 +31,9 @@ from omicron.core.constants import (
 from omicron.core.errors import BadParameterError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import DataframeDeserializer, NumpyDeserializer
-from omicron.extensions.np import array_price_equal, numpy_append_fields
+from omicron.extensions import array_price_equal, numpy_append_fields, price_equal
+from omicron.models import get_influx_client
 from omicron.models.security import Security, convert_nptime_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -149,6 +150,28 @@ class Stock(Security):
     @staticmethod
     def simplify_code(code) -> str:
         return re.sub(r"\.XSH[EG]", "", code)
+
+    @staticmethod
+    def format_code(code) -> str:
+        """新三板和北交所的股票, 暂不支持, 默认返回None
+        上证A股: 600、601、603、605
+        深证A股: 000、001
+        中小板:  002、003
+        创业板:  300/301
+        科创板:  688
+        新三板:  82、83、87、88、430、420、400
+        北交所:  43、83、87、88
+        """
+        if not code or len(code) != 6:
+            return None
+
+        prefix = code[0]
+        if prefix in ("0", "3"):
+            return f"{code}.XSHE"
+        elif prefix == "6":
+            return f"{code}.XSHG"
+        else:
+            return None
 
     def days_since_ipo(self) -> int:
         """获取上市以来经过了多少个交易日
@@ -341,6 +364,7 @@ class Stock(Security):
             unclosed : 是否包含未收盘的数据
         """
         now = datetime.datetime.now()
+
         if frame_type in tf.day_level_frames:
             end = end or now.date()
             if unclosed and tf.day_shift(end, 0) == now.date():
@@ -354,18 +378,19 @@ class Stock(Security):
         else:
             end = end or now
             closed_end = tf.floor(end, frame_type)
-            ff = tf.first_min_frame(now, frame_type)
-            if end < ff:
+            ff_min1 = tf.first_min_frame(now, FrameType.MIN1)
+            if tf.day_shift(end, 0) < now.date() or end < ff_min1:
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, end
                 )
                 part2 = np.array([], dtype=bars_dtype)
-            elif start >= ff:  # all in cache
+            elif start >= ff_min1:  # all in cache
                 part1 = np.array([], dtype=bars_dtype)
                 n = tf.count_frames(start, closed_end, frame_type) + 1
                 part2 = await cls._get_cached_bars_n(code, n, frame_type, end)
                 part2 = part2[part2["frame"] >= start]
             else:  # in both cache and persisted
+                ff = tf.first_min_frame(now, frame_type)
                 part1 = await cls._get_persisted_bars_in_range(
                     code, frame_type, start, ff
                 )
@@ -513,12 +538,7 @@ class Stock(Security):
             parse_dates=["frame"],
         )
 
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        bucket = cfg.influxdb.bucket_name
-        org = cfg.influxdb.org
-
-        client = InfluxClient(url, token, bucket, org)
+        client = get_influx_client()
         result = await client.query(flux, serializer)
         return result.to_records(index=False).astype(bars_dtype)
 
@@ -586,12 +606,7 @@ class Stock(Security):
             parse_dates=["frame"],
         )
 
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        bucket = cfg.influxdb.bucket_name
-        org = cfg.influxdb.org
-
-        client = InfluxClient(url, token, bucket, org)
+        client = get_influx_client()
         result = await client.query(flux, serializer)
         return result.to_records(index=False).astype(bars_dtype)
 
@@ -655,7 +670,7 @@ class Stock(Security):
             engine="c",
         )
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         return await client.query(flux, deserializer)
 
     @classmethod
@@ -712,7 +727,7 @@ class Stock(Security):
             engine="c",
         )
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         df = await client.query(flux, deserializer)
         return df
 
@@ -929,17 +944,20 @@ class Stock(Security):
 
             frames = (tf.get_frames(cache_start, closed, frame_type))[-n:]
             if len(frames) == 0:
-                return np.empty(shape=(0,), dtype=bars_dtype)
-
-            key = f"bars:{frame_type.value}:{code}"
-            recs = await cache.security.hmget(key, *frames)
-            recs = cls._deserialize_cached_bars(recs, frame_type)
+                recs = np.empty(shape=(0,), dtype=bars_dtype)
+            else:
+                key = f"bars:{frame_type.value}:{code}"
+                recs = await cache.security.hmget(key, *frames)
+                recs = cls._deserialize_cached_bars(recs, frame_type)
 
             if closed < end:
                 # for unclosed
                 key = f"bars:{frame_type.value}:unclosed"
                 unclosed = await cache.security.hget(key, code)
                 unclosed = cls._deserialize_cached_bars([unclosed], frame_type)
+
+                if len(unclosed) == 0:
+                    return recs[-n:]
 
                 if end < unclosed[0]["frame"].item():
                     # 如果unclosed为9:36, 调用者要求取9:29的5m数据，则取到的unclosed不合要求，抛弃。似乎没有更好的方法检测end与unclosed的关系
@@ -1014,18 +1032,6 @@ class Stock(Security):
         await cache.security.hset(key, code, ",".join(map(str, val)))
 
     @classmethod
-    def _get_influx_client(cls):
-        client = InfluxClient(
-            cfg.influxdb.url,
-            cfg.influxdb.token,
-            cfg.influxdb.bucket_name,
-            cfg.influxdb.org,
-            enable_compress=cfg.influxdb.enable_compress,
-        )
-
-        return client
-
-    @classmethod
     async def persist_bars(
         cls,
         frame_type: FrameType,
@@ -1042,7 +1048,7 @@ class Stock(Security):
         Raises:
             InfluxDBWriteError: if influxdb write failed
         """
-        client = cls._get_influx_client()
+        client = get_influx_client()
 
         measurement = cls._measurement_name(frame_type)
         logger.info("persisting bars to influxdb: %s, %d secs", measurement, len(bars))
@@ -1240,7 +1246,7 @@ class Stock(Security):
 
         data_in_cache = await cls._get_price_limit_in_cache(code, begin, end)
 
-        client = cls._get_influx_client()
+        client = get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
@@ -1311,7 +1317,7 @@ class Stock(Security):
             await pl.execute()
         else:
             # to influxdb， 每个交易日的第二天早上2点保存
-            client = cls._get_influx_client()
+            client = get_influx_client()
             await client.save(
                 price_limits,
                 cls._measurement_name(FrameType.DAY),
@@ -1325,6 +1331,9 @@ class Stock(Security):
     ) -> Tuple[List[bool]]:
         """获取个股在[start, end]之间的涨跌停标志
 
+        !!!Note
+            本函数返回的序列在股票有停牌的情况下，将不能与[start, end]一一对应。
+
         Args:
             code: 个股代码
             start: 开始日期
@@ -1334,7 +1343,7 @@ class Stock(Security):
             涨跌停标志列表(buy, sell)
         """
         cols = ["_time", "close", "high_limit", "low_limit"]
-        client = cls._get_influx_client()
+        client = get_influx_client()
         measurement = cls._measurement_name(FrameType.DAY)
         flux = (
             Flux()
@@ -1368,6 +1377,60 @@ class Stock(Security):
             array_price_equal(result["close"], result["high_limit"]),
             array_price_equal(result["close"], result["low_limit"]),
         )
+
+    @classmethod
+    async def trade_price_limit_flags_ex(
+        cls, code: str, start: datetime.date, end: datetime.date
+    ) -> Dict[datetime.date, Tuple[bool, bool]]:
+        """获取股票`code`在`[start, end]`区间的涨跌停标志
+
+        !!!Note:
+            如果end为当天，注意在未收盘之前，这个涨跌停标志都是不稳定的
+
+        Args:
+            code: 股票代码
+            start: 起始日期
+            end: 结束日期
+
+        Returns:
+            以日期为key，（涨停，跌停）为值的dict
+        """
+        limit_prices = await cls.get_trade_price_limits(code, start, end)
+        bars = await Stock.get_bars_in_range(
+            code, FrameType.DAY, start=start, end=end, fq=False
+        )
+
+        close = bars["close"]
+
+        results = {}
+
+        # aligned = True
+        for i in range(len(bars)):
+            if bars[i]["frame"].item().date() != limit_prices[i]["frame"]:
+                # aligned = False
+                logger.warning("数据同步错误，涨跌停价格与收盘价时间不一致: %s, %s", code, bars[i]["frame"])
+                break
+
+            results[limit_prices[i]["frame"]] = (
+                price_equal(limit_prices[i]["high_limit"], close[i]),
+                price_equal(limit_prices[i]["low_limit"], close[i]),
+            )
+
+        # if not aligned:
+        #     bars = bars[i:]
+        #     limit_prices = limit_prices[i:]
+
+        #     for frame in bars["frame"]:
+        #         frame = frame.item().date()
+        #         close = bars[bars["frame"].item().date() == frame]["close"].item()
+        #         high = limit_prices[limit_prices["frame"] == frame]["high_limit"].item()
+        #         low = limit_prices[limit_prices["frame"] == frame]["low_limit"].item()
+        #         results[frame] = (
+        #             price_equal(high, close),
+        #             price_equal(low, close)
+        #         )
+
+        return results
 
     @classmethod
     async def get_latest_price(cls, codes: Iterable[str]) -> List[str]:

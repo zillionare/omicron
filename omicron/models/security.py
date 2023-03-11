@@ -12,8 +12,8 @@ from numpy.typing import NDArray
 from omicron.core.errors import DataNotReadyError
 from omicron.dal import cache
 from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.influxclient import InfluxClient
 from omicron.dal.influx.serialize import DataframeDeserializer
+from omicron.models import get_influx_client
 from omicron.models.timeframe import TimeFrame as tf
 from omicron.notify.dingtalk import ding
 
@@ -231,9 +231,8 @@ class Query:
 
             # 创业板，科创板，ST暂时限定为股票类型
             if self._only_cyb:
-                if (
-                    record["type"] != "stock"
-                    or record["code"].startswith("300") is False
+                if record["type"] != "stock" or not (
+                    record["code"][:3] in ("300", "301")
                 ):
                     continue
             if self._only_kcb:
@@ -246,7 +245,7 @@ class Query:
                 if record["type"] != "stock" or record["alias"].find("ST") == -1:
                     continue
             if self._exclude_cyb:
-                if record["type"] == "stock" and record["code"].startswith("300"):
+                if record["type"] == "stock" and record["code"][:3] in ("300", "301"):
                     continue
             if self._exclude_st:
                 if record["type"] == "stock" and record["alias"].find("ST") != -1:
@@ -330,15 +329,6 @@ class Security:
             return _securities
         else:  # pragma: no cover
             return None
-
-    @classmethod
-    def _get_influx_client(cls):
-        cfg = cfg4py.get_instance()
-        url = cfg.influxdb.url
-        token = cfg.influxdb.token
-        org = cfg.influxdb.org
-        bucket_name = cfg.influxdb.bucket_name
-        return InfluxClient(url, token, bucket=bucket_name, org=org)
 
     @classmethod
     async def get_security_types(cls):
@@ -518,7 +508,7 @@ class Security:
             return
 
         measurement = "security_list"
-        client = cls._get_influx_client()
+        client = get_influx_client()
 
         # code, alias, name, start, end, type
         security_list = np.array(
@@ -539,7 +529,7 @@ class Security:
         if target_date is None:
             return None
 
-        client = Security._get_influx_client()
+        client = get_influx_client()
         measurement = "security_list"
 
         flux = (
@@ -577,7 +567,7 @@ class Security:
     @classmethod
     async def get_datescope_from_db(cls):
         # fixme: 函数名无法反映用途，需要增加文档注释，说明该函数的作用,或者不应该出现在此类中？
-        client = Security._get_influx_client()
+        client = get_influx_client()
         measurement = "security_list"
 
         date1 = arrow.get("2005-01-01").date()
@@ -683,7 +673,7 @@ class Security:
             return
 
         measurement = "security_xrxd_reports"
-        client = cls._get_influx_client()
+        client = get_influx_client()
         # a_xr_date(_time), code(tag), info
         report_list = np.array(records, dtype=security_db_dtype)
         await client.save(report_list, measurement, time_key="frame", tag_keys=["code"])
@@ -695,7 +685,7 @@ class Security:
         if dt_start is None or dt_end is None:
             return []
 
-        client = Security._get_influx_client()
+        client = get_influx_client()
         measurement = "security_xrxd_reports"
 
         flux = (

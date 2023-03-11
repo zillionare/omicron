@@ -525,8 +525,8 @@ def top_n_argpos(ts: np.array, n: int) -> np.array:
     """get top n (max->min) elements and return argpos which its value ordered in descent
 
     Example:
-        >>> top_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
-        array([2, 3])
+        >>> top_n_argpos([np.nan, 4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([3, 4])
 
     Args:
         ts (np.array): [description]
@@ -535,15 +535,17 @@ def top_n_argpos(ts: np.array, n: int) -> np.array:
     Returns:
         np.array: [description]
     """
-    return np.argsort(ts)[-n:][::-1]
+    ts_ = np.copy(ts)
+    ts_[np.isnan(ts_)] = -np.inf
+    return np.argsort(ts_)[-n:][::-1]
 
 
 def smallest_n_argpos(ts: np.array, n: int) -> np.array:
     """get smallest n (min->max) elements and return argpos which its value ordered in ascent
 
     Example:
-        >>> smallest_n_argpos([4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
-        array([7, 6])
+        >>> smallest_n_argpos([np.nan, 4, 3, 9, 8, 5, 2, 1, 0, 6, 7], 2)
+        array([8, 7])
 
     Args:
         ts (np.array): 输入的数组
