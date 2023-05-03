@@ -18,9 +18,6 @@ from omicron.models.stock import Stock
 
 
 class MetricsGraph:
-    RED = "#FF4136"
-    GREEN = "#3DAA70"
-
     def __init__(self, bills: dict, metrics: dict):
         self.metrics = metrics
         self.trades = bills["trades"]

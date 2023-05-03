@@ -260,7 +260,7 @@ class Candlestick:
 
         TODO:
             此方法可能未与backtest返回值同步。此外，在portofolio回测中，不可能在k线图中使用此方法。
-            
+
         Args:
             points : 买卖点的坐标。
         """
