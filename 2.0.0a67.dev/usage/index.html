@@ -1,0 +1,1185 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+    
+    
+      
+        <title>教程 - Omicron</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
+        
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="None" data-md-color-accent="None">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#配置和初始化omicron" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Omicron" class="md-header__button md-logo" aria-label="Omicron" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Omicron
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              教程
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/zillionare/omicron" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    omicron
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Omicron" class="md-nav__button md-logo" aria-label="Omicron" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Omicron
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/zillionare/omicron" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    omicron
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        简介
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        安装
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          教程
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        教程
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#配置和初始化omicron" class="md-nav__link">
+    配置和初始化omicron
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-关闭omicron" class="md-nav__link">
+    2. 关闭omicron
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-证券列表" class="md-nav__link">
+    3. 证券列表
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 证券列表">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#返回所有股票或者指数" class="md-nav__link">
+    返回所有股票或者指数
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#排除某种股票证券" class="md-nav__link">
+    排除某种股票（证券）
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#如果只要求某种股票证券" class="md-nav__link">
+    如果只要求某种股票（证券）
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#按别名进行模糊查询" class="md-nav__link">
+    按别名进行模糊查询
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#通过代码查询其它信息" class="md-nav__link">
+    通过代码查询其它信息
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeframe时间计算" class="md-nav__link">
+    TimeFrame时间计算
+  </a>
+  
+    <nav class="md-nav" aria-label="TimeFrame时间计算">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#交易时间的偏移" class="md-nav__link">
+    交易时间的偏移
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#边界操作-ceiling和floor" class="md-nav__link">
+    边界操作 ceiling和floor
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#时间转换" class="md-nav__link">
+    时间转换
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#列时间帧" class="md-nav__link">
+    列时间帧
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#取行情数据" class="md-nav__link">
+    取行情数据
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#评估指标" class="md-nav__link">
+    评估指标
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#talib库" class="md-nav__link">
+    talib库
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../history/" class="md-nav__link">
+        版本历史
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer/" class="md-nav__link">
+        开发者文档
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6" type="checkbox" id="__nav_6" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6">
+          API文档
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="API文档" data-md-level="1">
+        <label class="md-nav__title" for="__nav_6">
+          <span class="md-nav__icon md-icon"></span>
+          API文档
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/omicron/" class="md-nav__link">
+        omicron
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/timeframe/" class="md-nav__link">
+        timeframe
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/triggers/" class="md-nav__link">
+        triggers
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/stock/" class="md-nav__link">
+        stock
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/security/" class="md-nav__link">
+        security
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/metrics/" class="md-nav__link">
+        metrics
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/talib/" class="md-nav__link">
+        talib
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/plotting/" class="md-nav__link">
+        plotting
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/strategy/" class="md-nav__link">
+        strategy
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6_10" type="checkbox" id="__nav_6_10" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6_10">
+          dal
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="dal" data-md-level="2">
+        <label class="md-nav__title" for="__nav_6_10">
+          <span class="md-nav__icon md-icon"></span>
+          dal
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/dal/flux/" class="md-nav__link">
+        Flux
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/dal/influxclient/" class="md-nav__link">
+        InfluxClient
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/dal/serialize/" class="md-nav__link">
+        Serialize
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#配置和初始化omicron" class="md-nav__link">
+    配置和初始化omicron
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-关闭omicron" class="md-nav__link">
+    2. 关闭omicron
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-证券列表" class="md-nav__link">
+    3. 证券列表
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 证券列表">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#返回所有股票或者指数" class="md-nav__link">
+    返回所有股票或者指数
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#排除某种股票证券" class="md-nav__link">
+    排除某种股票（证券）
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#如果只要求某种股票证券" class="md-nav__link">
+    如果只要求某种股票（证券）
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#按别名进行模糊查询" class="md-nav__link">
+    按别名进行模糊查询
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#通过代码查询其它信息" class="md-nav__link">
+    通过代码查询其它信息
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeframe时间计算" class="md-nav__link">
+    TimeFrame时间计算
+  </a>
+  
+    <nav class="md-nav" aria-label="TimeFrame时间计算">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#交易时间的偏移" class="md-nav__link">
+    交易时间的偏移
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#边界操作-ceiling和floor" class="md-nav__link">
+    边界操作 ceiling和floor
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#时间转换" class="md-nav__link">
+    时间转换
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#列时间帧" class="md-nav__link">
+    列时间帧
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#取行情数据" class="md-nav__link">
+    取行情数据
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#评估指标" class="md-nav__link">
+    评估指标
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#talib库" class="md-nav__link">
+    talib库
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  <a href="https://github.com/zillionare/omicron/edit/master/docs/usage.md" title="Edit this page" class="md-content__button md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+  </a>
+
+
+  <h1>教程</h1>
+
+<h2 id="配置和初始化omicron">配置和初始化omicron<a class="headerlink" href="#配置和初始化omicron" title="Permanent link">&para;</a></h2>
+<p>Omicron 使用 <a href="https://pypi.org/project/cfg4py/">cfg4py</a> 来管理配置。</p>
+<p>cfg4py 使用 yaml 文件来保存配置项。在使用 cfg4py 之前，您需要在某处初始化 cfg4py，然后再初始化omicron:</p>
+<details class="tip" open="open">
+<summary>Tip</summary>
+<p>为了简洁起见，我们在顶层代码中直接使用了async/await。通常，这些代码能够直接在notebook中运行，但如果需要在普通的python脚本中运行这些代码，您通常需要将其封装到一个异步函数中，再通过<code>asyncio.run</code>来运行它。</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span>
+<span class="normal">8</span>
+<span class="normal">9</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">cfg4py</span>
+<span class="kn">import</span> <span class="nn">omicron</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">cfg4py</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="s1">&#39;path/to/your/config/dir&#39;</span><span class="p">)</span>
+    <span class="k">await</span> <span class="n">omicron</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+    <span class="c1"># do your great job with omicron</span>
+
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre></div></td></tr></table></div>
+</details>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">import</span> <span class="nn">cfg4py</span>
+<span class="kn">import</span> <span class="nn">omicron</span>
+<span class="n">cfg4py</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="s1">&#39;path/to/your/config/dir&#39;</span><span class="p">)</span>
+
+<span class="k">await</span> <span class="n">omicron</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+<p>注意初始化 cfg4py 时，需要提供包含配置文件的<strong>文件夹</strong>的路径，而<strong>不是配置文件</strong>的路径。配置文件名必须为 defaults.yml。</p>
+<p>您至少应该为omicron配置Redis 连接串和influxdb连接串。下面是常用配置示例：</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="c1"># defaults.yaml</span><span class="w"></span>
+<span class="nt">redis</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">redis://${REDIS_HOST}:${REDIS_PORT}</span><span class="w"></span>
+
+<span class="nt">influxdb</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://${INFLUXDB_HOST}:${INFLUXDB_PORT}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${INFLUXDB_TOKEN}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">org</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${INFLUXDB_ORG}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">bucket_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${INFLUXDB_BUCKET_NAME}</span><span class="w"></span>
+<span class="w">  </span><span class="nt">enable_compress</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w"></span>
+<span class="w">  </span><span class="nt">max_query_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">150000</span><span class="w"></span>
+
+<span class="nt">notify</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="nt">mail_from</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${MAIL_FROM}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">mail_to</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${MAIL_TO}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">mail_server</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${MAIL_SERVER}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">dingtalk_access_token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DINGTALK_ACCESS_TOKEN}</span><span class="w"></span>
+<span class="w">    </span><span class="nt">dingtalk_secret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DINGTALK_SECRET}</span><span class="w"></span>
+</code></pre></div></td></tr></table></div>
+<p>请根据您实际环境配置来更改上述文件。上述配置中，${{REDIS_HOST}}意味着环境变量。如果是windows，您需要在系统 &gt; 环境变量中进行设置。如果是Linux或者Mac，您需要修改.bashrc，例如：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span></pre></div></td><td class="code"><div><pre><span></span><code>export REDIS_HOST=localhost
+</code></pre></div></td></tr></table></div></p>
+<p>Omicron提供了证券列表、交易日历、行情数据及其它功能。</p>
+<h2 id="2-关闭omicron">2. 关闭omicron<a class="headerlink" href="#2-关闭omicron" title="Permanent link">&para;</a></h2>
+<p>在您的进程即将退出之前，请记得关闭omicron。如果您是在notebook中使用omicron,则可以忽略此步聚。</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span></pre></div></td><td class="code"><div><pre><span></span><code>    <span class="k">await</span> <span class="n">omicron</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+<h2 id="3-证券列表">3. 证券列表<a class="headerlink" href="#3-证券列表" title="Permanent link">&para;</a></h2>
+<p>您可以通过以下方法来获取某一天的证券列表
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="c1"># 4. assume you have omicron init</span>
+<span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+
+<span class="n">query</span> <span class="o">=</span> <span class="n">Security</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">query</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+<span class="c1"># the outputs is like [&quot;000001.XSHE&quot;, &quot;000004.XSHE&quot;, ...]</span>
+</code></pre></div></td></tr></table></div>
+这里的<code>dt</code>如果没有提供的话，将使用最新的证券列表。但在回测中，您通常不同时间的证券列表，因此，<code>dt</code>在这种情况下是必须的，否则，您将会使用最新的证券列表来回测过去。</p>
+<p>这里的<code>Security.select()</code>方法返回一个<code>Query</code>对象，用以按查询条件进行过滤。该对象支持链式操作。它的方法中，除了<code>eval</code>，基本都是用来指定过滤条件，构建查询用的。如果要得到最终结果，请使用<code>Query.eval</code>方法。</p>
+<h3 id="返回所有股票或者指数">返回所有股票或者指数<a class="headerlink" href="#返回所有股票或者指数" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">query</span> <span class="o">=</span> <span class="n">Security</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">query</span><span class="o">.</span><span class="n">types</span><span class="p">([</span><span class="s2">&quot;stock&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="排除某种股票证券">排除某种股票（证券）<a class="headerlink" href="#排除某种股票证券" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">query</span> <span class="o">=</span> <span class="n">Security</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">query</span><span class="o">.</span><span class="n">exclude_st</span><span class="p">()</span><span class="o">.</span><span class="n">exclude_kcb</span><span class="p">()</span><span class="o">.</span><span class="n">exclude_cyb</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="如果只要求某种股票证券">如果只要求某种股票（证券）<a class="headerlink" href="#如果只要求某种股票证券" title="Permanent link">&para;</a></h3>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">query</span> <span class="o">=</span> <span class="n">Security</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">query</span><span class="o">.</span><span class="n">only_kcb</span><span class="p">()</span><span class="o">.</span><span class="n">only_st</span><span class="p">()</span><span class="o">.</span><span class="n">only_cyb</span><span class="p">()</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+<span class="c1">#得到空列表</span>
+</code></pre></div></td></tr></table></div>
+<h3 id="按别名进行模糊查询">按别名进行模糊查询<a class="headerlink" href="#按别名进行模糊查询" title="Permanent link">&para;</a></h3>
+<p>A股的证券在标识上，一般有代码（code或者symbol)、拼音简写(name)和汉字表示名(display_name)三种标识。比如中国平安，其代码为601318.XSHG;其拼音简写为ZGPA；而中国平安被称为它的别名(<code>alias</code>)。</p>
+<p>如果要查询所有中字头的股票：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">query</span> <span class="o">=</span> <span class="n">Security</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">query</span><span class="o">.</span><span class="n">alias_like</span><span class="p">(</span><span class="s2">&quot;中&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div></p>
+<h3 id="通过代码查询其它信息">通过代码查询其它信息<a class="headerlink" href="#通过代码查询其它信息" title="Permanent link">&para;</a></h3>
+<p>通过前面的查询我们可以得到一个证券列表，如果要得到具体的信息，可以通过<code>info</code>接口来查询：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code>    <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Security</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;688001.XSHG&quot;</span><span class="p">,</span> <span class="n">dt</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+输出为：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span>
+<span class="normal">8</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;</span><span class="kc">t</span><span class="err">ype&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">&#39;s</span><span class="kc">t</span><span class="err">ock&#39;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;display_</span><span class="kc">na</span><span class="err">me&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">&#39;华兴源创&#39;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;alias&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">&#39;华兴源创&#39;</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;e</span><span class="kc">n</span><span class="err">d&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">da</span><span class="kc">tet</span><span class="err">ime.da</span><span class="kc">te</span><span class="err">(</span><span class="mi">2200</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="err">)</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;s</span><span class="kc">tart</span><span class="err">&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">da</span><span class="kc">tet</span><span class="err">ime.da</span><span class="kc">te</span><span class="err">(</span><span class="mi">2019</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">22</span><span class="err">)</span><span class="p">,</span><span class="w"></span>
+<span class="w">    </span><span class="err">&#39;</span><span class="kc">na</span><span class="err">me&#39;</span><span class="p">:</span><span class="w"> </span><span class="err">&#39;HXYC&#39;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div></td></tr></table></div></p>
+<h2 id="timeframe时间计算">TimeFrame时间计算<a class="headerlink" href="#timeframe时间计算" title="Permanent link">&para;</a></h2>
+<p>Omicron不仅提供了交易日历，与其它量化框架相比，我们还提供了丰富的时间相关的运算操作。这些操作都有详细的文档和示例，您可以通过<a href="/api/timeframe">TimeFrame</a>来进一步阅读。</p>
+<p>omicron中，常常会遇到时间帧(Time Frame)这个概念。因为行情数据都是按一定的时间长度组织的，比如5分钟，1天，等等。因此，在omicron中，我们经常使用某个时间片结束的时间，来标识这个时间片，并将其称之为帧(Time Frame)。</p>
+<p>omicron中，我们支持的时间帧是有限的，主要是日内的分钟帧(FrameType.MIN1), 5分钟帧(FrameType.MIN5), 15分钟帧、30分钟帧和00分钟帧，以及日线级别的FrameType.DAY, FrameType.WEEK等。关于详细的类型说明，请参见<a href="https://zillionare.github.io/core-types/">coretypes</a></p>
+<p>omicron提供的交易日历起始于2005年1月4日。提供的行情数据，最早从这一天起。</p>
+<p>大致上，omicron提供了以下操作：</p>
+<h3 id="交易时间的偏移">交易时间的偏移<a class="headerlink" href="#交易时间的偏移" title="Permanent link">&para;</a></h3>
+<p>如果今天是2022年5月20日，您想得到100天前的交易日，则可以使用day_shift:
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">omicron</span> <span class="kn">import</span> <span class="n">tf</span>
+<span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+
+<span class="n">tf</span><span class="o">.</span><span class="n">day_shift</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+输出是datetime.date(2021, 12, 16)。在这里，day_shift的第二个参数<code>n</code>是偏移量，当它小于零时，是找<code>dt</code>前<code>n</code>个交易日;当它大于零时，是找<code>dt</code>之后的<code>n</code>个交易日。</p>
+<p>比如有意思的是<code>n</code> == 0的时候。对上述<code>dt</code>，day_shift(dt, 0)得到的仍然是同一天，但如果<code>dt</code>是2022年5月21日是周六，则day_shift(datetime.date(2022, 5, 21))将返回2022年5月20日。因为5月21日这一天是周六，不是交易日，day_shift将返回其对应的交易日，这在多数情况下会非常方便。</p>
+<p>除了<code>day_shift</code>外，timeframe还提供了类似函数比如<code>week_shift</code>等。一般地，您可以用shift(dt, n, frame_type)来对任意支持的时间进行偏移。</p>
+<h3 id="边界操作-ceiling和floor">边界操作 ceiling和floor<a class="headerlink" href="#边界操作-ceiling和floor" title="Permanent link">&para;</a></h3>
+<p>很多时候我们需要知道具体的某个时间点(moment)所属的帧。如果要取其上一帧，则可以用floor操作，反之，使用ceiling。
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">tf</span><span class="o">.</span><span class="n">ceiling</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2005</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">FrameType</span><span class="o">.</span><span class="n">WEEK</span><span class="p">)</span>
+<span class="c1"># output is datetime.date(2005, 1, 7)</span>
+</code></pre></div></td></tr></table></div></p>
+<h3 id="时间转换">时间转换<a class="headerlink" href="#时间转换" title="Permanent link">&para;</a></h3>
+<p>为了加快速度，以及方便持久化存储，在timeframe内部，有时候使用整数来表示时间。比如20220502表示的是2022年5月20日，而202205220931则表示2022年5月20日9时31分钟。</p>
+<p>这种表示法，有时候要求我们进行一些转换：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="c1"># 将整数表示的日期转换为日期</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">int2date</span><span class="p">(</span><span class="mi">20220522</span><span class="p">)</span> <span class="c1"># datetime.date(2022, 5, 22)</span>
+<span class="c1"># 将整数表示的时间转换为时间</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">int2time</span><span class="p">(</span><span class="mi">202205220931</span><span class="p">)</span> <span class="c1"># datetime.datetime(2022, 5, 22, 9, 31)</span>
+
+<span class="c1"># 将日期转换成为整数</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">date2int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">22</span><span class="p">))</span> <span class="c1"># 20220520</span>
+
+<span class="c1"># 将时间转换成为时间</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">date2time</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">22</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">21</span><span class="p">))</span> <span class="c1"># 202205220921</span>
+</code></pre></div></td></tr></table></div></p>
+<h3 id="列时间帧">列时间帧<a class="headerlink" href="#列时间帧" title="Permanent link">&para;</a></h3>
+<p>有时候我们需要得到<code>start</code>和<code>end</code>之间某个时间帧类型的所有时间帧：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">start</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;2020-1-13 10:00&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">naive</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;2020-1-13 13:30&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">naive</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">get_frames</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">FrameType</span><span class="o">.</span><span class="n">MIN30</span><span class="p">)</span>
+<span class="p">[</span><span class="mi">202001131000</span><span class="p">,</span> <span class="mi">202001131030</span><span class="p">,</span> <span class="mi">202001131100</span><span class="p">,</span> <span class="mi">202001131130</span><span class="p">,</span> <span class="mi">202001131330</span><span class="p">]</span>
+</code></pre></div></td></tr></table></div></p>
+<details class="important" open="open">
+<summary>Important</summary>
+<p>上面的示例中，出现了可能您不太熟悉的<code>naive</code>属性。它指的是取不带时区的时间。在python中，时间可以带时区（timezone-aware)和不带时区(naive)。</p>
+<p>如果您使用datetime.datetime(2022, 5, 20)，它就是不带时区的，除非您专门指定时区。</p>
+<p>在omicron中，我们在绝大多数情况下，仅使用naive表示的时间，即不带时区，并且假定时区为东八区（即北京时间）。</p>
+</details>
+<p>如果您只知道结束时间，需要向前取<code>n</code>个时间帧，则可以使用<code>get_frames_by_count</code>。</p>
+<p>如果您只是需要知道在<code>start</code>和<code>end</code>之间，总共有多少个帧，请使用 <code>count_frames</code>:
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">start</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">)</span>
+<span class="n">end</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">21</span><span class="p">)</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">count_frames</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">FrameType</span><span class="o">.</span><span class="n">DAY</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+输出将是1。上述方法还有一个快捷方法，即<code>count_day_frames</code>，并且，对week, month, quaters也是一样。</p>
+<h2 id="取行情数据">取行情数据<a class="headerlink" href="#取行情数据" title="Permanent link">&para;</a></h2>
+<p>现在，让我们来获取一段行情数据：
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;000001.XSHE&quot;</span>
+
+<span class="n">end</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+<span class="n">bars</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Stock</span><span class="o">.</span><span class="n">get_bars</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">FrameType</span><span class="o">.</span><span class="n">DAY</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+返回的<code>bars</code>将是一个numpy structured array, 其类型为<a href="https://zillionare.github.io/core-types/">bars_dtype</a>。一般地，它包括了以下字段：</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span>
+<span class="normal">8</span></pre></div></td><td class="code"><div><pre><span></span><code>* frame（帧）
+* open（开盘价）
+* high（最高价）
+* low（最低价）
+* close（收盘价）
+* volume（成交量，股数）
+* amount（成交额）
+* factor(复权因子)
+</code></pre></div></td></tr></table></div>
+<h2 id="评估指标">评估指标<a class="headerlink" href="#评估指标" title="Permanent link">&para;</a></h2>
+<p>omicron提供了mean_absolute_error函数和pct_error函数。它们在scipy或者其它库中也能找到，为了方便不熟悉这些第三方库的使用者，我们内置了这个常指标。</p>
+<p>对一些常见的策略评估函数，我们引用了empyrical中的相关函数，比如alpha, beta, shapre_ratio， calmar_ratio等。</p>
+<h2 id="talib库">talib库<a class="headerlink" href="#talib库" title="Permanent link">&para;</a></h2>
+<p>您应该把这里提供的函数当成实验性的。这些API也可能在某天被废弃、重命名、修改，或者这些API并没有多大作用，或者它们的实现存在错误。</p>
+<p>但是，如果我们将来会抛弃这些API的话，我们一定会通过depracted方法提前进行警告。</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href="../installation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 安装" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              安装
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../history/" class="md-footer__link md-footer__link--next" aria-label="Next: 版本历史" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              版本历史
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      
+    
+    
+  </body>
+</html>
