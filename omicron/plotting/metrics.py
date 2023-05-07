@@ -1,4 +1,19 @@
+"""绘制回测资产曲线和指标图。
+
+示例:
+```python
+from omicron.plotting import MetricsGraph
+
+# calling some strategy's backtest and get bills/metrics
+mg = MetricsGraph(bills, metrics)
+
+await mg.plot()
+```
+注意此方法需要在notebook中调用。
+
+"""
 import datetime
+import logging
 from collections import defaultdict
 from copy import deepcopy
 from typing import List, Union
@@ -15,6 +30,8 @@ from omicron import tf
 from omicron.extensions import fill_nan
 from omicron.models.security import Security
 from omicron.models.stock import Stock
+
+logger = logging.getLogger(__name__)
 
 
 class MetricsGraph:
@@ -70,11 +87,11 @@ class MetricsGraph:
         elif type(frames) == datetime.datetime:
             x = frames
             return f"{x.month:02}-{x.day:02} {x.hour:02}:{x.minute:02}"
-        elif type(frames[0]) == datetime.date:
+        elif type(frames[0]) == datetime.date:  # type: ignore
             return np.array([f"{x.year:02}-{x.month:02}-{x.day:02}" for x in frames])
         else:
             return np.array(
-                [f"{x.month:02}-{x.day:02} {x.hour:02}:{x.minute:02}" for x in frames]
+                [f"{x.month:02}-{x.day:02} {x.hour:02}:{x.minute:02}" for x in frames]  # type: ignore
             )
 
     async def _metrics_traces(self):
@@ -201,6 +218,7 @@ class MetricsGraph:
         return trace
 
     async def plot(self, baseline_code: str = "399300.XSHE"):
+        """绘制资产曲线及回测指标图"""
         n = len(self.assets)
         bars = await Stock.get_bars(baseline_code, n, FrameType.DAY, self.end)
 

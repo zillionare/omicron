@@ -17,11 +17,11 @@ nav:
     - metrics: api/metrics.md
     - talib: api/talib.md
     - plotting: api/plotting.md
+    - strategy: api/strategy.md
     - dal:
       - Flux: api/dal/flux.md
       - InfluxClient: api/dal/influxclient.md
       - Serialize: api/dal/serialize.md
-
 theme:
   name: material
 

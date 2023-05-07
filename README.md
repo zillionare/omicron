@@ -7,10 +7,6 @@
 [![Version](http://img.shields.io/pypi/v/zillionare-omicron?color=brightgreen)](https://pypi.python.org/pypi/zillionare-omicron)
 [![CI Status](https://github.com/zillionare/omicron/actions/workflows/release.yml/badge.svg)](https://github.com/zillionare/omicron)
 [![Code Coverage](https://img.shields.io/codecov/c/github/zillionare/omicron)](https://app.codecov.io/gh/zillionare/omicron)
-<<<<<<< HEAD
-=======
-[![ReadtheDos](https://readthedocs.org/projects/omicron/badge/?version=latest)](https://omicron.readthedocs.io/en/latest/?badge=latest)
->>>>>>> master
 [![Downloads](https://pepy.tech/badge/zillionare-omicron)](https://pepy.tech/project/zillionare-omicron)
 [![License](https://img.shields.io/badge/License-MIT.svg)](https://opensource.org/licenses/MIT)
 [![Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -27,10 +23,5 @@ Omicron是大富翁量化框架的一部分。您必须至少安装并运行[Ome
 
 ## Credits
 
-<<<<<<< HEAD
 Zillionare-Omicron采用[Python Project Wizard](https://zillionare.github.io/python-project-wizard)构建。
-=======
-* [Cookiecutter](https://github.com/audreyr/cookiecutter)
-* [Cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage)
-* ![JetBrains Black Box Logo logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_square.svg) [Pycharm开源项目支持计划](https://www.jetbrains.com/?from=zillionare-omega)
->>>>>>> master
+
