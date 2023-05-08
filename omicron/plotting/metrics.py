@@ -10,6 +10,7 @@ mg = MetricsGraph(bills, metrics)
 await mg.plot()
 ```
 注意此方法需要在notebook中调用。
+![](https://images.jieyu.ai/images/2023/05/20230508160012.png)
 
 """
 import datetime
@@ -143,24 +144,24 @@ class MetricsGraph:
         metrics_formatted = []
         for k in metric_names.keys():
             if metrics.get(k):
-                metrics_formatted.append(metric_formatter[k].format(metrics.get(k)) )
+                metrics_formatted.append(metric_formatter[k].format(metrics.get(k)))
             else:
                 metrics_formatted.append("-")
 
         baseline_formatted = []
         for k in metric_names.keys():
             if baseline.get(k):
-                baseline_formatted.append(metric_formatter[k].format(baseline.get(k)) )
+                baseline_formatted.append(metric_formatter[k].format(baseline.get(k)))
             else:
                 baseline_formatted.append("-")
-                
+
         return go.Table(
             header=dict(values=["指标名", "策略", baseline_name]),
             cells=dict(
                 values=[
                     [metric_names[k] for k in metrics],
                     metrics_formatted,
-                    baseline_formatted
+                    baseline_formatted,
                 ],
                 font_size=10,
             ),

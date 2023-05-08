@@ -1,17 +1,17 @@
 """策略基类
 
-## 子类派生
+# 子类派生
 
 1. 从此基类派生出一个策略子类，比如sma.py
 2. 子类需要重载`predict`方法，根据当前传入的时间帧和帧类型参数，获取数据并进行处理，评估出交易信号
 3. 子类根据交易信号，在`predict`方法里，调用基类的`buy`和`sell`方法来进行交易
 4. 子类调用`backtest`方法来进行回测，该方法将根据策略构建时指定的回测起始时间、终止时间、帧类型，逐帧生成各个时间帧，并调用子类的`predict`方法
 4. 在交易结束时，调用`plot_metrics`方法来获取如下所示的回测指标图
-![](https://images.jieyu.ai/images/2023/05/20230507112458.png)
+![](https://images.jieyu.ai/images/2023/05/20230508160012.png)
 
 如何派生子类，可以参考[sma][omicron.strategy.sma.SMAStrategy]源代码。
 
-## 回测
+# 回测
 ```python
 from omicron.strategy.sma import SMAStrategy
 sma = SMAStrategy(
@@ -25,7 +25,7 @@ sma = SMAStrategy(
 
 await sma.backtest(stop_on_error=True)
 ```
-## 实盘
+# 实盘
 在实盘环境下，你还需要在子类中加入周期性任务(比如每分钟执行一次），在该任务中调用`predict`方法来完成交易。
 """
 import datetime

@@ -1,11 +1,85 @@
+"""绘制K线图。
+
+# 用法示例
+注意示例需要在notebook中运行，否则无法生成图。
+
+```python
+from omicron.plotting.candlestick import Candlestick
+
+bars = await Stock.get_bars("000001.XSHE", 120, FrameType.DAY)
+cs = Candlestick(bars)
+cs.plot()
+```
+
+这将生成下图：
+![](https://images.jieyu.ai/images/2023/05/20230508160941.png)
+
+默认地，将显示成交量和RSI指标两个副图。可以通过以下方式来定制：
+```python
+cs = Candlestick(bars, show_volume=True,
+    show_rsi=True,
+    show_peaks=False
+}
+cs.plot()
+```
+# 增加标记
+```python
+from omicron.plotting.candlestick import Candlestick
+
+bars = await Stock.get_bars("000001.XSHE", 120, FrameType.DAY)
+cs = Candlestick(bars, 
+        show_volume=True,
+        show_rsi=False,
+        show_peaks=True
+    )
+
+cs.add_marks([20, 50])
+cs.plot()
+```
+这将在k线上显示两个加号：
+![](https://images.jieyu.ai/images/2023/05/20230508164639.png)
+# 显示布林带
+```python
+from omicron.plotting.candlestick import Candlestick
+
+bars = await Stock.get_bars("000001.XSHE", 120, FrameType.DAY)
+cs = Candlestick(bars, 
+        show_volume=True,
+        show_rsi=False,
+        show_peaks=True
+    )
+
+cs.add_indicator("bbands")
+cs.plot()
+```
+![](https://images.jieyu.ai/images/2023/05/20230508164728.png)
+
+# 显示平台
+```python
+from omicron.plotting.candlestick import Candlestick
+
+bars = await Stock.get_bars("000001.XSHE", 120, FrameType.DAY)
+cs = Candlestick(bars, 
+        show_volume=True,
+        show_rsi=False,
+        show_peaks=True
+    )
+
+
+cs.mark_bbox()
+cs.plot()
+```
+![](https://images.jieyu.ai/images/2023/05/20230508164848.png)
+
+"""
 from collections import defaultdict
-from tkinter.messagebox import showwarning
 from typing import List, Tuple
 
 import arrow
 import numpy as np
 import plotly.graph_objects as go
 import talib
+from numpy._typing import NDArray
 from plotly.subplots import make_subplots
 
 from omicron.talib import (
@@ -131,7 +205,7 @@ class Candlestick:
             rows=rows,
             cols=cols,
             shared_xaxes=True,
-            vertical_spacing=0.05,
+            vertical_spacing=0.1,
             subplot_titles=(self.title, *self.ind_traces.keys()),
             row_heights=row_heights,
             specs=specs,
@@ -153,7 +227,7 @@ class Candlestick:
 
         return fig
 
-    def _format_tick(self, tm: np.array) -> str:
+    def _format_tick(self, tm: np.array) -> NDArray:
         if tm.item(0).hour == 0:  # assume it's date
             return np.array(
                 [
@@ -168,6 +242,14 @@ class Candlestick:
                     for x in tm
                 ]
             )
+
+    def _remove_ma(self):
+        traces = {}
+        for name in self.main_traces:
+            if not name.startswith("ma"):
+                traces[name] = self.main_traces[name]
+
+        self.main_traces = traces
 
     def add_main_trace(self, trace_name: str, **kwargs):
         """add trace to main plot
@@ -406,6 +488,16 @@ class Candlestick:
         elif indicator == "rsi":
             rsi = talib.RSI(self.bars["close"].astype(np.float64))
             trace = go.Scatter(x=self.ticks, y=rsi, showlegend=False)
+        elif indicator == "bbands":
+            self._remove_ma()
+            for name, ind in zip(
+                ["bbands-high", "bbands-mean", "bbands-low"],
+                talib.BBANDS(self.bars["close"].astype(np.float64)),
+            ):
+                trace = go.Scatter(x=self.ticks, y=ind, showlegend=True, name=name)
+                self.main_traces[name] = trace
+
+            return
         else:
             raise ValueError(f"{indicator} not supported")
 
@@ -414,7 +506,10 @@ class Candlestick:
     def add_marks(self, x: List[int]):
         """向k线图中增加标记点"""
         trace = go.Scatter(
-            x=x, y=self.bars["high"][x], mode="markers", marker_symbol="cross"
+            x=self.ticks[x],
+            y=self.bars["high"][x] * 1.02,
+            mode="markers",
+            marker_symbol="cross",
         )
         self.main_traces["marks"] = trace
 

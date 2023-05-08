@@ -16,8 +16,10 @@ nav:
     - security: api/security.md
     - metrics: api/metrics.md
     - talib: api/talib.md
-    - plotting: api/plotting.md
     - strategy: api/strategy.md
+    - plotting:
+      - CandleStick: api/plotting/candlestick.md
+      - MetricsGraph: api/plotting/metrics.md
     - dal:
       - Flux: api/dal/flux.md
       - InfluxClient: api/dal/influxclient.md

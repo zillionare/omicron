@@ -1,6 +1,9 @@
 # History
 
-
+## 2.0.0-alpha.68
+* 增加了MetricsGraph
+* 增加Strategy基类
+* Candlestick增加了布林带指标
 ## 2.0.0-alpha.49 (2022-09-16)
 * 修订了安装文档。
 * 移除了windows下对ta-lib的依赖。请参考[安装指南](docs/installation.md)以获取在windows下安装ta-lib的方法。
