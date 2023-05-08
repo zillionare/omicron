@@ -94,7 +94,7 @@ class MetricsGraph:
                 [f"{x.month:02}-{x.day:02} {x.hour:02}:{x.minute:02}" for x in frames]  # type: ignore
             )
 
-    async def _metrics_traces(self):
+    async def _metrics_trace(self):
         metric_names = {
             "start": "起始日",
             "end": "结束日",
@@ -110,7 +110,6 @@ class MetricsGraph:
             "volatility": "波动率",
             "sortino": "sortino",
             "calmar": "calmar",
-            "code": "参照标的",
         }
 
         # bug: plotly go.Table.Cells format not work here
@@ -129,54 +128,43 @@ class MetricsGraph:
             "volatility": "{:.2%}",
             "sortino": "{:.2f}",
             "calmar": "{:.2f}",
-            "code": "{}",
         }
 
         metrics = deepcopy(self.metrics)
         baseline = metrics["baseline"]
         del metrics["baseline"]
 
-        traces = []
-        traces.append(
-            go.Table(
-                header=dict(values=["指标名", "指标值"]),
-                cells=dict(
-                    values=[
-                        [metric_names[k] for k in metrics if metrics[k]],
-                        [
-                            metric_formatter[k].format(metrics[k])
-                            for k in metrics
-                            if metrics[k]
-                        ],
-                    ],
-                    font_size=10,
-                ),
-            )
+        if "code" in baseline:
+            baseline_name = await Security.alias(baseline["code"])
+            del baseline["code"]
+        else:
+            baseline_name = "基准"
+
+        metrics_formatted = []
+        for k in metric_names.keys():
+            if metrics.get(k):
+                metrics_formatted.append(metric_formatter[k].format(metrics.get(k)) )
+            else:
+                metrics_formatted.append("-")
+
+        baseline_formatted = []
+        for k in metric_names.keys():
+            if baseline.get(k):
+                baseline_formatted.append(metric_formatter[k].format(baseline.get(k)) )
+            else:
+                baseline_formatted.append("-")
+                
+        return go.Table(
+            header=dict(values=["指标名", "策略", baseline_name]),
+            cells=dict(
+                values=[
+                    [metric_names[k] for k in metrics],
+                    metrics_formatted,
+                    baseline_formatted
+                ],
+                font_size=10,
+            ),
         )
-
-        if baseline:
-            baseline = {k: v for k, v in baseline.items() if v is not None}
-            if "code" in baseline:
-                baseline["code"] = await Security.alias(baseline["code"])
-
-            traces.append(
-                go.Table(
-                    header=dict(values=["指标名", "指标值"]),
-                    cells=dict(
-                        values=[
-                            [metric_names[k] for k in baseline if baseline[k]],
-                            [
-                                metric_formatter[k].format(baseline[k])
-                                for k in baseline
-                                if baseline[k]
-                            ],
-                        ],
-                        font_size=10,
-                    ),
-                )
-            )
-
-        return traces
 
     async def _trade_info_trace(self):
         """构建hover text 序列"""
@@ -226,22 +214,18 @@ class MetricsGraph:
         baseline_prices /= baseline_prices[0]
 
         fig = make_subplots(
-            rows=2,
+            rows=1,
             cols=2,
             shared_xaxes=False,
             specs=[
-                [{"type": "scatter", "rowspan": 2}, {"type": "table"}],
-                [None, {"type": "table"}],
+                [{"type": "scatter"}, {"type": "table"}],
             ],
-            column_width=[0.8, 0.2],
-            row_heights=[0.63, 0.4],
+            column_width=[0.75, 0.25],
             horizontal_spacing=0.01,
-            vertical_spacing=0.07,
-            subplot_titles=("资产曲线", "策略指标", "基线指标"),
+            subplot_titles=("资产曲线", "策略指标"),
         )
 
-        for i, trace in enumerate(await self._metrics_traces()):
-            fig.add_trace(trace, row=i + 1, col=2)
+        fig.add_trace(await self._metrics_trace(), row=1, col=2)
 
         print("baseline", len(baseline_prices))
         baseline_trace = go.Scatter(
@@ -262,5 +246,5 @@ class MetricsGraph:
         fig.add_trace(trade_info_trace, row=1, col=1)
 
         fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
-        fig.update_layout(margin=dict(l=20, r=20, t=50, b=50), width=1040, height=650)
+        fig.update_layout(margin=dict(l=20, r=20, t=50, b=50), width=1040, height=435)
         fig.show()
