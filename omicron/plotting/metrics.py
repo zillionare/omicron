@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsGraph:
-    def __init__(self, bills: dict, metrics: dict):
+    def __init__(self, bills: dict, metrics: dict, baseline_code: str="399300.XSHE"):
         self.metrics = metrics
         self.trades = bills["trades"]
         self.positions = bills["positions"]
@@ -55,6 +55,8 @@ class MetricsGraph:
             "assets"
         ].to_numpy()
         self.nv = self.assets / self.assets[0]
+
+        self.baseline_code = baseline_code
 
     def _fill_missing_prices(self, bars: BarsArray, frames: Union[List, NDArray]):
         """将bars中缺失值采用其前值替换
@@ -132,14 +134,10 @@ class MetricsGraph:
         }
 
         metrics = deepcopy(self.metrics)
-        baseline = metrics["baseline"]
+        baseline = metrics["baseline"] or {}
         del metrics["baseline"]
 
-        if "code" in baseline:
-            baseline_name = await Security.alias(baseline["code"])
-            del baseline["code"]
-        else:
-            baseline_name = "基准"
+        baseline_name = await Security.alias(self.baseline_code) if self.baseline_code else "基准"
 
         metrics_formatted = []
         for k in metric_names.keys():
