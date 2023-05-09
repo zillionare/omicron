@@ -126,11 +126,17 @@ class BaseStrategy:
 
     @property
     def cash(self):
+        """返回当前可用现金"""
         return self.broker.available_money
 
     @property
     def positions(self):
+        """返回当前持仓"""
         return self.broker.positions
+
+    def available_shares(self, sec: str):
+        """返回给定股票当前可售股数。"""
+        return self.broker.available_shares(sec)
 
     async def buy(
         self,
@@ -206,9 +212,7 @@ class BaseStrategy:
 
         return np.intersect1d(buylist, in_trading)
 
-    async def predict(
-        self, frame: Frame, frame_type: FrameType, i: int, **kwargs
-    ):
+    async def predict(self, frame: Frame, frame_type: FrameType, i: int, **kwargs):
         """策略评估函数。在此函数中实现交易信号检测和处理。
 
         Args:

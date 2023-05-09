@@ -1,5 +1,7 @@
 # History
 
+## 2.0.0-alpha.69
+* BaseStrategy增加`available_shares`方法
 ## 2.0.0-alpha.68
 * 增加了MetricsGraph
 * 增加Strategy基类
