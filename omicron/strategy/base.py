@@ -40,7 +40,6 @@ from traderclient import TraderClient
 
 from omicron import tf
 from omicron.models.security import Security
-from omicron.models.stock import Stock
 from omicron.plotting.metrics import MetricsGraph
 
 logger = logging.getLogger(__name__)
@@ -105,7 +104,7 @@ class BaseStrategy:
 
             self.broker = TraderClient(url, self.account, self.token, is_backtest=False)
 
-    async def backtest(self, stop_on_error: bool = False, *args, **kwargs):
+    async def backtest(self, stop_on_error: bool = False, **kwargs):
         converter = (
             tf.int2date if self._frame_type in tf.day_level_frames else tf.int2time
         )
@@ -114,7 +113,7 @@ class BaseStrategy:
         ):
             try:
                 await self.predict(
-                    converter(frame), self._frame_type, i, *args, **kwargs  # type: ignore
+                    converter(frame), self._frame_type, i, **kwargs  # type: ignore
                 )
             except Exception as e:
                 logger.exception(e)
@@ -208,7 +207,7 @@ class BaseStrategy:
         return np.intersect1d(buylist, in_trading)
 
     async def predict(
-        self, frame: Frame, frame_type: FrameType, i: int, *args, **kwargs
+        self, frame: Frame, frame_type: FrameType, i: int, **kwargs
     ):
         """策略评估函数。在此函数中实现交易信号检测和处理。
 
