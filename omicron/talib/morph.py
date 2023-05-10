@@ -103,7 +103,9 @@ class BreakoutFlag(IntEnum):
 
 
 def peaks_and_valleys(
-    ts: np.ndarray, up_thresh: float = None, down_thresh: float = None
+    ts: np.ndarray,
+    up_thresh: Optional[float] = None,
+    down_thresh: Optional[float] = None,
 ) -> np.ndarray:
     """寻找ts中的波峰和波谷，返回数组指示在该位置上是否为波峰或波谷。如果为1，则为波峰；如果为-1，则为波谷。
 

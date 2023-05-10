@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsGraph:
-    def __init__(self, bills: dict, metrics: dict, baseline_code: str="399300.XSHE"):
+    def __init__(self, bills: dict, metrics: dict, baseline_code: str = "399300.XSHE"):
         self.metrics = metrics
         self.trades = bills["trades"]
         self.positions = bills["positions"]
@@ -137,7 +137,9 @@ class MetricsGraph:
         baseline = metrics["baseline"] or {}
         del metrics["baseline"]
 
-        baseline_name = await Security.alias(self.baseline_code) if self.baseline_code else "基准"
+        baseline_name = (
+            await Security.alias(self.baseline_code) if self.baseline_code else "基准"
+        )
 
         metrics_formatted = []
         for k in metric_names.keys():

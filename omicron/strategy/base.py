@@ -129,14 +129,13 @@ class BaseStrategy:
         """返回当前可用现金"""
         return self.broker.available_money
 
-    @property
-    def positions(self):
+    def positions(self, dt: Optional[datetime.date]=None):
         """返回当前持仓"""
-        return self.broker.positions
+        return self.broker.positions(dt)
 
-    def available_shares(self, sec: str):
+    def available_shares(self, sec: str, dt: Optional[Frame]=None):
         """返回给定股票当前可售股数。"""
-        return self.broker.available_shares(sec)
+        return self.broker.available_shares(sec, dt)
 
     async def buy(
         self,

@@ -73,7 +73,7 @@ cs.plot()
 
 """
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import arrow
 import numpy as np
@@ -400,7 +400,9 @@ class Candlestick:
 
         self.main_traces["bs"] = trace
 
-    def mark_peaks_and_valleys(self, up_thres: float = None, down_thres: float = None):
+    def mark_peaks_and_valleys(
+        self, up_thres: Optional[float] = None, down_thres: Optional[float] = None
+    ):
         """在K线图上标注峰谷点
 
         Args:
@@ -486,13 +488,13 @@ class Candlestick:
                 marker={"color": colors},
             )
         elif indicator == "rsi":
-            rsi = talib.RSI(self.bars["close"].astype(np.float64))
+            rsi = talib.RSI(self.bars["close"].astype(np.float64))  # type: ignore
             trace = go.Scatter(x=self.ticks, y=rsi, showlegend=False)
         elif indicator == "bbands":
             self._remove_ma()
             for name, ind in zip(
                 ["bbands-high", "bbands-mean", "bbands-low"],
-                talib.BBANDS(self.bars["close"].astype(np.float64)),
+                talib.BBANDS(self.bars["close"].astype(np.float64)),  # type: ignore
             ):
                 trace = go.Scatter(x=self.ticks, y=ind, showlegend=True, name=name)
                 self.main_traces[name] = trace
@@ -503,25 +505,38 @@ class Candlestick:
 
         self.ind_traces[indicator] = trace
 
-    def add_marks(self, x: List[int]):
+    def add_marks(
+        self,
+        x: List[int],
+        y: List[float],
+        name: str,
+        marker: str = "cross",
+        color: Optional[str] = None,
+    ):
         """向k线图中增加标记点"""
         trace = go.Scatter(
             x=self.ticks[x],
-            y=self.bars["high"][x] * 1.02,
+            y=y,
             mode="markers",
-            marker_symbol="cross",
+            marker_symbol=marker,
+            marker_color=color,
+            name=name,
         )
-        self.main_traces["marks"] = trace
+        self.main_traces[name] = trace
 
     def plot(self):
         """绘制图表"""
         fig = self.figure
+        ymin = np.min(self.bars["low"])
+        ymax = np.max(self.bars["high"])
 
+        ylim = [ymin * 0.95, ymax * 1.05]
+        fig.update_layout(yaxis=dict(range=ylim))
         fig.show()
 
 
 def plot_candlestick(
-    bars: np.ndarray, ma_groups: List[int], title: str = None, **kwargs
+    bars: np.ndarray, ma_groups: List[int], title: Optional[str] = None, **kwargs
 ):
     cs = Candlestick(bars, ma_groups, title=title)
     cs.plot()
