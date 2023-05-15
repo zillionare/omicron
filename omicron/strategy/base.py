@@ -225,5 +225,5 @@ class BaseStrategy:
         if self.bills is None or self.metrics is None:
             raise ValueError("Please run `start_backtest` first.")
 
-        mg = MetricsGraph(self.bills, self.metrics)
-        await mg.plot(self._baseline or "399300.XSHE")
+        mg = MetricsGraph(self.bills, self.metrics, baseline_code=self._baseline)
+        await mg.plot()

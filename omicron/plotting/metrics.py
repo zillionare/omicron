@@ -17,7 +17,7 @@ import datetime
 import logging
 from collections import defaultdict
 from copy import deepcopy
-from typing import List, Union
+from typing import List, Optional, Union
 
 import arrow
 import numpy as np
@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsGraph:
-    def __init__(self, bills: dict, metrics: dict, baseline_code: str = "399300.XSHE"):
+    def __init__(
+        self, bills: dict, metrics: dict, baseline_code: Optional[str] = "399300.XSHE"
+    ):
         self.metrics = metrics
         self.trades = bills["trades"]
         self.positions = bills["positions"]
@@ -56,7 +58,7 @@ class MetricsGraph:
         ].to_numpy()
         self.nv = self.assets / self.assets[0]
 
-        self.baseline_code = baseline_code
+        self.baseline_code = baseline_code or "399300.XSHE"
 
     def _fill_missing_prices(self, bars: BarsArray, frames: Union[List, NDArray]):
         """将bars中缺失值采用其前值替换
@@ -169,12 +171,9 @@ class MetricsGraph:
 
     async def _trade_info_trace(self):
         """构建hover text 序列"""
-        X = []
-        Y = []
-        data = []
-
         # convert trades into hover_info
-        merged = defaultdict(list)
+        buys = defaultdict(list)
+        sells = defaultdict(list)
         for _, trade in self.trades.items():
             trade_date = arrow.get(trade["time"]).date()
 
@@ -192,24 +191,56 @@ class MetricsGraph:
 
             trade_text = f"{side}:{name} {filled/100:.0f}手 价格:{price:.02f} 成交额{filled * price/10000:.1f}万"
 
-            merged[trade_date].append(trade_text)
+            if side == "卖出":
+                sells[trade_date].append(trade_text)
+            elif side in ("买入", "分红配股"):
+                buys[trade_date].append(trade_text)
 
-        for dt, text in merged.items():
+        X_buy, Y_buy, data_buy = [], [], []
+        X_sell, Y_sell, data_sell = [], [], []
+
+        for dt, text in buys.items():
             ipos = self._frame2pos.get(dt)
-            Y.append(self.nv[ipos])
-            X.append(self._format_tick(dt))
+            Y_buy.append(self.nv[ipos])
+            X_buy.append(self._format_tick(dt))
 
             asset = self.assets[ipos]
             hover = f"资产:{asset/10000:.1f}万<br>{'<br>'.join(text)}"
-            data.append(hover)
+            data_buy.append(hover)
 
-        trace = go.Scatter(x=X, y=Y, mode="markers", text=data, name="交易详情")
-        return trace
+        trace_buy = go.Scatter(
+            x=X_buy,
+            y=Y_buy,
+            mode="markers",
+            text=data_buy,
+            name="买入成交",
+            marker = dict(color='red', symbol='triangle-up'),
+        )
 
-    async def plot(self, baseline_code: str = "399300.XSHE"):
+        for dt, text in sells.items():
+            ipos = self._frame2pos.get(dt)
+            Y_sell.append(self.nv[ipos])
+            X_sell.append(self._format_tick(dt))
+
+            asset = self.assets[ipos]
+            hover = f"资产:{asset/10000:.1f}万<br>{'<br>'.join(text)}"
+            data_sell.append(hover)
+
+        trace_sell = go.Scatter(
+            x=X_sell,
+            y=Y_sell,
+            mode="markers",
+            text=data_sell,
+            name="卖出成交",
+            marker = dict(color='green', symbol='triangle-down'),
+        )
+
+        return trace_buy, trace_sell
+
+    async def plot(self):
         """绘制资产曲线及回测指标图"""
         n = len(self.assets)
-        bars = await Stock.get_bars(baseline_code, n, FrameType.DAY, self.end)
+        bars = await Stock.get_bars(self.baseline_code, n, FrameType.DAY, self.end)
 
         baseline_prices = self._fill_missing_prices(bars, self.frames)
         baseline_prices /= baseline_prices[0]
@@ -243,8 +274,8 @@ class MetricsGraph:
         )
         fig.add_trace(nv_trace, row=1, col=1)
 
-        trade_info_trace = await self._trade_info_trace()
-        fig.add_trace(trade_info_trace, row=1, col=1)
+        for trace in await self._trade_info_trace():
+            fig.add_trace(trace, row=1, col=1)
 
         fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
         fig.update_layout(margin=dict(l=20, r=20, t=50, b=50), width=1040, height=435)
