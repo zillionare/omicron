@@ -129,11 +129,11 @@ class BaseStrategy:
         """返回当前可用现金"""
         return self.broker.available_money
 
-    def positions(self, dt: Optional[datetime.date]=None):
+    def positions(self, dt: Optional[datetime.date] = None):
         """返回当前持仓"""
         return self.broker.positions(dt)
 
-    def available_shares(self, sec: str, dt: Optional[Frame]=None):
+    def available_shares(self, sec: str, dt: Optional[Frame] = None):
         """返回给定股票当前可售股数。"""
         return self.broker.available_shares(sec, dt)
 
@@ -226,4 +226,4 @@ class BaseStrategy:
             raise ValueError("Please run `start_backtest` first.")
 
         mg = MetricsGraph(self.bills, self.metrics)
-        await mg.plot()
+        await mg.plot(self._baseline or "399300.XSHE")
