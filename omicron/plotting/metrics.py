@@ -161,7 +161,7 @@ class MetricsGraph:
             header=dict(values=["指标名", "策略", baseline_name]),
             cells=dict(
                 values=[
-                    [metric_names[k] for k in metrics],
+                    [v for _,v in metric_names.items()],
                     metrics_formatted,
                     baseline_formatted,
                 ],
