@@ -81,6 +81,7 @@ import plotly.graph_objects as go
 import talib
 from numpy._typing import NDArray
 from plotly.subplots import make_subplots
+from omicron.extensions import array_math_round
 
 from omicron.talib import (
     moving_average,
@@ -138,6 +139,7 @@ class Candlestick:
         self.ind_traces = {}
 
         self.ticks = self._format_tick(bars["frame"])
+        self._bar_close = array_math_round(bars["close"], 2).astype(np.float64)
 
         # for every candlestick, it must contain a candlestick plot
         cs = go.Candlestick(
@@ -145,7 +147,7 @@ class Candlestick:
             open=bars["open"],
             high=bars["high"],
             low=bars["low"],
-            close=bars["close"],
+            close=self._bar_close,
             line=dict({"width": 1}),
             name="K线",
             **kwargs,
@@ -182,7 +184,7 @@ class Candlestick:
             name = f"ma{win}"
             if win > len(bars):
                 continue
-            ma = moving_average(bars["close"], win)
+            ma = moving_average(self._bar_close, win)
             line = go.Scatter(
                 y=ma,
                 x=self.ticks,
@@ -310,7 +312,7 @@ class Candlestick:
 
         if use_close:
             support, resist, x_start = support_resist_lines(
-                bars["close"], upthres, downthres
+                self._bar_close, upthres, downthres
             )
             x = np.arange(len(bars))[x_start:]
 
@@ -334,7 +336,7 @@ class Candlestick:
             min_size : 矩形框的最小长度
 
         """
-        boxes = plateaus(self.bars["close"], min_size)
+        boxes = plateaus(self._bar_close, min_size)
         self.add_main_trace("bbox", boxes=boxes)
 
     def mark_backtest_result(self, result: dict):
@@ -413,7 +415,7 @@ class Candlestick:
         bars = self.bars
 
         flags = peaks_and_valleys(
-            bars["close"].astype(np.float64), up_thres, down_thres
+            self._bar_close, up_thres, down_thres
         )
 
         # 移除首尾的顶底标记，一般情况下它们都不是真正的顶和底。
@@ -475,8 +477,13 @@ class Candlestick:
             trace = go.Scatter(x=x, y=y, fill="toself", name=f"平台整理{j}", text=hover)
             self.main_traces[f"bbox-{j}"] = trace
 
-    def add_indicator(self, indicator: str):
-        """ "向k线图中增加技术指标"""
+    def add_indicator(self, indicator: str, **kwargs):
+        """向k线图中增加技术指标
+
+        Args:
+            indicator: 当前支持值有'volume', 'rsi', 'bbands'
+            kwargs: 计算某个indicator时，需要的参数。比如计算bbands时，需要传入均线的window
+        """
         if indicator == "volume":
             colors = np.repeat(self.RED, len(self.bars))
             colors[self.bars["close"] <= self.bars["open"]] = self.GREEN
@@ -488,13 +495,15 @@ class Candlestick:
                 marker={"color": colors},
             )
         elif indicator == "rsi":
-            rsi = talib.RSI(self.bars["close"].astype(np.float64))  # type: ignore
+            win = kwargs.get("win")
+            rsi = talib.RSI(self._bar_close, win) # type: ignore
             trace = go.Scatter(x=self.ticks, y=rsi, showlegend=False)
         elif indicator == "bbands":
             self._remove_ma()
+            win = kwargs.get("win")
             for name, ind in zip(
                 ["bbands-high", "bbands-mean", "bbands-low"],
-                talib.BBANDS(self.bars["close"].astype(np.float64)),  # type: ignore
+                talib.BBANDS(self._bar_close, win), # type: ignore
             ):
                 trace = go.Scatter(x=self.ticks, y=ind, showlegend=True, name=name)
                 self.main_traces[name] = trace
