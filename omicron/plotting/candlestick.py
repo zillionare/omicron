@@ -49,7 +49,7 @@ cs = Candlestick(bars,
         show_peaks=True
     )
 
-cs.add_indicator("bbands")
+cs.add_indicator("bbands", 20)
 cs.plot()
 ```
 ![](https://images.jieyu.ai/images/2023/05/20230508164728.png)
@@ -127,6 +127,8 @@ class Candlestick:
             show_volume: 是否显示成交量图
             show_rsi: 是否显示RSI图。缺省显示参数为6的RSI图。
             show_peaks: 是否标记检测出来的峰跟谷。
+        kwargs:
+            rsi_win: default is 6
         """
         self.title = title
         self.bars = bars
@@ -168,7 +170,7 @@ class Candlestick:
             self.add_main_trace("peaks")
 
         if show_rsi:
-            self.add_indicator("rsi")
+            self.add_indicator("rsi", win = kwargs.get("rsi_win", 6))
 
         # 增加均线
         if ma_groups is None:
