@@ -81,8 +81,8 @@ import plotly.graph_objects as go
 import talib
 from numpy._typing import NDArray
 from plotly.subplots import make_subplots
-from omicron.extensions import array_math_round
 
+from omicron.extensions import array_math_round
 from omicron.talib import (
     moving_average,
     peaks_and_valleys,
@@ -170,7 +170,7 @@ class Candlestick:
             self.add_main_trace("peaks")
 
         if show_rsi:
-            self.add_indicator("rsi", win = kwargs.get("rsi_win", 6))
+            self.add_indicator("rsi", win=kwargs.get("rsi_win", 6))
 
         # 增加均线
         if ma_groups is None:
@@ -416,9 +416,7 @@ class Candlestick:
         """
         bars = self.bars
 
-        flags = peaks_and_valleys(
-            self._bar_close, up_thres, down_thres
-        )
+        flags = peaks_and_valleys(self._bar_close, up_thres, down_thres)
 
         # 移除首尾的顶底标记，一般情况下它们都不是真正的顶和底。
         flags[0] = 0
@@ -498,14 +496,14 @@ class Candlestick:
             )
         elif indicator == "rsi":
             win = kwargs.get("win")
-            rsi = talib.RSI(self._bar_close, win) # type: ignore
+            rsi = talib.RSI(self._bar_close, win)  # type: ignore
             trace = go.Scatter(x=self.ticks, y=rsi, showlegend=False)
         elif indicator == "bbands":
             self._remove_ma()
             win = kwargs.get("win")
             for name, ind in zip(
                 ["bbands-high", "bbands-mean", "bbands-low"],
-                talib.BBANDS(self._bar_close, win), # type: ignore
+                talib.BBANDS(self._bar_close, win),  # type: ignore
             ):
                 trace = go.Scatter(x=self.ticks, y=ind, showlegend=True, name=name)
                 self.main_traces[name] = trace

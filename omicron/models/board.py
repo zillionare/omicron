@@ -65,8 +65,30 @@ class Board:
     @classmethod
     async def fuzzy_match_board_name(
         cls, pattern: str, _btype: BoardType = BoardType.CONCEPT
-    ):
-        # 模糊查询板块代码的名字
+    ) -> dict:
+        """模糊查询板块代码的名字
+
+        Examples:
+        ```python
+        await Board.fuzzy_match_board_name("汽车", BoardType.INDUSTRY)
+
+        # returns:
+        [
+            '881125 汽车整车',
+            '881126 汽车零部件',
+            '881127 非汽车交运',
+            '881128 汽车服务',
+            '884107 汽车服务Ⅲ',
+            '884194 汽车零部件Ⅲ'
+        ]
+        ```
+        Args:
+            pattern: 待查询模式串
+            _btype: 查询类型
+
+        Returns:
+            包含以下key的dict: code(板块代码), name（板块名）, stocks(股票数)
+        """
         if not pattern:
             return []
 
@@ -79,10 +101,20 @@ class Board:
         return rsp["data"]
 
     @classmethod
-    async def board_info_by_id(cls, board_id: str, full_mode: bool = False):
+    async def board_info_by_id(cls, board_id: str, full_mode: bool = False) -> dict:
         """通过板块代码查询板块信息（名字，成员数目或清单）
 
-        返回值：
+        Examples:
+        ```python
+        board_code = '881128' # 汽车服务 可自行修改
+        board_info = await Board.board_info_by_id(board_code)
+        print(board_info) # 字典形式
+
+        # returns
+        {'code': '881128', 'name': '汽车服务', 'stocks': 14}
+        ```
+
+        Returns:
             {'code': '301505', 'name': '医疗器械概念', 'stocks': 242}
             or
             {'code': '301505', 'name': '医疗器械概念', 'stocks': [['300916', '朗特智能'], ['300760', '迈瑞医疗']]}
@@ -111,10 +143,26 @@ class Board:
     @classmethod
     async def board_info_by_security(
         cls, security: str, _btype: BoardType = BoardType.CONCEPT
-    ):
+    ) -> List[dict]:
         """获取股票所在板块信息：名称，代码
 
-        返回值：
+        Examples:
+        ```python
+        stock_code = '002236'  # 大华股份，股票代码不带字母后缀
+        stock_in_board = await Board.board_info_by_security(stock_code, _btype=BoardType.CONCEPT)
+        print(stock_in_board)
+
+        # returns:
+        [
+            {'code': '301715', 'name': '证金持股', 'stocks': 208},
+            {'code': '308870', 'name': '数字经济', 'stocks': 195},
+            {'code': '308642', 'name': '数据中心', 'stocks': 188},
+            ...,
+            {'code': '300008', 'name': '新能源汽车', 'stocks': 603}
+        ]
+        ```
+
+        Returns:
             [{'code': '301505', 'name': '医疗器械概念'}]
         """
 
@@ -135,10 +183,14 @@ class Board:
         included: List[str],
         excluded: List[str] = [],
         _btype: BoardType = BoardType.CONCEPT,
-    ):
+    ) -> List:
         """根据板块名筛选股票，参数为include, exclude
 
-        返回值：
+        Fixme:
+            this function doesn't work
+            Raise status 500
+
+        Returns:
             [['300181', '佐力药业'], ['600056', '中国医药']]
         """
         if not included:
@@ -225,6 +277,22 @@ class Board:
     ) -> BarsArray:
         """从持久化数据库中获取介于[`start`, `end`]间的行情记录
 
+        Examples:
+        ```python
+        start = datetime.date(2022, 9, 1)  # 起始时间， 可修改
+        end = datetime.date(2023, 3, 1)  # 截止时间， 可修改
+        board_code = '881128' # 汽车服务， 可修改
+        bars = await Board.get_bars_in_range(board_code, start, end)
+        bars[-3:] # 打印后3条数据
+
+        # prints:
+        rec.array([
+            ('2023-02-27T00:00:00', 1117.748, 1124.364, 1108.741, 1109.525, 1.77208600e+08, 1.13933095e+09, 1.),
+            ('2023-02-28T00:00:00', 1112.246, 1119.568, 1109.827, 1113.43 , 1.32828124e+08, 6.65160380e+08, 1.),
+            ('2023-03-01T00:00:00', 1122.233, 1123.493, 1116.62 , 1123.274, 7.21718910e+07, 3.71172850e+08, 1.)
+           ],
+          dtype=[('frame', '<M8[s]'), ('open', '<f4'), ('high', '<f4'), ('low', '<f4'), ('close', '<f4'), ('volume', '<f8'), ('amount', '<f8'), ('factor', '<f4')])
+        ```
         Args:
             code: 板块代码（概念、行业）
             start: 起始时间

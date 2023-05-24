@@ -14,6 +14,7 @@ nav:
     - triggers: api/triggers.md
     - stock: api/stock.md
     - security: api/security.md
+    - board: api/board.md
     - metrics: api/metrics.md
     - talib: api/talib.md
     - strategy: api/strategy.md

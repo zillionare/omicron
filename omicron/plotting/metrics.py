@@ -161,7 +161,7 @@ class MetricsGraph:
             header=dict(values=["指标名", "策略", baseline_name]),
             cells=dict(
                 values=[
-                    [v for _,v in metric_names.items()],
+                    [v for _, v in metric_names.items()],
                     metrics_formatted,
                     baseline_formatted,
                 ],
@@ -214,7 +214,7 @@ class MetricsGraph:
             mode="markers",
             text=data_buy,
             name="买入成交",
-            marker = dict(color='red', symbol='triangle-up'),
+            marker=dict(color="red", symbol="triangle-up"),
         )
 
         for dt, text in sells.items():
@@ -232,7 +232,7 @@ class MetricsGraph:
             mode="markers",
             text=data_sell,
             name="卖出成交",
-            marker = dict(color='green', symbol='triangle-down'),
+            marker=dict(color="green", symbol="triangle-down"),
         )
 
         return trace_buy, trace_sell
