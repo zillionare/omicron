@@ -1,0 +1,3066 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+    
+    
+      
+        <title>Flux - Omicron</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.975780f9.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.2505c338.min.css">
+        
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="None" data-md-color-accent="None">
+  
+    
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#flux---the-query-language-builder-for-influxdb" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Omicron" class="md-header__button md-logo" aria-label="Omicron" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Omicron
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Flux
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/zillionare/omicron" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    omicron
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Omicron" class="md-nav__button md-logo" aria-label="Omicron" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Omicron
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/zillionare/omicron" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    omicron
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        简介
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../installation/" class="md-nav__link">
+        安装
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/" class="md-nav__link">
+        教程
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../history/" class="md-nav__link">
+        版本历史
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../developer/" class="md-nav__link">
+        开发者文档
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6" type="checkbox" id="__nav_6" checked>
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6">
+          API文档
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="API文档" data-md-level="1">
+        <label class="md-nav__title" for="__nav_6">
+          <span class="md-nav__icon md-icon"></span>
+          API文档
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../omicron/" class="md-nav__link">
+        omicron
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../timeframe/" class="md-nav__link">
+        timeframe
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../triggers/" class="md-nav__link">
+        triggers
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stock/" class="md-nav__link">
+        stock
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        security
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../board/" class="md-nav__link">
+        board
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/" class="md-nav__link">
+        metrics
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../talib/" class="md-nav__link">
+        talib
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../strategy/" class="md-nav__link">
+        strategy
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6_10" type="checkbox" id="__nav_6_10" >
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6_10">
+          plotting
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="plotting" data-md-level="2">
+        <label class="md-nav__title" for="__nav_6_10">
+          <span class="md-nav__icon md-icon"></span>
+          plotting
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plotting/candlestick/" class="md-nav__link">
+        CandleStick
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plotting/metrics/" class="md-nav__link">
+        MetricsGraph
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_6_11" type="checkbox" id="__nav_6_11" checked>
+      
+      
+      
+      
+        <label class="md-nav__link" for="__nav_6_11">
+          dal
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="dal" data-md-level="2">
+        <label class="md-nav__title" for="__nav_6_11">
+          <span class="md-nav__icon md-icon"></span>
+          dal
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Flux
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Flux
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#flux---the-query-language-builder-for-influxdb" class="md-nav__link">
+    Flux - the query language builder for influxdb
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux" class="md-nav__link">
+    omicron.dal.influx.flux.Flux
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.cols" class="md-nav__link">
+    cols
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.__init__" class="md-nav__link">
+    __init__()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.bucket" class="md-nav__link">
+    bucket()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.delete" class="md-nav__link">
+    delete()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.drop" class="md-nav__link">
+    drop()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.drop_sys_cols" class="md-nav__link">
+    drop_sys_cols()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.fields" class="md-nav__link">
+    fields()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.format_time" class="md-nav__link">
+    format_time()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.group" class="md-nav__link">
+    group()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.latest" class="md-nav__link">
+    latest()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.limit" class="md-nav__link">
+    limit()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.measurement" class="md-nav__link">
+    measurement()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.pivot" class="md-nav__link">
+    pivot()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.range" class="md-nav__link">
+    range()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.sort" class="md-nav__link">
+    sort()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.tags" class="md-nav__link">
+    tags()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.to_timestamp" class="md-nav__link">
+    to_timestamp()
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../influxclient/" class="md-nav__link">
+        InfluxClient
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serialize/" class="md-nav__link">
+        Serialize
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#flux---the-query-language-builder-for-influxdb" class="md-nav__link">
+    Flux - the query language builder for influxdb
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux" class="md-nav__link">
+    omicron.dal.influx.flux.Flux
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.cols" class="md-nav__link">
+    cols
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.__init__" class="md-nav__link">
+    __init__()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.bucket" class="md-nav__link">
+    bucket()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.delete" class="md-nav__link">
+    delete()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.drop" class="md-nav__link">
+    drop()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.drop_sys_cols" class="md-nav__link">
+    drop_sys_cols()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.fields" class="md-nav__link">
+    fields()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.format_time" class="md-nav__link">
+    format_time()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.group" class="md-nav__link">
+    group()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.latest" class="md-nav__link">
+    latest()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.limit" class="md-nav__link">
+    limit()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.measurement" class="md-nav__link">
+    measurement()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.pivot" class="md-nav__link">
+    pivot()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.range" class="md-nav__link">
+    range()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.sort" class="md-nav__link">
+    sort()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.tags" class="md-nav__link">
+    tags()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#omicron.dal.influx.flux.Flux.to_timestamp" class="md-nav__link">
+    to_timestamp()
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  <a href="https://github.com/zillionare/omicron/edit/master/docs/api/dal/flux.md" title="Edit this page" class="md-content__button md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+  </a>
+
+
+  <h1>Flux</h1>
+
+<h3 id="flux---the-query-language-builder-for-influxdb">Flux - the query language builder for influxdb<a class="headerlink" href="#flux---the-query-language-builder-for-influxdb" title="Permanent link">&para;</a></h3>
+
+
+  <div class="doc doc-object doc-class">
+
+<a id="omicron.dal.influx.flux.Flux"></a>
+    <div class="doc doc-contents first">
+
+      <p>Helper functions for building flux query expression</p>
+
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">Flux</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper functions for building flux query expression&quot;&quot;&quot;</span>
+
+    <span class="n">EPOCH_START</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1970</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_pivot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">no_sys_cols</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;初始化Flux对象</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            auto_pivot : 是否自动将查询列字段组装成行. Defaults to True.</span>
+<span class="sd">            no_sys_cols: 是否自动将系统字段删除. Defaults to True.请参考[drop_sys_cols][omicron.dal.influx.flux.Flux.drop_sys_cols]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_pivot</span> <span class="o">=</span> <span class="n">auto_pivot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_sys_cols</span> <span class="o">=</span> <span class="n">no_sys_cols</span>
+
+    <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compose</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&gt;:</span><span class="se">\n</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_compose</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_compose</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;将所有表达式合并为一个表达式&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s2">&quot;bucket&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">,</span>
+                <span class="s2">&quot;measurement&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">,</span>
+                <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;bucket, measurement and range must be set&quot;</span><span class="p">)</span>
+
+        <span class="n">expr</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bucket&quot;</span><span class="p">,</span> <span class="s2">&quot;range&quot;</span><span class="p">,</span> <span class="s2">&quot;measurement&quot;</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tags&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;tags&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fields&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;fields&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="s2">&quot;drop&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">no_sys_cols</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">drop_sys_cols</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;drop&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;drop&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_pivot</span> <span class="ow">and</span> <span class="s2">&quot;pivot&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pivot</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pivot&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;pivot&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sort&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;sort&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">):</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">])</span>
+
+        <span class="c1"># influxdb默认按升序排列，但last_n查询的结果则必然是降序的，所以还需要再次排序</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span><span class="p">:</span>
+            <span class="n">expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="sa">f</span><span class="s1">&#39; |&gt; top(n: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span><span class="si">}</span><span class="s1">, columns: [&quot;_time&quot;])&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39; |&gt; sort(columns: [&quot;_time&quot;], desc: false)&#39;</span><span class="p">,</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">bucket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;add bucket to query expression</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一个查询中只允许指定一个source，如果表达式中已经指定了bucket，则抛出异常</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;bucket&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;bucket has been set&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;bucket&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;from(bucket: &quot;</span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;add measurement filter to query</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一次查询中只允许指定一个measurement, 如果表达式中已经存在measurement, 则抛出异常</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象自身，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;measurement&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;measurement has been set&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span>
+            <span class="s2">&quot;measurement&quot;</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;  |&gt; filter(fn: (r) =&gt; r[&quot;_measurement&quot;] == &quot;</span><span class="si">{</span><span class="n">measurement</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">range</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">right_close</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s2">&quot;s&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;添加时间范围过滤</span>
+
+<span class="sd">        必须指定的查询条件，否则influxdb会报unbound查询错，因为这种情况下，返回的数据量将非常大。</span>
+
+<span class="sd">        在格式化时间时，需要根据`precision`生成时间字符串。在向Influxdb发送请求时，应该注意查询参数中指定的时间精度与这里使用的保持一致。</span>
+
+<span class="sd">        Influxdb的查询结果默认不包含结束时间，当`right_close`指定为True时，我们将根据指定的精度修改`end`时间，使之仅比`end`多一个时间单位，从而保证查询结果会包含`end`。</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一个查询中只允许指定一次时间范围，如果range表达式已经存在，则抛出异常</span>
+<span class="sd">        Args:</span>
+<span class="sd">            start: 开始时间</span>
+<span class="sd">            end: 结束时间</span>
+<span class="sd">            right_close: 查询结果是否包含结束时间。</span>
+<span class="sd">            precision: 时间精度，默认为秒。</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以支持管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;range has been set&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">precision</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;precision must be &#39;s&#39;, &#39;ms&#39; or &#39;us&#39;&quot;</span><span class="p">)</span>
+
+        <span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">precision</span><span class="p">,</span> <span class="n">right_close</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">precision</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;range&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; range(start: </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">, stop: </span><span class="si">{</span><span class="n">end</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">limit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;添加返回记录数限制</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一个查询中只允许指定一次limit，如果limit表达式已经存在，则抛出异常</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            limit: 返回记录数限制</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;limit&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;limit has been set&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;  |&gt; limit(n: </span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">limit</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">to_timestamp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tm</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;将时间根据精度转换为unix时间戳</span>
+
+<span class="sd">        在往influxdb写入数据时，line-protocol要求的时间戳为unix timestamp，并且与其精度对应。</span>
+
+<span class="sd">        influxdb始终使用UTC时间，因此，`tm`也必须已经转换成UTC时间。</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tm: 时间</span>
+<span class="sd">            precision: 时间精度，默认为秒。</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            时间戳</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">precision</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;precision must be &#39;s&#39;, &#39;ms&#39; or &#39;us&#39;&quot;</span><span class="p">)</span>
+
+        <span class="c1"># get int repr of tm, in seconds unit</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">datetime64</span><span class="p">):</span>
+            <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;datetime64[s]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;int&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+            <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tm</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tm</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">tm</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">({</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">}[</span><span class="n">precision</span><span class="p">]))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">format_time</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tm</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="n">shift_forward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;将时间转换成客户端对应的精度，并以 RFC3339 timestamps格式串（即influxdb要求的格式）返回。</span>
+
+<span class="sd">        如果这个时间是作为查询的range中的结束时间使用时，由于influx查询的时间范围是左闭右开的，因此如果你需要查询的是一个闭区间，则需要将`end`的时间向前偏移一个精度。通过传入`shift_forward = True`可以完成这种转换。</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; # by default, the precision is seconds, and convert a date</span>
+<span class="sd">            &gt;&gt;&gt; Flux.format_time(datetime.date(2019, 1, 1))</span>
+<span class="sd">            &#39;2019-01-01T00:00:00Z&#39;</span>
+
+<span class="sd">            &gt;&gt;&gt; # set precision to ms, convert a time</span>
+<span class="sd">            &gt;&gt;&gt; Flux.format_time(datetime.datetime(1978, 7, 8, 12, 34, 56, 123456), precision=&quot;ms&quot;)</span>
+<span class="sd">            &#39;1978-07-08T12:34:56.123Z&#39;</span>
+
+<span class="sd">            &gt;&gt;&gt; # convert and forward shift</span>
+<span class="sd">            &gt;&gt;&gt; Flux.format_time(datetime.date(1978, 7, 8), shift_forward = True)</span>
+<span class="sd">            &#39;1978-07-08T00:00:01Z&#39;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tm : 待格式化的时间</span>
+<span class="sd">            precision: 时间精度，可选值为：&#39;s&#39;, &#39;ms&#39;, &#39;us&#39;</span>
+<span class="sd">            shift_forward: 如果为True，则将end向前偏移一个精度</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            调整后符合influx时间规范的时间（字符串表示）</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">timespec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="s2">&quot;milliseconds&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="s2">&quot;microseconds&quot;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">precision</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">timespec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;precision must be one of &#39;s&#39;, &#39;ms&#39;, &#39;us&#39;, but got </span><span class="si">{</span><span class="n">precision</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">tm</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tm</span><span class="p">)</span><span class="o">.</span><span class="n">naive</span>
+
+        <span class="k">if</span> <span class="n">shift_forward</span><span class="p">:</span>
+            <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">timespec</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">tm</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">sep</span><span class="o">=</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;Z&quot;</span>
+
+    <span class="k">def</span> <span class="nf">tags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tags</span><span class="p">:</span> <span class="n">DefaultDict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;给查询添加tags过滤条件</span>
+
+<span class="sd">        此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。</span>
+
+<span class="sd">        在实现上，既可以使用`contains`语法，也可以使用`or`语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`)。经验证，contains语法会始终先将所有符合条件的记录检索出来，再进行过滤。这样的效率比较低，特别是当tags的数量较少时，会远远比使用or语法慢。</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一个查询中只允许执行一次，如果tag filter表达式已经存在，则抛出异常</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tags : tags是一个{tagname: Union[str,[tag_values]]}对象。</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; flux = Flux()</span>
+<span class="sd">            &gt;&gt;&gt; flux.tags({&quot;code&quot;: [&quot;000001&quot;, &quot;000002&quot;], &quot;name&quot;: [&quot;浦发银行&quot;]}).expressions[&quot;tags&quot;]</span>
+<span class="sd">            &#39;  |&gt; filter(fn: (r) =&gt; r[&quot;code&quot;] == &quot;000001&quot; or r[&quot;code&quot;] == &quot;000002&quot; or r[&quot;name&quot;] == &quot;浦发银行&quot;)&#39;</span>
+
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;tags&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;tags has been set&quot;</span><span class="p">)</span>
+
+        <span class="n">filters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;tag </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2"> should not be empty or None&quot;</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+                <span class="n">filters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;r[&quot;</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s1">&quot;] == &quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+        <span class="n">op_expression</span> <span class="o">=</span> <span class="s2">&quot; or &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filters</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;tags&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; filter(fn: (r) =&gt; </span><span class="si">{</span><span class="n">op_expression</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">reserve_time_stamp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;给查询添加field过滤条件</span>
+
+<span class="sd">        此查询条件为过滤条件，用以指定哪些field会出现在查询结果中，并非必须。如果查询中没有指定tags，则会返回所有记录。</span>
+
+<span class="sd">        由于一条记录只能属于一个_field，所以，当指定多个_field进行查询时，它们之间的关系应该为`or`。</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DuplicateOperationError: 一个查询中只允许执行一次，如果filed filter表达式已经存在，则抛出异常</span>
+<span class="sd">        Args:</span>
+<span class="sd">            fields: 待查询的field列表</span>
+<span class="sd">            reserve_time_stamp: 是否保留时间戳`_time`，默认为True</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;fields&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;fields has been set&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="n">fields</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">reserve_time_stamp</span> <span class="ow">and</span> <span class="s2">&quot;_time&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;_time&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">)</span>
+
+        <span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;r[&quot;_field&quot;] == &quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;fields&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; filter(fn: (r) =&gt; </span><span class="si">{</span><span class="s1">&#39; or &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filters</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">pivot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">row_keys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_time&quot;</span><span class="p">],</span>
+        <span class="n">column_keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;_field&quot;</span><span class="p">],</span>
+        <span class="n">value_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;_value&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;pivot用来将以列为单位的数据转换为以行为单位的数据</span>
+
+<span class="sd">        Flux查询返回的结果通常都是以列为单位的数据，增加本pivot条件后，结果将被转换成为以行为单位的数据再返回。</span>
+
+<span class="sd">        这里实现的是measurement内的转换，请参考 [pivot](https://docs.influxdata.com/flux/v0.x/stdlib/universe/pivot/#align-fields-within-each-measurement-that-have-the-same-timestamp)</span>
+
+
+<span class="sd">        Args:</span>
+<span class="sd">            row_keys: 惟一确定输出中一行数据的列名字, 默认为[&quot;_time&quot;]</span>
+<span class="sd">            column_keys: 列名称列表，默认为[&quot;_field&quot;]</span>
+<span class="sd">            value_column: 值列名，默认为&quot;_value&quot;</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;pivot&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;pivot has been set&quot;</span><span class="p">)</span>
+
+        <span class="n">columns</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">column_keys</span><span class="p">])</span>
+        <span class="n">rowkeys</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">row_keys</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span>
+            <span class="s2">&quot;pivot&quot;</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;  |&gt; pivot(columnKey: [</span><span class="si">{</span><span class="n">columns</span><span class="si">}</span><span class="s1">], rowKey: [</span><span class="si">{</span><span class="n">rowkeys</span><span class="si">}</span><span class="s1">], valueColumn: &quot;</span><span class="si">{</span><span class="n">value_column</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">desc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;按照指定的列进行排序</span>
+
+<span class="sd">        根据[influxdb doc](https://docs.influxdata.com/influxdb/v2.0/query-data/flux/first-last/), 查询返回值默认地按时间排序。因此，如果仅仅是要求查询结果按时间排序，无须调用此API，但是，此API提供了按其它字段排序的能力。</span>
+
+<span class="sd">        另外，在一个有5000多个tag，共返回1M条记录的测试中，测试验证返回记录确实按_time升序排列。</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            by: 指定排序的列名称列表</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;sort&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;sort has been set&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">by</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_value&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">by</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="n">by</span><span class="p">]</span>
+
+        <span class="n">columns_</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">by</span><span class="p">])</span>
+
+        <span class="n">desc</span> <span class="o">=</span> <span class="s2">&quot;true&quot;</span> <span class="k">if</span> <span class="n">desc</span> <span class="k">else</span> <span class="s2">&quot;false&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;sort&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; sort(columns: [</span><span class="si">{</span><span class="n">columns_</span><span class="si">}</span><span class="s2">], desc: </span><span class="si">{</span><span class="n">desc</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;[summary]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [description]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;group&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;group has been set&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">by</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="n">by</span><span class="p">]</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">by</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; group(columns: [</span><span class="si">{</span><span class="n">cols</span><span class="si">}</span><span class="s2">])&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">latest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;获取最后n条数据，按时间增序返回</span>
+
+<span class="sd">        Flux查询的增强功能，相当于top + sort + limit</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n: 最后n条数据</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux对象，以便进行管道操作</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="s2">&quot;top&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">,</span> <span class="s2">&quot;top and last_n can not be used together&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="s2">&quot;sort&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span>
+        <span class="p">),</span> <span class="s2">&quot;sort and last_n can not be used together&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="s2">&quot;limit&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span>
+        <span class="p">),</span> <span class="s2">&quot;limit and last_n can not be used together&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span> <span class="o">=</span> <span class="n">n</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cols</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;the columns or the return records</span>
+
+<span class="sd">        the implementation is buggy. Influx doesn&#39;t tell us in which order these columns are.</span>
+
+
+<span class="sd">        Returns:</span>
+<span class="sd">            the columns name of the return records</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># fixme: if keep in expression, then return group key + tag key + value key</span>
+        <span class="c1"># if keep not in expression, then stream, table, _time, ...</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">stop</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span>
+        <span class="n">tags</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">start</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;构建删除语句。</span>
+
+<span class="sd">        according to [delete-predicate](https://docs.influxdata.com/influxdb/v2.1/reference/syntax/delete-predicate/), delete只支持AND逻辑操作，只支持“=”操作，不支持“！=”操作，可以使用任何字段或者tag，但不包括_time和_value字段。</span>
+
+<span class="sd">        由于influxdb这一段文档不是很清楚，根据试验结果，目前仅支持按时间范围和tags进行删除较好。如果某个column的值类型是字符串，则也可以通过`tags`参数传入，匹配后删除。但如果传入了非字符串类型的column，则将得到无法预料的结果。</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            measurement : [description]</span>
+<span class="sd">            stop : [description]</span>
+<span class="sd">            tags : 按tags和匹配的值进行删除。传入的tags中，key为tag名称，value为tag要匹配的取值，可以为str或者List[str]。</span>
+<span class="sd">            start : 起始时间。如果省略，则使用EPOCH_START.</span>
+<span class="sd">            precision : 时间精度。可以为“s”，“ms”，“us”</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            删除语句</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">timespec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="s2">&quot;milliseconds&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="s2">&quot;microseconds&quot;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">precision</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EPOCH_START</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;Z&quot;</span>
+
+        <span class="n">predicate</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;_measurement=&quot;</span><span class="si">{</span><span class="n">measurement</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">predicate</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1"> = &quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">predicate</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1"> = &quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;start&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span>
+            <span class="s2">&quot;stop&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">stop</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span><span class="si">}</span><span class="s2">Z&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;predicate&quot;</span><span class="p">:</span> <span class="s2">&quot; AND &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">predicate</span><span class="p">),</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">command</span>
+
+    <span class="k">def</span> <span class="nf">drop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;use this to drop columns before return result</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cols : the name of columns to be dropped</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux object, to support pipe operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;drop&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;drop operation has been set already&quot;</span><span class="p">)</span>
+
+        <span class="c1"># add surrounding quotes</span>
+        <span class="n">_cols</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;drop&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; drop(columns: [</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_cols</span><span class="p">)</span><span class="si">}</span><span class="s2">])&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">drop_sys_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;use this to drop [&quot;_start&quot;, &quot;_stop&quot;, &quot;_measurement&quot;], plus columns specified in `cols`, before return query result</span>
+
+<span class="sd">        please be noticed, after drop sys columns, there&#39;s still two sys columns left, which is &quot;_time&quot; and &quot;table&quot;, and &quot;_time&quot; should usually be kept, &quot;table&quot; is one we&#39;re not able to removed. If you don&#39;t like _time in return result, you can specify it in `cols` parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cols : the extra columns to be dropped</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Flux query object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_start&quot;</span><span class="p">,</span> <span class="s2">&quot;_stop&quot;</span><span class="p">,</span> <span class="s2">&quot;_measurement&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">cols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">_cols</span><span class="p">)</span>
+</code></pre></div>
+        </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+  <div class="doc doc-object doc-attribute">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.cols" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></code>
+
+  <span class="doc doc-properties">
+      <small class="doc doc-property doc-property-property"><code>property</code></small>
+      <small class="doc doc-property doc-property-readonly"><code>readonly</code></small>
+  </span>
+
+<a href="#omicron.dal.influx.flux.Flux.cols" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>the columns or the return records</p>
+<p>the implementation is buggy. Influx doesn't tell us in which order these columns are.</p>
+
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>List[str]</code></td>
+      <td><p>the columns name of the return records</p></td>
+    </tr>
+  </tbody>
+</table>    </div>
+
+  </div>
+
+
+
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.__init__" class="doc doc-heading">
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_pivot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">no_sys_cols</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+  <span class="doc doc-properties">
+      <small class="doc doc-property doc-property-special"><code>special</code></small>
+  </span>
+
+<a href="#omicron.dal.influx.flux.Flux.__init__" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>初始化Flux对象</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>auto_pivot</code></td>
+        <td></td>
+        <td><p>是否自动将查询列字段组装成行. Defaults to True.</p></td>
+        <td><code>True</code></td>
+      </tr>
+      <tr>
+        <td><code>no_sys_cols</code></td>
+        <td></td>
+        <td><p>是否自动将系统字段删除. Defaults to True.请参考<a href="#omicron.dal.influx.flux.Flux.drop_sys_cols">drop_sys_cols</a></p></td>
+        <td><code>True</code></td>
+      </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_pivot</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">no_sys_cols</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;初始化Flux对象</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        auto_pivot : 是否自动将查询列字段组装成行. Defaults to True.</span>
+<span class="sd">        no_sys_cols: 是否自动将系统字段删除. Defaults to True.请参考[drop_sys_cols][omicron.dal.influx.flux.Flux.drop_sys_cols]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_auto_pivot</span> <span class="o">=</span> <span class="n">auto_pivot</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">no_sys_cols</span> <span class="o">=</span> <span class="n">no_sys_cols</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.bucket" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">bucket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.bucket" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>add bucket to query expression</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一个查询中只允许指定一个source，如果表达式中已经指定了bucket，则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">bucket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;add bucket to query expression</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一个查询中只允许指定一个source，如果表达式中已经指定了bucket，则抛出异常</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;bucket&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;bucket has been set&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;bucket&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;from(bucket: &quot;</span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.delete" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">{},</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.delete" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>构建删除语句。</p>
+<p>according to <a href="https://docs.influxdata.com/influxdb/v2.1/reference/syntax/delete-predicate/">delete-predicate</a>, delete只支持AND逻辑操作，只支持“=”操作，不支持“！=”操作，可以使用任何字段或者tag，但不包括_time和_value字段。</p>
+<p>由于influxdb这一段文档不是很清楚，根据试验结果，目前仅支持按时间范围和tags进行删除较好。如果某个column的值类型是字符串，则也可以通过<code>tags</code>参数传入，匹配后删除。但如果传入了非字符串类型的column，则将得到无法预料的结果。</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>measurement</code></td>
+        <td></td>
+        <td><p>[description]</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>stop</code></td>
+        <td></td>
+        <td><p>[description]</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>tags</code></td>
+        <td></td>
+        <td><p>按tags和匹配的值进行删除。传入的tags中，key为tag名称，value为tag要匹配的取值，可以为str或者List[str]。</p></td>
+        <td><code>{}</code></td>
+      </tr>
+      <tr>
+        <td><code>start</code></td>
+        <td></td>
+        <td><p>起始时间。如果省略，则使用EPOCH_START.</p></td>
+        <td><code>None</code></td>
+      </tr>
+      <tr>
+        <td><code>precision</code></td>
+        <td></td>
+        <td><p>时间精度。可以为“s”，“ms”，“us”</p></td>
+        <td><code>&#39;s&#39;</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>dict</code></td>
+      <td><p>删除语句</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">delete</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">stop</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">,</span>
+    <span class="n">tags</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="n">start</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;构建删除语句。</span>
+
+<span class="sd">    according to [delete-predicate](https://docs.influxdata.com/influxdb/v2.1/reference/syntax/delete-predicate/), delete只支持AND逻辑操作，只支持“=”操作，不支持“！=”操作，可以使用任何字段或者tag，但不包括_time和_value字段。</span>
+
+<span class="sd">    由于influxdb这一段文档不是很清楚，根据试验结果，目前仅支持按时间范围和tags进行删除较好。如果某个column的值类型是字符串，则也可以通过`tags`参数传入，匹配后删除。但如果传入了非字符串类型的column，则将得到无法预料的结果。</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        measurement : [description]</span>
+<span class="sd">        stop : [description]</span>
+<span class="sd">        tags : 按tags和匹配的值进行删除。传入的tags中，key为tag名称，value为tag要匹配的取值，可以为str或者List[str]。</span>
+<span class="sd">        start : 起始时间。如果省略，则使用EPOCH_START.</span>
+<span class="sd">        precision : 时间精度。可以为“s”，“ms”，“us”</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        删除语句</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timespec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="s2">&quot;milliseconds&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="s2">&quot;microseconds&quot;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">precision</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EPOCH_START</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;Z&quot;</span>
+
+    <span class="n">predicate</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;_measurement=&quot;</span><span class="si">{</span><span class="n">measurement</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">predicate</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1"> = &quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">predicate</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1"> = &quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+    <span class="n">command</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;start&quot;</span><span class="p">:</span> <span class="n">start</span><span class="p">,</span>
+        <span class="s2">&quot;stop&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">stop</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span><span class="si">}</span><span class="s2">Z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;predicate&quot;</span><span class="p">:</span> <span class="s2">&quot; AND &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">predicate</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">command</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.drop" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">drop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.drop" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>use this to drop columns before return result</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>cols</code></td>
+        <td></td>
+        <td><p>the name of columns to be dropped</p></td>
+        <td><em>required</em></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux object, to support pipe operation</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">drop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;use this to drop columns before return result</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cols : the name of columns to be dropped</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux object, to support pipe operation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;drop&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;drop operation has been set already&quot;</span><span class="p">)</span>
+
+    <span class="c1"># add surrounding quotes</span>
+    <span class="n">_cols</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;drop&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; drop(columns: [</span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_cols</span><span class="p">)</span><span class="si">}</span><span class="s2">])&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.drop_sys_cols" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">drop_sys_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.drop_sys_cols" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>use this to drop ["_start", "_stop", "_measurement"], plus columns specified in <code>cols</code>, before return query result</p>
+<p>please be noticed, after drop sys columns, there's still two sys columns left, which is "_time" and "table", and "_time" should usually be kept, "table" is one we're not able to removed. If you don't like _time in return result, you can specify it in <code>cols</code> parameter.</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>cols</code></td>
+        <td></td>
+        <td><p>the extra columns to be dropped</p></td>
+        <td><code>None</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux query object</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">drop_sys_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;use this to drop [&quot;_start&quot;, &quot;_stop&quot;, &quot;_measurement&quot;], plus columns specified in `cols`, before return query result</span>
+
+<span class="sd">    please be noticed, after drop sys columns, there&#39;s still two sys columns left, which is &quot;_time&quot; and &quot;table&quot;, and &quot;_time&quot; should usually be kept, &quot;table&quot; is one we&#39;re not able to removed. If you don&#39;t like _time in return result, you can specify it in `cols` parameter.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cols : the extra columns to be dropped</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux query object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_start&quot;</span><span class="p">,</span> <span class="s2">&quot;_stop&quot;</span><span class="p">,</span> <span class="s2">&quot;_measurement&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">cols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">_cols</span><span class="p">)</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.fields" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">reserve_time_stamp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.fields" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>给查询添加field过滤条件</p>
+<p>此查询条件为过滤条件，用以指定哪些field会出现在查询结果中，并非必须。如果查询中没有指定tags，则会返回所有记录。</p>
+<p>由于一条记录只能属于一个_field，所以，当指定多个_field进行查询时，它们之间的关系应该为<code>or</code>。</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一个查询中只允许执行一次，如果filed filter表达式已经存在，则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>fields</code></td>
+        <td><code>List</code></td>
+        <td><p>待查询的field列表</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>reserve_time_stamp</code></td>
+        <td><code>bool</code></td>
+        <td><p>是否保留时间戳<code>_time</code>，默认为True</p></td>
+        <td><code>True</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">reserve_time_stamp</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;给查询添加field过滤条件</span>
+
+<span class="sd">    此查询条件为过滤条件，用以指定哪些field会出现在查询结果中，并非必须。如果查询中没有指定tags，则会返回所有记录。</span>
+
+<span class="sd">    由于一条记录只能属于一个_field，所以，当指定多个_field进行查询时，它们之间的关系应该为`or`。</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一个查询中只允许执行一次，如果filed filter表达式已经存在，则抛出异常</span>
+<span class="sd">    Args:</span>
+<span class="sd">        fields: 待查询的field列表</span>
+<span class="sd">        reserve_time_stamp: 是否保留时间戳`_time`，默认为True</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;fields&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;fields has been set&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="n">fields</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">reserve_time_stamp</span> <span class="ow">and</span> <span class="s2">&quot;_time&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;_time&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">)</span>
+
+    <span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;r[&quot;_field&quot;] == &quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cols</span><span class="p">]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;fields&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; filter(fn: (r) =&gt; </span><span class="si">{</span><span class="s1">&#39; or &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filters</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.format_time" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">format_time</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">shift_forward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+  <span class="doc doc-properties">
+      <small class="doc doc-property doc-property-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omicron.dal.influx.flux.Flux.format_time" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>将时间转换成客户端对应的精度，并以 RFC3339 timestamps格式串（即influxdb要求的格式）返回。</p>
+<p>如果这个时间是作为查询的range中的结束时间使用时，由于influx查询的时间范围是左闭右开的，因此如果你需要查询的是一个闭区间，则需要将<code>end</code>的时间向前偏移一个精度。通过传入<code>shift_forward = True</code>可以完成这种转换。</p>
+
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="c1"># by default, the precision is seconds, and convert a date</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Flux</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+<span class="s1">&#39;2019-01-01T00:00:00Z&#39;</span>
+</code></pre></div>
+    <div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="c1"># set precision to ms, convert a time</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Flux</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="mi">1978</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">34</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">123456</span><span class="p">),</span> <span class="n">precision</span><span class="o">=</span><span class="s2">&quot;ms&quot;</span><span class="p">)</span>
+<span class="s1">&#39;1978-07-08T12:34:56.123Z&#39;</span>
+</code></pre></div>
+    <div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="c1"># convert and forward shift</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Flux</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">(</span><span class="mi">1978</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">shift_forward</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+<span class="s1">&#39;1978-07-08T00:00:01Z&#39;</span>
+</code></pre></div>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>tm</code></td>
+        <td></td>
+        <td><p>待格式化的时间</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>precision</code></td>
+        <td><code>str</code></td>
+        <td><p>时间精度，可选值为：'s', 'ms', 'us'</p></td>
+        <td><code>&#39;s&#39;</code></td>
+      </tr>
+      <tr>
+        <td><code>shift_forward</code></td>
+        <td></td>
+        <td><p>如果为True，则将end向前偏移一个精度</p></td>
+        <td><code>False</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>str</code></td>
+      <td><p>调整后符合influx时间规范的时间（字符串表示）</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">format_time</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tm</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="n">shift_forward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;将时间转换成客户端对应的精度，并以 RFC3339 timestamps格式串（即influxdb要求的格式）返回。</span>
+
+<span class="sd">    如果这个时间是作为查询的range中的结束时间使用时，由于influx查询的时间范围是左闭右开的，因此如果你需要查询的是一个闭区间，则需要将`end`的时间向前偏移一个精度。通过传入`shift_forward = True`可以完成这种转换。</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; # by default, the precision is seconds, and convert a date</span>
+<span class="sd">        &gt;&gt;&gt; Flux.format_time(datetime.date(2019, 1, 1))</span>
+<span class="sd">        &#39;2019-01-01T00:00:00Z&#39;</span>
+
+<span class="sd">        &gt;&gt;&gt; # set precision to ms, convert a time</span>
+<span class="sd">        &gt;&gt;&gt; Flux.format_time(datetime.datetime(1978, 7, 8, 12, 34, 56, 123456), precision=&quot;ms&quot;)</span>
+<span class="sd">        &#39;1978-07-08T12:34:56.123Z&#39;</span>
+
+<span class="sd">        &gt;&gt;&gt; # convert and forward shift</span>
+<span class="sd">        &gt;&gt;&gt; Flux.format_time(datetime.date(1978, 7, 8), shift_forward = True)</span>
+<span class="sd">        &#39;1978-07-08T00:00:01Z&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tm : 待格式化的时间</span>
+<span class="sd">        precision: 时间精度，可选值为：&#39;s&#39;, &#39;ms&#39;, &#39;us&#39;</span>
+<span class="sd">        shift_forward: 如果为True，则将end向前偏移一个精度</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        调整后符合influx时间规范的时间（字符串表示）</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timespec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="s2">&quot;milliseconds&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="s2">&quot;microseconds&quot;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">precision</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">timespec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;precision must be one of &#39;s&#39;, &#39;ms&#39;, &#39;us&#39;, but got </span><span class="si">{</span><span class="n">precision</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">tm</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tm</span><span class="p">)</span><span class="o">.</span><span class="n">naive</span>
+
+    <span class="k">if</span> <span class="n">shift_forward</span><span class="p">:</span>
+        <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="n">timespec</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">tm</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">sep</span><span class="o">=</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="n">timespec</span><span class="o">=</span><span class="n">timespec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;Z&quot;</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.group" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.group" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>[summary]</p>
+
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>[description]</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;[summary]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        [description]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;group&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;group has been set&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">by</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="n">by</span><span class="p">]</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">by</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; group(columns: [</span><span class="si">{</span><span class="n">cols</span><span class="si">}</span><span class="s2">])&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.latest" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">latest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.latest" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>获取最后n条数据，按时间增序返回</p>
+<p>Flux查询的增强功能，相当于top + sort + limit</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>n</code></td>
+        <td><code>int</code></td>
+        <td><p>最后n条数据</p></td>
+        <td><em>required</em></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">latest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;获取最后n条数据，按时间增序返回</span>
+
+<span class="sd">    Flux查询的增强功能，相当于top + sort + limit</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n: 最后n条数据</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="s2">&quot;top&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">,</span> <span class="s2">&quot;top and last_n can not be used together&quot;</span>
+    <span class="k">assert</span> <span class="p">(</span>
+        <span class="s2">&quot;sort&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span>
+    <span class="p">),</span> <span class="s2">&quot;sort and last_n can not be used together&quot;</span>
+    <span class="k">assert</span> <span class="p">(</span>
+        <span class="s2">&quot;limit&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span>
+    <span class="p">),</span> <span class="s2">&quot;limit and last_n can not be used together&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_last_n</span> <span class="o">=</span> <span class="n">n</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.limit" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">limit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.limit" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>添加返回记录数限制</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一个查询中只允许指定一次limit，如果limit表达式已经存在，则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>limit</code></td>
+        <td><code>int</code></td>
+        <td><p>返回记录数限制</p></td>
+        <td><em>required</em></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">limit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;添加返回记录数限制</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一个查询中只允许指定一次limit，如果limit表达式已经存在，则抛出异常</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        limit: 返回记录数限制</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;limit&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;limit has been set&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;limit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;  |&gt; limit(n: </span><span class="si">%d</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">limit</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.measurement" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.measurement" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>add measurement filter to query</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一次查询中只允许指定一个measurement, 如果表达式中已经存在measurement, 则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象自身，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;add measurement filter to query</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一次查询中只允许指定一个measurement, 如果表达式中已经存在measurement, 则抛出异常</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象自身，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;measurement&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;measurement has been set&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span>
+        <span class="s2">&quot;measurement&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;  |&gt; filter(fn: (r) =&gt; r[&quot;_measurement&quot;] == &quot;</span><span class="si">{</span><span class="n">measurement</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.pivot" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">pivot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row_keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;_time&#39;</span><span class="p">],</span> <span class="n">column_keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;_field&#39;</span><span class="p">],</span> <span class="n">value_column</span><span class="o">=</span><span class="s1">&#39;_value&#39;</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.pivot" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>pivot用来将以列为单位的数据转换为以行为单位的数据</p>
+<p>Flux查询返回的结果通常都是以列为单位的数据，增加本pivot条件后，结果将被转换成为以行为单位的数据再返回。</p>
+<p>这里实现的是measurement内的转换，请参考 <a href="https://docs.influxdata.com/flux/v0.x/stdlib/universe/pivot/#align-fields-within-each-measurement-that-have-the-same-timestamp">pivot</a></p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>row_keys</code></td>
+        <td><code>List[str]</code></td>
+        <td><p>惟一确定输出中一行数据的列名字, 默认为["_time"]</p></td>
+        <td><code>[&#39;_time&#39;]</code></td>
+      </tr>
+      <tr>
+        <td><code>column_keys</code></td>
+        <td></td>
+        <td><p>列名称列表，默认为["_field"]</p></td>
+        <td><code>[&#39;_field&#39;]</code></td>
+      </tr>
+      <tr>
+        <td><code>value_column</code></td>
+        <td><code>str</code></td>
+        <td><p>值列名，默认为"_value"</p></td>
+        <td><code>&#39;_value&#39;</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">pivot</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">row_keys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_time&quot;</span><span class="p">],</span>
+    <span class="n">column_keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;_field&quot;</span><span class="p">],</span>
+    <span class="n">value_column</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;_value&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;pivot用来将以列为单位的数据转换为以行为单位的数据</span>
+
+<span class="sd">    Flux查询返回的结果通常都是以列为单位的数据，增加本pivot条件后，结果将被转换成为以行为单位的数据再返回。</span>
+
+<span class="sd">    这里实现的是measurement内的转换，请参考 [pivot](https://docs.influxdata.com/flux/v0.x/stdlib/universe/pivot/#align-fields-within-each-measurement-that-have-the-same-timestamp)</span>
+
+
+<span class="sd">    Args:</span>
+<span class="sd">        row_keys: 惟一确定输出中一行数据的列名字, 默认为[&quot;_time&quot;]</span>
+<span class="sd">        column_keys: 列名称列表，默认为[&quot;_field&quot;]</span>
+<span class="sd">        value_column: 值列名，默认为&quot;_value&quot;</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;pivot&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;pivot has been set&quot;</span><span class="p">)</span>
+
+    <span class="n">columns</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">column_keys</span><span class="p">])</span>
+    <span class="n">rowkeys</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">row_keys</span><span class="p">])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span>
+        <span class="s2">&quot;pivot&quot;</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;  |&gt; pivot(columnKey: [</span><span class="si">{</span><span class="n">columns</span><span class="si">}</span><span class="s1">], rowKey: [</span><span class="si">{</span><span class="n">rowkeys</span><span class="si">}</span><span class="s1">], valueColumn: &quot;</span><span class="si">{</span><span class="n">value_column</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.range" class="doc doc-heading">
+<code class="highlight language-python"><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">right_close</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.range" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>添加时间范围过滤</p>
+<p>必须指定的查询条件，否则influxdb会报unbound查询错，因为这种情况下，返回的数据量将非常大。</p>
+<p>在格式化时间时，需要根据<code>precision</code>生成时间字符串。在向Influxdb发送请求时，应该注意查询参数中指定的时间精度与这里使用的保持一致。</p>
+<p>Influxdb的查询结果默认不包含结束时间，当<code>right_close</code>指定为True时，我们将根据指定的精度修改<code>end</code>时间，使之仅比<code>end</code>多一个时间单位，从而保证查询结果会包含<code>end</code>。</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一个查询中只允许指定一次时间范围，如果range表达式已经存在，则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>start</code></td>
+        <td><code>Union[datetime.date, datetime.datetime]</code></td>
+        <td><p>开始时间</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>end</code></td>
+        <td><code>Union[datetime.date, datetime.datetime]</code></td>
+        <td><p>结束时间</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>right_close</code></td>
+        <td></td>
+        <td><p>查询结果是否包含结束时间。</p></td>
+        <td><code>True</code></td>
+      </tr>
+      <tr>
+        <td><code>precision</code></td>
+        <td></td>
+        <td><p>时间精度，默认为秒。</p></td>
+        <td><code>&#39;s&#39;</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以支持管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">range</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">right_close</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s2">&quot;s&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;添加时间范围过滤</span>
+
+<span class="sd">    必须指定的查询条件，否则influxdb会报unbound查询错，因为这种情况下，返回的数据量将非常大。</span>
+
+<span class="sd">    在格式化时间时，需要根据`precision`生成时间字符串。在向Influxdb发送请求时，应该注意查询参数中指定的时间精度与这里使用的保持一致。</span>
+
+<span class="sd">    Influxdb的查询结果默认不包含结束时间，当`right_close`指定为True时，我们将根据指定的精度修改`end`时间，使之仅比`end`多一个时间单位，从而保证查询结果会包含`end`。</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一个查询中只允许指定一次时间范围，如果range表达式已经存在，则抛出异常</span>
+<span class="sd">    Args:</span>
+<span class="sd">        start: 开始时间</span>
+<span class="sd">        end: 结束时间</span>
+<span class="sd">        right_close: 查询结果是否包含结束时间。</span>
+<span class="sd">        precision: 时间精度，默认为秒。</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以支持管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;range has been set&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">precision</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;precision must be &#39;s&#39;, &#39;ms&#39; or &#39;us&#39;&quot;</span><span class="p">)</span>
+
+    <span class="n">end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">precision</span><span class="p">,</span> <span class="n">right_close</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_time</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">precision</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;range&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; range(start: </span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">, stop: </span><span class="si">{</span><span class="n">end</span><span class="si">}</span><span class="s2">)&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.sort" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.sort" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>按照指定的列进行排序</p>
+<p>根据<a href="https://docs.influxdata.com/influxdb/v2.0/query-data/flux/first-last/">influxdb doc</a>, 查询返回值默认地按时间排序。因此，如果仅仅是要求查询结果按时间排序，无须调用此API，但是，此API提供了按其它字段排序的能力。</p>
+<p>另外，在一个有5000多个tag，共返回1M条记录的测试中，测试验证返回记录确实按_time升序排列。</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>by</code></td>
+        <td><code>List[str]</code></td>
+        <td><p>指定排序的列名称列表</p></td>
+        <td><code>None</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">desc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;按照指定的列进行排序</span>
+
+<span class="sd">    根据[influxdb doc](https://docs.influxdata.com/influxdb/v2.0/query-data/flux/first-last/), 查询返回值默认地按时间排序。因此，如果仅仅是要求查询结果按时间排序，无须调用此API，但是，此API提供了按其它字段排序的能力。</span>
+
+<span class="sd">    另外，在一个有5000多个tag，共返回1M条记录的测试中，测试验证返回记录确实按_time升序排列。</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        by: 指定排序的列名称列表</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;sort&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;sort has been set&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">by</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_value&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">by</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">by</span> <span class="o">=</span> <span class="p">[</span><span class="n">by</span><span class="p">]</span>
+
+    <span class="n">columns_</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">by</span><span class="p">])</span>
+
+    <span class="n">desc</span> <span class="o">=</span> <span class="s2">&quot;true&quot;</span> <span class="k">if</span> <span class="n">desc</span> <span class="k">else</span> <span class="s2">&quot;false&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;sort&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; sort(columns: [</span><span class="si">{</span><span class="n">columns_</span><span class="si">}</span><span class="s2">], desc: </span><span class="si">{</span><span class="n">desc</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.tags" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">tags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tags</span><span class="p">)</span></code>
+
+
+<a href="#omicron.dal.influx.flux.Flux.tags" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>给查询添加tags过滤条件</p>
+<p>此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。</p>
+<p>在实现上，既可以使用<code>contains</code>语法，也可以使用<code>or</code>语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为<code>or</code>)。经验证，contains语法会始终先将所有符合条件的记录检索出来，再进行过滤。这样的效率比较低，特别是当tags的数量较少时，会远远比使用or语法慢。</p>
+
+<p><strong>Exceptions:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>DuplicateOperationError</code></td>
+        <td><p>一个查询中只允许执行一次，如果tag filter表达式已经存在，则抛出异常</p></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>tags</code></td>
+        <td></td>
+        <td><p>tags是一个{tagname: Union[str,[tag_values]]}对象。</p></td>
+        <td><em>required</em></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Examples:</strong></p>
+    <div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="n">flux</span> <span class="o">=</span> <span class="n">Flux</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">flux</span><span class="o">.</span><span class="n">tags</span><span class="p">({</span><span class="s2">&quot;code&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;000001&quot;</span><span class="p">,</span> <span class="s2">&quot;000002&quot;</span><span class="p">],</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;浦发银行&quot;</span><span class="p">]})</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;tags&quot;</span><span class="p">]</span>
+<span class="s1">&#39;  |&gt; filter(fn: (r) =&gt; r[&quot;code&quot;] == &quot;000001&quot; or r[&quot;code&quot;] == &quot;000002&quot; or r[&quot;name&quot;] == &quot;浦发银行&quot;)&#39;</span>
+</code></pre></div>
+
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Flux</code></td>
+      <td><p>Flux对象，以便进行管道操作</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">tags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tags</span><span class="p">:</span> <span class="n">DefaultDict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Flux&quot;</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;给查询添加tags过滤条件</span>
+
+<span class="sd">    此查询条件为过滤条件，并非必须。如果查询中没有指定tags，则会返回所有记录。</span>
+
+<span class="sd">    在实现上，既可以使用`contains`语法，也可以使用`or`语法(由于一条记录只能属于一个tag，所以，当指定多个tag进行查询时，它们之间的关系应该为`or`)。经验证，contains语法会始终先将所有符合条件的记录检索出来，再进行过滤。这样的效率比较低，特别是当tags的数量较少时，会远远比使用or语法慢。</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        DuplicateOperationError: 一个查询中只允许执行一次，如果tag filter表达式已经存在，则抛出异常</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tags : tags是一个{tagname: Union[str,[tag_values]]}对象。</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; flux = Flux()</span>
+<span class="sd">        &gt;&gt;&gt; flux.tags({&quot;code&quot;: [&quot;000001&quot;, &quot;000002&quot;], &quot;name&quot;: [&quot;浦发银行&quot;]}).expressions[&quot;tags&quot;]</span>
+<span class="sd">        &#39;  |&gt; filter(fn: (r) =&gt; r[&quot;code&quot;] == &quot;000001&quot; or r[&quot;code&quot;] == &quot;000002&quot; or r[&quot;name&quot;] == &quot;浦发银行&quot;)&#39;</span>
+
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Flux对象，以便进行管道操作</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;tags&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DuplicateOperationError</span><span class="p">(</span><span class="s2">&quot;tags has been set&quot;</span><span class="p">)</span>
+
+    <span class="n">filters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;tag </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2"> should not be empty or None&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">values</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+            <span class="n">filters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;r[&quot;</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s1">&quot;] == &quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+    <span class="n">op_expression</span> <span class="o">=</span> <span class="s2">&quot; or &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filters</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span><span class="s2">&quot;tags&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;  |&gt; filter(fn: (r) =&gt; </span><span class="si">{</span><span class="n">op_expression</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+  <div class="doc doc-object doc-method">
+
+
+
+<h2 id="omicron.dal.influx.flux.Flux.to_timestamp" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">to_timestamp</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-properties">
+      <small class="doc doc-property doc-property-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#omicron.dal.influx.flux.Flux.to_timestamp" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents ">
+
+      <p>将时间根据精度转换为unix时间戳</p>
+<p>在往influxdb写入数据时，line-protocol要求的时间戳为unix timestamp，并且与其精度对应。</p>
+<p>influxdb始终使用UTC时间，因此，<code>tm</code>也必须已经转换成UTC时间。</p>
+
+<p><strong>Parameters:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+        <td><code>tm</code></td>
+        <td><code>Union[datetime.date, datetime.datetime]</code></td>
+        <td><p>时间</p></td>
+        <td><em>required</em></td>
+      </tr>
+      <tr>
+        <td><code>precision</code></td>
+        <td><code>str</code></td>
+        <td><p>时间精度，默认为秒。</p></td>
+        <td><code>&#39;s&#39;</code></td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>Returns:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>int</code></td>
+      <td><p>时间戳</p></td>
+    </tr>
+  </tbody>
+</table>
+        <details class="quote">
+          <summary>Source code in <code>omicron/dal/influx/flux.py</code></summary>
+          <div class="highlight"><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">to_timestamp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">tm</span><span class="p">:</span> <span class="n">Frame</span><span class="p">,</span> <span class="n">precision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;将时间根据精度转换为unix时间戳</span>
+
+<span class="sd">    在往influxdb写入数据时，line-protocol要求的时间戳为unix timestamp，并且与其精度对应。</span>
+
+<span class="sd">    influxdb始终使用UTC时间，因此，`tm`也必须已经转换成UTC时间。</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tm: 时间</span>
+<span class="sd">        precision: 时间精度，默认为秒。</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        时间戳</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">precision</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;precision must be &#39;s&#39;, &#39;ms&#39; or &#39;us&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># get int repr of tm, in seconds unit</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">datetime64</span><span class="p">):</span>
+        <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;datetime64[s]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;int&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tm</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+        <span class="n">tm</span> <span class="o">=</span> <span class="n">tm</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tm</span> <span class="o">=</span> <span class="n">arrow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tm</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">tm</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">({</span><span class="s2">&quot;s&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">:</span> <span class="mi">6</span><span class="p">}[</span><span class="n">precision</span><span class="p">]))</span>
+</code></pre></div>
+        </details>
+    </div>
+
+  </div>
+
+
+
+
+
+  </div>
+
+    </div>
+
+  </div>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href="../../plotting/metrics/" class="md-footer__link md-footer__link--prev" aria-label="Previous: MetricsGraph" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              MetricsGraph
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../influxclient/" class="md-footer__link md-footer__link--next" aria-label="Next: InfluxClient" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              InfluxClient
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      
+    
+    
+  </body>
+</html>
