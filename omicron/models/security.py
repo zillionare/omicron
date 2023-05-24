@@ -50,8 +50,9 @@ def convert_nptime_to_datetime(x):
 
 
 class Query:
-    """
-    ["code", "alias(display_name)", "name", "ipo", "end", "type"]
+    """证券信息查询对象
+
+    证券信息查询对象，由`Security.select()`方法生成，支持链式查询。通过`eval`函数结束链式调用并生成查询结果。
     """
 
     def __init__(self, target_date: datetime.date = None):

@@ -51,7 +51,7 @@ def ciso8601_parse_naive(x):
 
 
 class Stock(Security):
-    """ "
+    """
     Stock对象用于归集某支证券（股票和指数，不包括其它投资品种）的相关信息，比如行情数据（OHLC等）、市值数据、所属概念分类等。
     """
 
