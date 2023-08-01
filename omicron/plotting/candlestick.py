@@ -110,11 +110,12 @@ class Candlestick:
         self,
         bars: np.ndarray,
         ma_groups: List[int] = None,
-        win_size: int = 120,
         title: str = None,
         show_volume=True,
         show_rsi=True,
         show_peaks=False,
+        width=None,
+        height=None,
         **kwargs,
     ):
         """构造函数
@@ -127,12 +128,15 @@ class Candlestick:
             show_volume: 是否显示成交量图
             show_rsi: 是否显示RSI图。缺省显示参数为6的RSI图。
             show_peaks: 是否标记检测出来的峰跟谷。
+            width: the width in 'px' units of the figure
+            height: the height in 'px' units of the figure
         kwargs:
             rsi_win: default is 6
         """
         self.title = title
         self.bars = bars
-        self.win_size = win_size
+        self.width = width
+        self.height = height
 
         # traces for main area
         self.main_traces = {}
@@ -202,7 +206,8 @@ class Candlestick:
         specs = [[{"secondary_y": False}]] * rows
         specs[0][0]["secondary_y"] = True
 
-        row_heights = [0.7, *([0.2] * (rows - 1))]
+        row_heights = [0.7, *([0.3 / (rows - 1)] * (rows - 1))]
+        print(row_heights)
         cols = 1
 
         fig = make_subplots(
@@ -221,13 +226,64 @@ class Candlestick:
         for i, (_, trace) in enumerate(self.ind_traces.items()):
             fig.add_trace(trace, row=i + 2, col=1)
 
-        fig.update(layout_xaxis_rangeslider_visible=False)
-        fig.update_yaxes(showgrid=True, gridcolor=self.LIGHT_GRAY)
-        fig.update_layout(plot_bgcolor=self.TRANSPARENT)
-        fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
-        end = len(self.ticks)
-        start = end - self.win_size
-        fig.update_xaxes(range=[start, end])
+        ymin = np.min(self.bars["low"])
+        ymax = np.max(self.bars["high"])
+
+        ylim = [ymin * 0.95, ymax * 1.05]
+
+        # 显示十字光标
+        fig.update_xaxes(
+            showgrid=False,
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikecolor="grey",
+            spikedash="solid",
+            spikethickness=1,
+        )
+
+        fig.update_yaxes(
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikedash="solid",
+            spikecolor="grey",
+            spikethickness=1,
+            showgrid=True,
+            gridcolor=self.LIGHT_GRAY,
+        )
+
+        fig.update_xaxes(
+            nticks=len(self.bars) // 10,
+            ticklen=10,
+            ticks="outside",
+            minor=dict(nticks=5, ticklen=5, ticks="outside"),
+            row=rows,
+            col=1,
+        )
+
+        # 设置K线显示区域
+        if self.width:
+            win_size = int(self.width // 10)
+        else:
+            win_size = 120
+
+        fig.update_xaxes(
+            type="category", range=[len(self.bars) - win_size, len(self.bars) - 1]
+        )
+
+        fig.update_layout(
+            yaxis=dict(range=ylim),
+            hovermode="x unified",
+            plot_bgcolor=self.TRANSPARENT,
+            xaxis_rangeslider_visible=False,
+        )
+
+        if self.width:
+            fig.update_layout(width=self.width)
+
+        if self.height:
+            fig.update_layout(height=self.height)
 
         return fig
 
@@ -536,11 +592,6 @@ class Candlestick:
     def plot(self):
         """绘制图表"""
         fig = self.figure
-        ymin = np.min(self.bars["low"])
-        ymax = np.max(self.bars["high"])
-
-        ylim = [ymin * 0.95, ymax * 1.05]
-        fig.update_layout(yaxis=dict(range=ylim))
         fig.show()
 
 
