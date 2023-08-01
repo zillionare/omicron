@@ -53,9 +53,12 @@ class MetricsGraph:
         self._frame2pos = {f: i for i, f in enumerate(self.frames)}
         self.ticks = self._format_tick(self.frames)
 
-        self.assets = pd.DataFrame(bills["assets"], columns=["frame", "assets"])[
-            "assets"
-        ].to_numpy()
+        # TODO: there's bug in backtesting, temporarily fix here
+        df = pd.DataFrame(self.frames, columns=["frame"])
+        df["assets"] = np.nan
+        assets = pd.DataFrame(bills["assets"], columns=["frame", "assets"])
+        df["assets"] = assets["assets"]
+        self.assets = df.fillna(method="ffill")["assets"].to_numpy()
         self.nv = self.assets / self.assets[0]
 
         self.baseline_code = baseline_code or "399300.XSHE"
