@@ -25,24 +25,45 @@ sma = SMAStrategy(
 
 await sma.backtest(stop_on_error=True)
 ```
+!!! info
+    since version 2.0.0-alpha76
+
+为了加快回测速度，可以使用行情预取，即在调用 backtest 时，通过 portolio 参数传入代码列表，以及需要预取的bar数（min_bars），则在predict方法被调用时，预取的行情会以Dict[str, BarsArray]格式传入，key是证券代码，value是行情数据（前复权），截止到当前frame(含)，数据周期为初始化时指定的周期。
+
+如果在回测过程中，需要偷看未来数据，可以使用peek方法。
+
 # 实盘
 在实盘环境下，你还需要在子类中加入周期性任务(比如每分钟执行一次），在该任务中调用`predict`方法来完成交易。
 """
 import datetime
 import logging
 import uuid
+from asyncio import gather
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 import jqdatasdk as jq
 import numpy as np
-from coretypes import Frame, FrameType
+import pandas as pd
+from coretypes import BarsArray, Frame, FrameType
+from numpy.typing import NDArray
 from traderclient import TraderClient
 
 from omicron import tf
+from omicron.core.backtestlog import BacktestLogger
 from omicron.models.security import Security
+from omicron.models.stock import Stock
 from omicron.plotting.metrics import MetricsGraph
 
-logger = logging.getLogger(__name__)
+logger = BacktestLogger.getLogger(__name__)
+
+
+@dataclass
+class BacktestState(object):
+    start: Frame
+    end: Frame
+    barss: Union[None, Dict[str, BarsArray]]
+    cursor: int
 
 
 class BaseStrategy:
@@ -56,7 +77,7 @@ class BaseStrategy:
         is_backtest: bool = True,
         start: Optional[Frame] = None,
         end: Optional[Frame] = None,
-        frame_type: Optional[Frame] = None,
+        frame_type: Optional[FrameType] = None,
         baseline: Optional[str] = "399300.XSHE",
     ):
         """构造函数
@@ -84,18 +105,20 @@ class BaseStrategy:
         self.url = url
 
         if is_backtest:
+            if start is None or end is None or frame_type is None:
+                raise ValueError("start, end and frame_type must be presented.")
+
+            self.bs = BacktestState(start, end, None, 0)
             self.bills = None
             self.metrics = None
-            self._bt_start = start
-            self._bt_end = end
             self._frame_type = frame_type
             self.broker = TraderClient(
                 url,
                 self.account,
                 self.token,
                 is_backtest=True,
-                start=self._bt_start,
-                end=self._bt_end,
+                start=self.bs.start,
+                end=self.bs.end,
             )
             self._baseline = baseline
         else:
@@ -104,16 +127,69 @@ class BaseStrategy:
 
             self.broker = TraderClient(url, self.account, self.token, is_backtest=False)
 
-    async def backtest(self, stop_on_error: bool = False, **kwargs):
+    async def _cache_bars_for_backtest(self, portfolio: List[str], n: int):
+        if portfolio is None or len(portfolio) == 0:
+            return
+
+        count = tf.count_frames(self.bs.start, self.bs.end, self._frame_type)
+        tasks = [
+            Stock.get_bars(code, count + n, self._frame_type, self.bs.end, fq=False)
+            for code in portfolio
+        ]
+
+        results = await gather(*tasks)
+        self.bs.barss = {k: v for (k, v) in zip(portfolio, results)}
+
+    def _next(self):
+        if self.bs.barss is None:
+            return None
+
+        self.bs.cursor += 1
+        return {k: Stock.qfq(v[: self.bs.cursor]) for (k, v) in self.bs.barss.items()}
+
+    async def peek(self, code: str, n: int):
+        """允许策略偷看未来数据
+
+        可用以因子检验场景。要求数据本身已缓存。否则请用Stock.get_bars等方法获取。
+        """
+        if self.bs is None or self.bs.barss is None:
+            raise ValueError("data is not cached")
+
+        if code in self.bs.barss:
+            if self.bs.cursor + n + 1 < len(self.bs.barss[code]):
+                return Stock.qfq(
+                    self.bs.barss[code][self.bs.cursor : self.bs.cursor + n]
+                )
+
+        else:
+            raise ValueError("data is not cached")
+
+    async def backtest(self, stop_on_error: bool = True, **kwargs):
+        """执行回测
+
+        Args:
+            stop_on_error: 如果为True，则发生异常时，将停止回测。否则忽略错误，继续执行。
+        Keyword Args:
+            portfolio Dict[str, BarsArray]: 代码列表。在该列表中的品种，将在回测之前自动预取行情数据，并在调用predict时，传入截止到当前frame的，长度为n的行情数据。行情周期由构造时的frame_type指定
+            min_bars int: 回测时必要的bars的最小值
+        """
+        portfolio: List[str] = kwargs.get("portfolio")  # type: ignore
+        n = kwargs.get("min_bars", 0)
+        await self._cache_bars_for_backtest(portfolio, n)
+        self.bs.cursor = n
+
         converter = (
             tf.int2date if self._frame_type in tf.day_level_frames else tf.int2time
         )
+
         for i, frame in enumerate(
-            tf.get_frames(self._bt_start, self._bt_end, self._frame_type)  # type: ignore
+            tf.get_frames(self.bs.start, self.bs.end, self._frame_type)  # type: ignore
         ):
+            barss = self._next()
+            logger.debug("%sth iteration", i, date=converter(frame))
             try:
                 await self.predict(
-                    converter(frame), self._frame_type, i, **kwargs  # type: ignore
+                    converter(frame), self._frame_type, i, barss=barss, **kwargs  # type: ignore
                 )
             except Exception as e:
                 logger.exception(e)
@@ -134,7 +210,12 @@ class BaseStrategy:
         return self.broker.positions(dt)
 
     def available_shares(self, sec: str, dt: Optional[Frame] = None):
-        """返回给定股票当前可售股数。"""
+        """返回给定股票在`dt`日的可售股数
+
+        Args:
+            sec: 证券代码
+            dt: 日期，在实盘中无意义，只能返回最新数据；在回测时，必须指定日期，且返回指定日期下的持仓。
+        """
         return self.broker.available_shares(sec, dt)
 
     async def buy(
@@ -156,9 +237,19 @@ class BaseStrategy:
         Returns:
             见traderclient中的`buy`方法。
         """
+        logger.info(
+            "buy order: %s, %s, %s, %s, %s",
+            sec,
+            price,
+            vol,
+            money,
+            order_time,
+            date=order_time,
+        )
         if vol is None:
             if money is None:
                 raise ValueError("parameter `mnoey` must be presented!")
+
             return await self.broker.buy_by_money(
                 sec, money, price, order_time=order_time
             )
@@ -187,6 +278,10 @@ class BaseStrategy:
         Returns:
             Union[List, Dict]: 成交返回，详见traderclient中的`buy`方法，trade server只返回一个委托单信息
         """
+        logger.info(
+            "sell order: %s, %s, %s, %s, %s", sec, price, vol, percent, order_time
+        )
+
         if vol is None and percent is None:
             raise ValueError("either vol or percent must be presented")
 
@@ -218,12 +313,21 @@ class BaseStrategy:
             frame: 当前时间帧
             frame_type: 处理的数据主周期
             i: 当前时间离回测起始的单位数
+        Keyword Args:
+            barss: 如果调用backtest时传入了portfolio及n参数，则会将预取的行情通过此参数传入。该参数是一个Dict[str, BarsArray], 即证券代码为key, 行情数据为value。行情数据是一个BarsArray,截止到当前frame(含)，前复权，长度为n（也可能为n+1)
         """
         raise NotImplementedError
 
-    async def plot_metrics(self):
+    async def plot_metrics(self, indicator: Optional[pd.DataFrame] = None):
+        """策略回测报告
+
+        Args:
+            indicator: 回测时使用的指标。如果存在，将叠加到策略回测图上。它应该是一个以日期为索引，指标列名为"value"的DataFrame
+        """
         if self.bills is None or self.metrics is None:
             raise ValueError("Please run `start_backtest` first.")
 
-        mg = MetricsGraph(self.bills, self.metrics, baseline_code=self._baseline)
+        mg = MetricsGraph(
+            self.bills, self.metrics, baseline_code=self._baseline, indicator=indicator
+        )
         await mg.plot()

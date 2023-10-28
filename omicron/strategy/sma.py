@@ -14,7 +14,7 @@ class SMAStrategy(BaseStrategy):
 
         super().__init__(*args, **kwargs)
 
-    async def predict(self, frame: Frame, frame_type: FrameType, i: int):
+    async def predict(self, frame: Frame, frame_type: FrameType, i: int, **kwargs):
         n = max(self._n_short, self._n_long) - 1
         bars = await Stock.get_bars(self._sec, n, frame_type, end=frame)
 

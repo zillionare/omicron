@@ -123,14 +123,13 @@ class Candlestick:
         Args:
             bars: 行情数据
             ma_groups: 均线组参数。比如[5, 10, 20]表明向k线图中添加5, 10, 20日均线。如果不提供，将从数组[5, 10, 20, 30, 60, 120, 250]中取直到与`len(bars) - 5`匹配的参数为止。比如bars长度为30，则将取[5, 10, 20]来绘制均线。
-            win_size: 缺省绘制多少个bar，超出部分将不显示。
             title: k线图的标题
             show_volume: 是否显示成交量图
             show_rsi: 是否显示RSI图。缺省显示参数为6的RSI图。
             show_peaks: 是否标记检测出来的峰跟谷。
             width: the width in 'px' units of the figure
             height: the height in 'px' units of the figure
-        kwargs:
+        Keyword Args:
             rsi_win: default is 6
         """
         self.title = title

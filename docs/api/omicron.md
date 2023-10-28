@@ -9,3 +9,5 @@
 ::: omicron.extensions
 # Notify package
 ::: omicron.notify
+# Backtesting Log Facility
+::: omicron.core.backtestlog

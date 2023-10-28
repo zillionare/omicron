@@ -235,3 +235,26 @@ omicron提供了mean_absolute_error函数和pct_error函数。它们在scipy或�
 您应该把这里提供的函数当成实验性的。这些API也可能在某天被废弃、重命名、修改，或者这些API并没有多大作用，或者它们的实现存在错误。
 
 但是，如果我们将来会抛弃这些API的话，我们一定会通过depracted方法提前进行警告。
+
+# 策略编写
+
+omicron通过[strategy](/api/strategy)来提供策略框架。通过该框架编写的策略，可以在实盘和回测之间无缝转换 -- 根据初始化时传入的服务器不同而自动切换。
+
+omicron提供了一个简单的[双均线策略](/api/strategy/#omicron.strategy.sma)作为策略编写的示范。
+
+# 绘图
+
+omicron通过[Candlestick](/api/plotting/candlestick/)提供了k线绘制功能。默认地，它将绘制一幅显示120个bar，可拖动（以加载更多bar)，并且可以叠加副图、主图叠加各种指标的k线图：
+
+![](https://images.jieyu.ai/images/2023/05/20230508164848.png)
+
+上图显示了自动检测出来的平台。此外，还可以进行顶底自动检测和标注。
+
+omicron通过[metris](/api/plotting/metrics)提供回测报告。该报告类似于：
+
+![](https://images.jieyu.ai/images/2023/05/20230508160012.png)
+
+它同样提供可拖动的绘图，并且在买卖点上可以通过鼠标悬停，显示买卖点信息。
+
+omicron的绘图功能只能在notebook中使用。
+

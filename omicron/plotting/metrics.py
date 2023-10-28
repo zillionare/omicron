@@ -37,8 +37,19 @@ logger = logging.getLogger(__name__)
 
 class MetricsGraph:
     def __init__(
-        self, bills: dict, metrics: dict, baseline_code: Optional[str] = "399300.XSHE"
+        self,
+        bills: dict,
+        metrics: dict,
+        baseline_code: str = "399300.XSHE",
+        indicator: Optional[pd.DataFrame] = None,
     ):
+        """
+        Args:
+            bills: 回测生成的账单，通过Strategy.bills获得
+            metrics: 回测生成的指标，通过strategy.metrics获得
+            baseline_code: 基准证券代码
+            indicator: 回测时使用的指标。如果存在，将叠加到策略回测图上。它应该是一个以日期为索引，指标值列名为"value"的pandas.DataFrame。如果不提供，将不会绘制指标图
+        """
         self.metrics = metrics
         self.trades = bills["trades"]
         self.positions = bills["positions"]
@@ -49,7 +60,14 @@ class MetricsGraph:
             tf.int2date(f) for f in tf.get_frames(self.start, self.end, FrameType.DAY)
         ]
 
-        # 记录日期到下标的反向映射，这对于在不o
+        if indicator is not None:
+            self.indicator = indicator.join(
+                pd.Series(index=self.frames, name="frames"), how="right"
+            )
+        else:
+            self.indicator = None
+
+        # 记录日期到下标的反向映射
         self._frame2pos = {f: i for i, f in enumerate(self.frames)}
         self.ticks = self._format_tick(self.frames)
 
@@ -253,7 +271,7 @@ class MetricsGraph:
             cols=2,
             shared_xaxes=False,
             specs=[
-                [{"type": "scatter"}, {"type": "table"}],
+                [{"secondary_y": True}, {"type": "table"}],
             ],
             column_width=[0.75, 0.25],
             horizontal_spacing=0.01,
@@ -262,7 +280,6 @@ class MetricsGraph:
 
         fig.add_trace(await self._metrics_trace(), row=1, col=2)
 
-        print("baseline", len(baseline_prices))
         baseline_trace = go.Scatter(
             y=baseline_prices,
             x=self.ticks,
@@ -276,6 +293,21 @@ class MetricsGraph:
             y=self.nv, x=self.ticks, mode="lines", name="策略净值", showlegend=True
         )
         fig.add_trace(nv_trace, row=1, col=1)
+
+        if self.indicator is not None:
+            ind_trace = go.Scatter(
+                y=self.indicator["value"],
+                x=self.ticks,
+                mode="lines",
+                name="indicator",
+                showlegend=True,
+            )
+            fig.add_trace(
+                ind_trace,
+                row=1,
+                col=1,
+                secondary_y=True,
+            )
 
         for trace in await self._trade_info_trace():
             fig.add_trace(trace, row=1, col=1)

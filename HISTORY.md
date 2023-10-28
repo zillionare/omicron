@@ -1,5 +1,9 @@
 # History
 
+## 2.0.0-alpha76
+* 增加backtestlog模块，用于输出回测日志时，将时间替换为回测时间
+* 增加行情预取功能
+* 增加回测报告中绘制自定义指标功能（仅支持Scatter)
 ## 2.0.0-alpha.69
 * BaseStrategy增加`available_shares`方法
 ## 2.0.0-alpha.68
