@@ -816,7 +816,8 @@ MetricsGraph        </code>
 
         <span class="k">if</span> <span class="n">indicator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">indicator</span> <span class="o">=</span> <span class="n">indicator</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-                <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frames&quot;</span><span class="p">),</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;right&quot;</span>
+                <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frames&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+                <span class="n">how</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">indicator</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1182,7 +1183,8 @@ MetricsGraph        </code>
 
     <span class="k">if</span> <span class="n">indicator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indicator</span> <span class="o">=</span> <span class="n">indicator</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frames&quot;</span><span class="p">),</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;right&quot;</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">frames</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frames&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="n">how</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indicator</span> <span class="o">=</span> <span class="kc">None</span>
