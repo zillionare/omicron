@@ -130,7 +130,7 @@ class Candlestick:
             width: the width in 'px' units of the figure
             height: the height in 'px' units of the figure
         Keyword Args:
-            rsi_win: default is 6
+            rsi_win int: default is 6
         """
         self.title = title
         self.bars = bars

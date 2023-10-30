@@ -1384,7 +1384,7 @@ class Stock(Security):
     ) -> Dict[datetime.date, Tuple[bool, bool]]:
         """获取股票`code`在`[start, end]`区间的涨跌停标志
 
-        !!!Note:
+        !!!Note
             如果end为当天，注意在未收盘之前，这个涨跌停标志都是不稳定的
 
         Args:

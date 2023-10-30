@@ -5,26 +5,27 @@ repo_name: omicron
 nav:
   - 简介: index.md
   - 安装: installation.md
-  - 快速入门: usage.md
+  - 使用教程: usage.md
   - 版本历史: history.md
   - 开发者文档: developer.md
   - API文档:
     - omicron: api/omicron.md
-    - timeframe: api/timeframe.md
-    - triggers: api/triggers.md
-    - stock: api/stock.md
-    - security: api/security.md
-    - board: api/board.md
+    - 行情数据:
+      - timeframe: api/timeframe.md
+      - stock: api/stock.md
+      - security: api/security.md
+      - board: api/board.md
     - metrics: api/metrics.md
     - talib: api/talib.md
-    - strategy: api/strategy.md
-    - plotting:
+    - 策略框架: api/strategy.md
+    - 绘图:
       - CandleStick: api/plotting/candlestick.md
       - MetricsGraph: api/plotting/metrics.md
     - dal:
       - Flux: api/dal/flux.md
       - InfluxClient: api/dal/influxclient.md
       - Serialize: api/dal/serialize.md
+
 theme:
   name: material
 

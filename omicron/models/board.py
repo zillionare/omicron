@@ -55,7 +55,23 @@ class Board:
             return {"rc": 200, "data": rsp}
 
     @classmethod
-    async def board_list(cls, _btype: BoardType = BoardType.CONCEPT):
+    async def board_list(cls, _btype: BoardType = BoardType.CONCEPT) -> List[List]:
+        """获取板块列表
+
+        Args:
+            _btype: 板块类别，可选值`BoardType.CONCEPT`和`BoardType.INDUSTRY`.
+
+        Returns:
+            板块列表。每一个子元素仍为一个列表，由板块代码(str), 板块名称(str)和成员数组成。示例：
+            ```
+            [
+                ['881101', '种植业与林业', 24],
+                ['881102', '养殖业', 27],
+                ['881103', '农产品加工', 41],
+                ['881104', '农业服务', 16],
+            ]
+            ```
+        """
         rsp = await cls._rpc_call("board_list", {"board_type": _btype.value})
         if rsp["rc"] != 200:
             return {"status": 500, "msg": "httpx RPC call failed"}
