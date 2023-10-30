@@ -210,7 +210,7 @@ class MetricsGraph:
             side = trade["order_side"]
             filled = trade["filled"]
 
-            trade_text = f"{side}:{name} {filled/100:.0f}手 价格:{price:.02f} 成交额{filled * price/10000:.1f}万"
+            trade_text = f"{side}:{name} {filled/100:.0f}手 价格:{price:.02f} 成交额:{filled * price/10000:.1f}万"
 
             if side == "卖出":
                 sells[trade_date].append(trade_text)
@@ -236,6 +236,7 @@ class MetricsGraph:
             text=data_buy,
             name="买入成交",
             marker=dict(color="red", symbol="triangle-up"),
+            hovertemplate="<br>%{text}",
         )
 
         for dt, text in sells.items():
@@ -254,6 +255,7 @@ class MetricsGraph:
             text=data_sell,
             name="卖出成交",
             marker=dict(color="green", symbol="triangle-down"),
+            hovertemplate="<br>%{text}",
         )
 
         return trace_buy, trace_sell
@@ -280,17 +282,33 @@ class MetricsGraph:
 
         fig.add_trace(await self._metrics_trace(), row=1, col=2)
 
+        if self.indicator is not None:
+            indicator_on_hover = self.indicator["value"]
+        else:
+            indicator_on_hover = None
+
+        baseline_name = (
+            await Security.alias(self.baseline_code) if self.baseline_code else "基准"
+        )
+
         baseline_trace = go.Scatter(
             y=baseline_prices,
             x=self.ticks,
             mode="lines",
-            name="baseline",
+            name=baseline_name,
             showlegend=True,
+            text=indicator_on_hover,
+            hovertemplate="<br>净值:%{y:.2f}" + "<br>指标:%{text:.1f}",
         )
         fig.add_trace(baseline_trace, row=1, col=1)
 
         nv_trace = go.Scatter(
-            y=self.nv, x=self.ticks, mode="lines", name="策略净值", showlegend=True
+            y=self.nv,
+            x=self.ticks,
+            mode="lines",
+            name="策略",
+            showlegend=True,
+            hovertemplate="<br>净值:%{y:.2f}",
         )
         fig.add_trace(nv_trace, row=1, col=1)
 
@@ -301,17 +319,16 @@ class MetricsGraph:
                 mode="lines",
                 name="indicator",
                 showlegend=True,
+                visible="legendonly",
             )
-            fig.add_trace(
-                ind_trace,
-                row=1,
-                col=1,
-                secondary_y=True,
-            )
+            fig.add_trace(ind_trace, row=1, col=1, secondary_y=True)
 
         for trace in await self._trade_info_trace():
             fig.add_trace(trace, row=1, col=1)
 
         fig.update_xaxes(type="category", tickangle=45, nticks=len(self.ticks) // 5)
         fig.update_layout(margin=dict(l=20, r=20, t=50, b=50), width=1040, height=435)
+        fig.update_layout(
+            hovermode="x unified", hoverlabel=dict(bgcolor="rgba(255,255,255,0.8)")
+        )
         fig.show()

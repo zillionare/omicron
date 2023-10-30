@@ -1,46 +1,9 @@
-"""策略基类
-
-# 子类派生
-
-1. 从此基类派生出一个策略子类，比如sma.py
-2. 子类需要重载`predict`方法，根据当前传入的时间帧和帧类型参数，获取数据并进行处理，评估出交易信号
-3. 子类根据交易信号，在`predict`方法里，调用基类的`buy`和`sell`方法来进行交易
-4. 子类调用`backtest`方法来进行回测，该方法将根据策略构建时指定的回测起始时间、终止时间、帧类型，逐帧生成各个时间帧，并调用子类的`predict`方法
-4. 在交易结束时，调用`plot_metrics`方法来获取如下所示的回测指标图
-![](https://images.jieyu.ai/images/2023/05/20230508160012.png)
-
-如何派生子类，可以参考[sma][omicron.strategy.sma.SMAStrategy]源代码。
-
-# 回测
-```python
-from omicron.strategy.sma import SMAStrategy
-sma = SMAStrategy(
-    "600000.XSHG",
-    url="", # the url of either backtest server, or trade server
-    is_backtest=True,
-    start=datetime.date(2023, 2, 3),
-    end=datetime.date(2023, 4, 28),
-    frame_type=FrameType.DAY,
-)
-
-await sma.backtest(stop_on_error=True)
-```
-!!! info
-    since version 2.0.0-alpha76
-
-为了加快回测速度，可以使用行情预取，即在调用 backtest 时，通过 portolio 参数传入代码列表，以及需要预取的bar数（min_bars），则在predict方法被调用时，预取的行情会以Dict[str, BarsArray]格式传入，key是证券代码，value是行情数据（前复权），截止到当前frame(含)，数据周期为初始化时指定的周期。
-
-如果在回测过程中，需要偷看未来数据，可以使用peek方法。
-
-# 实盘
-在实盘环境下，你还需要在子类中加入周期性任务(比如每分钟执行一次），在该任务中调用`predict`方法来完成交易。
-"""
 import datetime
 import logging
 import uuid
 from asyncio import gather
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import jqdatasdk as jq
 import numpy as np
@@ -238,12 +201,11 @@ class BaseStrategy:
             见traderclient中的`buy`方法。
         """
         logger.info(
-            "buy order: %s, %s, %s, %s, %s",
+            "buy order: %s, %s, %s, %s",
             sec,
-            price,
-            vol,
-            money,
-            order_time,
+            f"{price:.2f}" if price is not None else None,
+            f"{vol:.0f}" if vol is not None else None,
+            f"{money:.0f}" if money is not None else None,
             date=order_time,
         )
         if vol is None:
@@ -279,7 +241,12 @@ class BaseStrategy:
             Union[List, Dict]: 成交返回，详见traderclient中的`buy`方法，trade server只返回一个委托单信息
         """
         logger.info(
-            "sell order: %s, %s, %s, %s, %s", sec, price, vol, percent, order_time
+            "sell order: %s, %s, %s, %s",
+            sec,
+            f"{price:.2f}" if price is not None else None,
+            f"{vol:.0f}" if vol is not None else None,
+            f"{percent:.2%}" if percent is not None else None,
+            date=order_time,
         )
 
         if vol is None and percent is None:
@@ -306,19 +273,29 @@ class BaseStrategy:
 
         return np.intersect1d(buylist, in_trading)
 
-    async def predict(self, frame: Frame, frame_type: FrameType, i: int, **kwargs):
+    async def predict(
+        self,
+        frame: Frame,
+        frame_type: FrameType,
+        i: int,
+        barss: Dict[str, BarsArray],
+        **kwargs,
+    ):
         """策略评估函数。在此函数中实现交易信号检测和处理。
 
         Args:
             frame: 当前时间帧
             frame_type: 处理的数据主周期
             i: 当前时间离回测起始的单位数
-        Keyword Args:
-            barss: 如果调用backtest时传入了portfolio及n参数，则会将预取的行情通过此参数传入。该参数是一个Dict[str, BarsArray], 即证券代码为key, 行情数据为value。行情数据是一个BarsArray,截止到当前frame(含)，前复权，长度为n（也可能为n+1)
+            barss: 如果调用`backtest`时传入了`portfolio`及`min_bars`参数，则`backtest`将会在回测之前，预取从[start - min_bars * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - min_bars * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
+
+        Keyword Args: 在`backtest`方法中的传入的kwargs参数将被透传到此方法中。
         """
         raise NotImplementedError
 
-    async def plot_metrics(self, indicator: Optional[pd.DataFrame] = None):
+    async def plot_metrics(
+        self, indicator: Union[pd.DataFrame, List[Tuple], None] = None
+    ):
         """策略回测报告
 
         Args:
@@ -327,7 +304,18 @@ class BaseStrategy:
         if self.bills is None or self.metrics is None:
             raise ValueError("Please run `start_backtest` first.")
 
-        mg = MetricsGraph(
-            self.bills, self.metrics, baseline_code=self._baseline, indicator=indicator
-        )
+        if isinstance(indicator, list):
+            assert len(indicator[0]) == 2
+            indicator = pd.DataFrame(indicator, columns=["date", "value"])
+            indicator.set_index("date", inplace=True)
+
+        if self._baseline is not None:
+            mg = MetricsGraph(
+                self.bills,
+                self.metrics,
+                baseline_code=self._baseline,
+                indicator=indicator,
+            )
+        else:
+            mg = MetricsGraph(self.bills, self.metrics, indicator=indicator)
         await mg.plot()

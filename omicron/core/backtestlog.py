@@ -1,4 +1,7 @@
 """
+!!! info
+    Since 2.0.0.a76
+    
 回测时，打印时间一般要求为回测当时的时间，而非系统时间。这个模块提供了改写日志时间的功能。
 
 使用方法：
@@ -31,16 +34,39 @@ logger.info("this is info", date=datetime.date(2022, 3, 1))
 注意在第9行，通常是`logging.getLogger(__nam__)`，而这里是`BacktestLogger.getLogger(__name__)`
 
 如果上述调用中没有传入`date`，则将使用调用时间，此时行为跟原日志系统一致。
+
 !!! warning
     当调用logger.exception时，不能传入date参数。
 
+## 配置文件示例
+如果要通过配置文件来配置，可使用以下示例：
+```yaml
+  formatters:
+    backtest: 
+      format: '%(bt_date)s | %(message)s'
+    
+    handlers:
+        backtest:
+        class: logging.StreamHandler
+        formatter: backtest
+    omicron.base.strategy:
+        level: INFO
+        handlers: [backtest]
+        propagate: false
+  loggers:
+        omicron.base.strategy:
+            level: INFO
+            handlers: [backtest]
+            propagate: false
+```
 """
 
 import datetime
 import logging
-from typing import Union
+from typing import Any, Union
 
 from coretypes import Frame
+from pandas.core.accessor import delegate_names
 
 
 class BacktestLogger(object):
@@ -96,6 +122,18 @@ class BacktestLogger(object):
             level, msg, *args, extra={"bt_date": date or datetime.datetime.now()}
         )
 
+    def __getattr__(self, method_name: str) -> Any:
+        try:
+            return self.__getattribute__(method_name)
+        except AttributeError:
+            return self.create_delegator(method_name)
+
     @classmethod
-    def setLevel(cls, level):
-        cls.logger._log.setLevel(level)
+    def create_delegator(cls, method_name: str) -> Any:
+        def delegator(*args, **kwargs):
+            if len(args) >= 1 and isinstance(args[0], cls):
+                args = args[1:]
+            getattr(cls.logger._log, method_name)(*args, **kwargs)
+
+        setattr(cls, method_name, delegator)
+        return delegator
