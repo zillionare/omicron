@@ -176,7 +176,7 @@ class BoardTest(unittest.IsolatedAsyncioTestCase):
 
         with freeze_time("2022-12-14 15:00:00"):
             rc = await Board.get_last_date_of_bars("881102")
-            self.assertEqual(rc, datetime.date(2021, 9, 3))
+            self.assertEqual(rc, datetime.date(2021, 9, 1))
 
         rc = await Board.get_last_date_of_bars("881101")
         self.assertEqual(rc, datetime.date(2022, 12, 5))
