@@ -62,7 +62,8 @@ class MetricsGraph:
 
         if indicator is not None:
             self.indicator = indicator.join(
-                pd.Series(index=self.frames, name="frames"), how="right"
+                pd.Series(index=self.frames, name="frames", dtype=np.float64),
+                how="right",
             )
         else:
             self.indicator = None

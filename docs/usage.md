@@ -268,7 +268,7 @@ Board.init('192.168.100.101')
 
 omicron 通过 [strategy](/api/strategy) 来提供策略框架。通过该框架编写的策略，可以在实盘和回测之间无缝转换 -- 根据初始化时传入的服务器不同而自动切换。
 
-omicron 提供了一个简单的 [双均线策略](/api/strategy/#omicron.strategy.sma) 作为策略编写的示范，可结合其源码，以及本文档中的[完整策略示例](/usage/#完整sma回测示例)在notebook中运行查看。
+omicron 提供了一个简单的 [双均线策略](/latest/api/strategy/#omicron.strategy.sma) 作为策略编写的示范，可结合其源码，以及本文档中的[完整策略示例](/latest/usage/#完整sma回测示例)在notebook中运行查看。
 
 
 策略框架提供了回测驱动逻辑及一些基本函数。要编写自己的策略，您需要从基类[BaseStrategy](/api/strategy/#omicron.strategy.base.BaseStrategy)派生出自己的子类，并改写它的`predict`方法来实现调仓换股。
@@ -284,8 +284,8 @@ omicron 提供了一个简单的 [双均线策略](/api/strategy/#omicron.strate
 1. 从此基类派生出一个策略子类，比如sma.py
 2. 子类需要重载`predict`方法，根据当前传入的时间帧和帧类型参数，获取数据并进行处理，评估出交易信号。
 3. 子类根据交易信号，在`predict`方法里，调用基类的`buy`和`sell`方法来进行交易
-4. 生成策略实例，通过实例调用`backtest`方法来进行回测，该方法将根据策略构建时指定的回测起始时间、终止时间、帧类型，逐帧生成各个时间帧，并调用子类的`predict`方法。如果调用时指定了`portfolio`和`min_bars`参数，`backtest`还将进行数据预取，并将截止到当前回测帧时的数据传入。
-4. 在交易结束时，调用`plot_metrics`方法来获取如下所示的回测指标图
+4. 生成策略实例，通过实例调用`backtest`方法来进行回测，该方法将根据策略构建时指定的回测起始时间、终止时间、帧类型，逐帧生成各个时间帧，并调用子类的`predict`方法。如果调用时指定了`prefetch_stocks`参数，`backtest`还将进行数据预取（预取的数据长度由`warmup_peroid`决定），并将截止到当前回测帧时的数据传入。
+5. 在交易结束时，调用`plot_metrics`方法来获取如下所示的回测指标图
 ![](https://images.jieyu.ai/images/2023/05/20230508160012.png?2)
 
 如何派生子类，可以参考[sma][omicron.strategy.sma.SMAStrategy]源代码。
@@ -301,7 +301,7 @@ sma = SMAStrategy(
     frame_type=FrameType.DAY,
 )
 
-await sma.backtest(portfolio=["600000.XSHG", min_bars=20])
+await sma.backtest(prefetch_stocks=["600000.XSHG", min_bars=20])
 ```
 在回测时，必须要指定`is_backtest=True`和`start`, `end`参数。
 ### 3.2. 回测报告
@@ -346,7 +346,7 @@ await sma.plot_metrics(indicator)
 
 在回测中，可以使用主周期的数据预取，以加快回测速度。工作原理如下：
 
-如果策略在调用`backtest`时传入了`portfolio`及`min_bars`参数，则`backtest`将会在回测之前，预取从[start - min_bars * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - min_bars * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
+如果策略在调用`backtest`时传入了`prefetch_stocks`及`min_bars`参数，则`backtest`将会在回测之前，预取从[start - min_bars * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - min_bars * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
 
 如果在回测过程中，需要偷看未来数据，可以使用peek方法。
 

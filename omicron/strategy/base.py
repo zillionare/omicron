@@ -1,5 +1,4 @@
 import datetime
-import logging
 import uuid
 from asyncio import gather
 from dataclasses import dataclass
@@ -8,8 +7,9 @@ from typing import Dict, List, Optional, Tuple, Union
 import jqdatasdk as jq
 import numpy as np
 import pandas as pd
+import traderclient
 from coretypes import BarsArray, Frame, FrameType
-from numpy.typing import NDArray
+from deprecation import deprecated
 from traderclient import TraderClient
 
 from omicron import tf
@@ -27,6 +27,8 @@ class BacktestState(object):
     end: Frame
     barss: Union[None, Dict[str, BarsArray]]
     cursor: int
+    warmup_peroid: int
+    baseline: str = "399300.XSHE"
 
 
 class BaseStrategy:
@@ -41,7 +43,7 @@ class BaseStrategy:
         start: Optional[Frame] = None,
         end: Optional[Frame] = None,
         frame_type: Optional[FrameType] = None,
-        baseline: Optional[str] = "399300.XSHE",
+        warmup_period: int = 0,
     ):
         """构造函数
 
@@ -57,7 +59,7 @@ class BaseStrategy:
             start: 如果是回测模式，则需要提供回测起始时间
             end: 如果是回测模式，则需要提供回测结束时间
             frame_type: 如果是回测模式，则需要提供回测时使用的主周期
-            baseline: 如果是回测模式，则可以提供此参数作为回测基准
+            warmup_period: 策略执行时需要的最小bar数（以frame_type）计。
         """
         self.ver = ver or "0.1"
         self.name = name or self.__class__.__name__.lower() + f"_v{self.ver}"
@@ -66,14 +68,17 @@ class BaseStrategy:
         self.account = account or f"smallcap-{self.token[-4:]}"
 
         self.url = url
+        self.bills = None
+        self.metrics = None
 
+        # used by both live and backtest
+        self.warmup_period = warmup_period
+        self.is_backtest = is_backtest
         if is_backtest:
             if start is None or end is None or frame_type is None:
                 raise ValueError("start, end and frame_type must be presented.")
 
-            self.bs = BacktestState(start, end, None, 0)
-            self.bills = None
-            self.metrics = None
+            self.bs = BacktestState(start, end, None, 0, warmup_period)
             self._frame_type = frame_type
             self.broker = TraderClient(
                 url,
@@ -83,7 +88,6 @@ class BaseStrategy:
                 start=self.bs.start,
                 end=self.bs.end,
             )
-            self._baseline = baseline
         else:
             if account is None or token is None:
                 raise ValueError("account and token must be presented.")
@@ -108,7 +112,10 @@ class BaseStrategy:
             return None
 
         self.bs.cursor += 1
-        return {k: Stock.qfq(v[: self.bs.cursor]) for (k, v) in self.bs.barss.items()}
+        return {
+            k: Stock.qfq(v[self.bs.cursor - self.bs.warmup_peroid : self.bs.cursor])
+            for (k, v) in self.bs.barss.items()
+        }
 
     async def peek(self, code: str, n: int):
         """允许策略偷看未来数据
@@ -133,35 +140,57 @@ class BaseStrategy:
         Args:
             stop_on_error: 如果为True，则发生异常时，将停止回测。否则忽略错误，继续执行。
         Keyword Args:
-            portfolio Dict[str, BarsArray]: 代码列表。在该列表中的品种，将在回测之前自动预取行情数据，并在调用predict时，传入截止到当前frame的，长度为n的行情数据。行情周期由构造时的frame_type指定
-            min_bars int: 回测时必要的bars的最小值
+            prefetch_stocks Dict[str, BarsArray]: 代码列表。在该列表中的品种，将在回测之前自动预取行情数据，并在调用predict时，传入截止到当前frame的，长度为n的行情数据。行情周期由构造时的frame_type指定。预取数据长度由`self.warmup_period`决定
         """
-        portfolio: List[str] = kwargs.get("portfolio")  # type: ignore
-        n = kwargs.get("min_bars", 0)
-        await self._cache_bars_for_backtest(portfolio, n)
-        self.bs.cursor = n
+        prefetch_stocks: List[str] = kwargs.get("prefetch_stocks")  # type: ignore
+        await self._cache_bars_for_backtest(prefetch_stocks, self.warmup_period)
+        self.bs.cursor = self.warmup_period
 
-        converter = (
-            tf.int2date if self._frame_type in tf.day_level_frames else tf.int2time
-        )
+        intra_day = self._frame_type in tf.minute_level_frames
+        converter = tf.int2time if intra_day else tf.int2date
 
+        await self.before_start()
+
+        # 最后一周期不做预测，留出来执行上一周期的信号
+        end_ = tf.shift(self.bs.end, -1, self._frame_type)
         for i, frame in enumerate(
-            tf.get_frames(self.bs.start, self.bs.end, self._frame_type)  # type: ignore
+            tf.get_frames(self.bs.start, end_, self._frame_type)  # type: ignore
         ):
             barss = self._next()
-            logger.debug("%sth iteration", i, date=converter(frame))
+            frame_ = converter(frame)
+
+            prev_frame = tf.shift(frame_, -1, self._frame_type)
+            next_frame = tf.shift(frame_, 1, self._frame_type)
+
+            # new trading day start
+            if (not intra_day and prev_frame > frame_) or (
+                intra_day and prev_frame.date() < frame_.date()
+            ):
+                await self.before_trade(frame_)
+
+            logger.debug("%sth iteration", i, date=frame_)
             try:
                 await self.predict(
-                    converter(frame), self._frame_type, i, barss=barss, **kwargs  # type: ignore
+                    frame_, self._frame_type, i, barss=barss, **kwargs  # type: ignore
                 )
             except Exception as e:
                 logger.exception(e)
                 if stop_on_error:
                     raise e
 
+            # trading day ends
+            if (not intra_day and next_frame > frame_) or (
+                intra_day and next_frame.date() > frame_.date()
+            ):
+                await self.after_trade(frame_)
+
         self.broker.stop_backtest()
+
+        await self.after_stop()
         self.bills = self.broker.bills()
-        self.metrics = self.broker.metrics(baseline=self._baseline)
+        baseline = kwargs.get("baseline", "399300.XSHE")
+        self.metrics = self.broker.metrics(baseline=baseline)
+        self.bs.baseline = baseline
 
     @property
     def cash(self):
@@ -200,7 +229,7 @@ class BaseStrategy:
         Returns:
             见traderclient中的`buy`方法。
         """
-        logger.info(
+        logger.debug(
             "buy order: %s, %s, %s, %s",
             sec,
             f"{price:.2f}" if price is not None else None,
@@ -208,6 +237,7 @@ class BaseStrategy:
             f"{money:.0f}" if money is not None else None,
             date=order_time,
         )
+
         if vol is None:
             if money is None:
                 raise ValueError("parameter `mnoey` must be presented!")
@@ -240,7 +270,7 @@ class BaseStrategy:
         Returns:
             Union[List, Dict]: 成交返回，详见traderclient中的`buy`方法，trade server只返回一个委托单信息
         """
-        logger.info(
+        logger.debug(
             "sell order: %s, %s, %s, %s",
             sec,
             f"{price:.2f}" if price is not None else None,
@@ -273,12 +303,56 @@ class BaseStrategy:
 
         return np.intersect1d(buylist, in_trading)
 
+    async def before_start(self):
+        """策略启动前的准备工作。
+
+        在一次回测中，它会在backtest中、进入循环之前调用。如果策略需要根据过去的数据来计算一些自适应参数，可以在此方法中实现。
+        """
+        if self.bs is not None:
+            logger.info(
+                "BEFORE_START: %s<%s - %s>",
+                self.name,
+                self.bs.start,
+                self.bs.end,
+                date=self.bs.start,
+            )
+        else:
+            logger.info("BEFORE_START: %s", self.name)
+
+    async def before_trade(self, date: datetime.date):
+        """每日开盘前的准备工作
+
+        Args:
+            date: 日期。在回测中为回测当日日期，在实盘中为系统日期
+        """
+        logger.debug("BEFORE_TRADE: %s", self.name, date=date)
+
+    async def after_trade(self, date: Frame):
+        """每日收盘后的收尾工作
+
+        Args:
+            date: 日期。在回测中为回测当日日期，在实盘中为系统日期
+        """
+        logger.debug("AFTER_TRADE: %s", self.name, date=date)
+
+    async def after_stop(self):
+        if self.bs is not None:
+            logger.info(
+                "STOP %s<%s - %s>",
+                self.name,
+                self.bs.start,
+                self.bs.end,
+                date=self.bs.end,
+            )
+        else:
+            logger.info("STOP %s", self.name)
+
     async def predict(
         self,
         frame: Frame,
         frame_type: FrameType,
         i: int,
-        barss: Dict[str, BarsArray],
+        barss: Optional[Dict[str, BarsArray]] = None,
         **kwargs,
     ):
         """策略评估函数。在此函数中实现交易信号检测和处理。
@@ -293,7 +367,13 @@ class BaseStrategy:
         """
         raise NotImplementedError
 
+    @deprecated("2.0.0", details="use `make_report` instead")
     async def plot_metrics(
+        self, indicator: Union[pd.DataFrame, List[Tuple], None] = None
+    ):
+        return await self.make_report(indicator)
+
+    async def make_report(
         self, indicator: Union[pd.DataFrame, List[Tuple], None] = None
     ):
         """策略回测报告
@@ -309,13 +389,10 @@ class BaseStrategy:
             indicator = pd.DataFrame(indicator, columns=["date", "value"])
             indicator.set_index("date", inplace=True)
 
-        if self._baseline is not None:
-            mg = MetricsGraph(
-                self.bills,
-                self.metrics,
-                baseline_code=self._baseline,
-                indicator=indicator,
-            )
-        else:
-            mg = MetricsGraph(self.bills, self.metrics, indicator=indicator)
+        mg = MetricsGraph(
+            self.bills,
+            self.metrics,
+            indicator=indicator,
+            baseline_code=self.bs.baseline,
+        )
         await mg.plot()

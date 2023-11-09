@@ -127,6 +127,8 @@ class Query:
     def types(self, types: List[str]) -> "Query":
         """选择类型在`types`中的证券品种
 
+        如果不调用此方法，默认选择所有股票类型。
+        如果调用此方法但不传入参数，默认选择指数+股票
         Args:
             types: 有效的类型包括: 对股票指数而言是（'index', 'stock'），对基金而言则是（'etf', 'fjb', 'mmf', 'reits', 'fja', 'fjm', 'lof'）
         """
@@ -219,6 +221,7 @@ class Query:
             return None
 
         results = []
+        self._type_pattern = self._type_pattern or SecurityType.STOCK.value
         for record in records:
             if self._type_pattern is not None:
                 if record["type"] not in self._type_pattern:
@@ -232,27 +235,37 @@ class Query:
 
             # 创业板，科创板，ST暂时限定为股票类型
             if self._only_cyb:
-                if record["type"] != "stock" or not (
+                if record["type"] != SecurityType.STOCK.value or not (
                     record["code"][:3] in ("300", "301")
                 ):
                     continue
             if self._only_kcb:
                 if (
-                    record["type"] != "stock"
+                    record["type"] != SecurityType.STOCK.value
                     or record["code"].startswith("688") is False
                 ):
                     continue
             if self._only_st:
-                if record["type"] != "stock" or record["alias"].find("ST") == -1:
+                if (
+                    record["type"] != SecurityType.STOCK.value
+                    or record["alias"].find("ST") == -1
+                ):
                     continue
             if self._exclude_cyb:
-                if record["type"] == "stock" and record["code"][:3] in ("300", "301"):
+                if record["type"] == SecurityType.STOCK.value and record["code"][
+                    :3
+                ] in ("300", "301"):
                     continue
             if self._exclude_st:
-                if record["type"] == "stock" and record["alias"].find("ST") != -1:
+                if (
+                    record["type"] == SecurityType.STOCK.value
+                    and record["alias"].find("ST") != -1
+                ):
                     continue
             if self._exclude_kcb:
-                if record["type"] == "stock" and record["code"].startswith("688"):
+                if record["type"] == SecurityType.STOCK.value and record[
+                    "code"
+                ].startswith("688"):
                     continue
 
             # 退市暂不限定是否为股票
