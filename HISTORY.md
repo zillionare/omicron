@@ -1,7 +1,7 @@
 # History
 
 ## 2.0.0-alpha77
-* 增加lifecycle
+* strategy增加lifecycle
 * 保留最后一个回测周期仅供交易使用，不调用`predict`
 * Security获取股票列表时，如果不调用`types`，将获取股票列表，调用`types()`不传参数将获取带指数、股票的列表。
 ## 2.0.0-alpha76
