@@ -7,8 +7,8 @@ from typing import Dict, List, Optional, Tuple, Union
 import jqdatasdk as jq
 import numpy as np
 import pandas as pd
-import traderclient
 from coretypes import BarsArray, Frame, FrameType
+from coretypes.errors.trade import TradeError
 from deprecation import deprecated
 from traderclient import TraderClient
 
@@ -157,16 +157,17 @@ class BaseStrategy:
             tf.get_frames(self.bs.start, end_, self._frame_type)  # type: ignore
         ):
             barss = self._next()
+            day_barss = barss if self._frame_type == FrameType.DAY else None
             frame_ = converter(frame)
 
             prev_frame = tf.shift(frame_, -1, self._frame_type)
             next_frame = tf.shift(frame_, 1, self._frame_type)
 
             # new trading day start
-            if (not intra_day and prev_frame > frame_) or (
+            if (not intra_day and prev_frame < frame_) or (
                 intra_day and prev_frame.date() < frame_.date()
             ):
-                await self.before_trade(frame_)
+                await self.before_trade(frame_, day_barss)
 
             logger.debug("%sth iteration", i, date=frame_)
             try:
@@ -174,7 +175,10 @@ class BaseStrategy:
                     frame_, self._frame_type, i, barss=barss, **kwargs  # type: ignore
                 )
             except Exception as e:
-                logger.exception(e)
+                if isinstance(e, TradeError):
+                    logger.warning("call stack is:\n%s", e.stack)
+                else:
+                    logger.exception(e)
                 if stop_on_error:
                     raise e
 
@@ -182,7 +186,7 @@ class BaseStrategy:
             if (not intra_day and next_frame > frame_) or (
                 intra_day and next_frame.date() > frame_.date()
             ):
-                await self.after_trade(frame_)
+                await self.after_trade(frame_, day_barss)
 
         self.broker.stop_backtest()
 
@@ -319,19 +323,21 @@ class BaseStrategy:
         else:
             logger.info("BEFORE_START: %s", self.name)
 
-    async def before_trade(self, date: datetime.date):
+    async def before_trade(self, date: datetime.date, barss: Optional[Dict[str, BarsArray]]=None):
         """每日开盘前的准备工作
 
         Args:
             date: 日期。在回测中为回测当日日期，在实盘中为系统日期
+            barss: 如果主周期为日线，且支持预取，则会将预取的barss传入
         """
         logger.debug("BEFORE_TRADE: %s", self.name, date=date)
 
-    async def after_trade(self, date: Frame):
+    async def after_trade(self, date: Frame, barss: Optional[Dict[str, BarsArray]]=None):
         """每日收盘后的收尾工作
 
         Args:
             date: 日期。在回测中为回测当日日期，在实盘中为系统日期
+            barss: 如果主周期为日线，且支持预取，则会将预取的barss传入
         """
         logger.debug("AFTER_TRADE: %s", self.name, date=date)
 
@@ -361,7 +367,7 @@ class BaseStrategy:
             frame: 当前时间帧
             frame_type: 处理的数据主周期
             i: 当前时间离回测起始的单位数
-            barss: 如果调用`backtest`时传入了`portfolio`及`min_bars`参数，则`backtest`将会在回测之前，预取从[start - min_bars * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - min_bars * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
+            barss: 如果调用`backtest`时传入了`portfolio`及参数，则`backtest`将会在回测之前，预取从[start - warmup_period * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - warmup_period * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
 
         Keyword Args: 在`backtest`方法中的传入的kwargs参数将被透传到此方法中。
         """

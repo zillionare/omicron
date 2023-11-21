@@ -100,6 +100,7 @@ class SMAStrategyTest(unittest.IsolatedAsyncioTestCase):
             start=datetime.date(2023, 2, 3),
             end=datetime.date(2023, 4, 28),
             frame_type=FrameType.DAY,
+            warmup_period = 20
         )
 
         # setup the mock
@@ -113,4 +114,4 @@ class SMAStrategyTest(unittest.IsolatedAsyncioTestCase):
 
         # no exception is ok
         with mock.patch.object(omicron.models.stock.Stock, "get_bars", self.get_bars):
-            await sma.backtest(stop_on_error=True, portfolio=[code], min_bars=10)
+            await sma.backtest(stop_on_error=True, portfolio=[code])

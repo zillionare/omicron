@@ -1,5 +1,7 @@
 # History
-
+#
+# 2.0.0-alpha78
+* backtest中捕获异常时，如果是TradeError类型，打印该对象自带的stack
 ## 2.0.0-alpha77
 * strategy增加lifecycle
 * 保留最后一个回测周期仅供交易使用，不调用`predict`

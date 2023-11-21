@@ -55,7 +55,7 @@ class SMAStrategy(BaseStrategy):
         self, frame: Frame, frame_type: FrameType, i: int, barss, **kwargs
     ):
         if barss is None:
-            raise ValueError("please specify `prefetch_stocks` and `min_bars`")
+            raise ValueError("please specify `prefetch_stocks`")
 
         bars: Union[BarsArray, None] = barss.get(self._sec)
         if bars is None:

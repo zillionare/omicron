@@ -299,9 +299,10 @@ sma = SMAStrategy(
     start=datetime.date(2023, 2, 3),
     end=datetime.date(2023, 4, 28),
     frame_type=FrameType.DAY,
+    warmup_period = 20
 )
 
-await sma.backtest(prefetch_stocks=["600000.XSHG", min_bars=20])
+await sma.backtest(prefetch_stocks=["600000.XSHG"])
 ```
 在回测时，必须要指定`is_backtest=True`和`start`, `end`参数。
 ### 3.2. 回测报告
@@ -346,7 +347,7 @@ await sma.plot_metrics(indicator)
 
 在回测中，可以使用主周期的数据预取，以加快回测速度。工作原理如下：
 
-如果策略在调用`backtest`时传入了`prefetch_stocks`及`min_bars`参数，则`backtest`将会在回测之前，预取从[start - min_bars * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - min_bars * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
+如果策略指定了`warmup_period`，并在调用`backtest`时传入了`prefetch_stocks`参数，则`backtest`将会在回测之前，预取从[start - warmup_period * frame_type, end]间的portfolio行情数据，并在每次调用`predict`方法时，通过`barss`参数，将[start - warmup_period * frame_type, start + i * frame_type]间的数据传给`predict`方法。传入的数据已进行前复权。
 
 如果在回测过程中，需要偷看未来数据，可以使用peek方法。
 
@@ -370,8 +371,8 @@ sec = "600000.XSHG"
 start = datetime.date(2022, 1, 4)
 end = datetime.date(2023, 1,1)
 
-sma = SMAStrategy(sec, url=cfg.backtest.url, is_backtest=True, start=start, end=end, frame_type=FrameType.DAY)
-await sma.backtest(portfolio=[sec], min_bars=10, stop_on_error=False)
+sma = SMAStrategy(sec, url=cfg.backtest.url, is_backtest=True, start=start, end=end, frame_type=FrameType.DAY, warmup_period=10)
+await sma.backtest(portfolio=[sec], stop_on_error=False)
 await sma.plot_metrics(sma.indicators)
 
 ```
