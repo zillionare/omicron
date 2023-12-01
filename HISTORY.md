@@ -2,6 +2,8 @@
 #
 # 2.0.0-alpha78
 * backtest中捕获异常时，如果是TradeError类型，打印该对象自带的stack
+* Candlestick中判断峰谷时使用2倍标准差参数，以实现自适应
+* 修复当行情数据缺失时，造成的backtest迭代frame与cursor指向不一致问题
 ## 2.0.0-alpha77
 * strategy增加lifecycle
 * 保留最后一个回测周期仅供交易使用，不调用`predict`

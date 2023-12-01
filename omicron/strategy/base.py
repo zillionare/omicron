@@ -26,7 +26,7 @@ class BacktestState(object):
     start: Frame
     end: Frame
     barss: Union[None, Dict[str, BarsArray]]
-    cursor: int
+    cursor: Frame
     warmup_peroid: int
     baseline: str = "399300.XSHE"
 
@@ -111,11 +111,20 @@ class BaseStrategy:
         if self.bs.barss is None:
             return None
 
-        self.bs.cursor += 1
-        return {
-            k: Stock.qfq(v[self.bs.cursor - self.bs.warmup_peroid : self.bs.cursor])
-            for (k, v) in self.bs.barss.items()
-        }
+        barss = {}
+
+        for k, v in self.bs.barss.items():
+            iend = np.argwhere(v['frame'] == np.datetime64(self.bs.cursor)).flatten()
+            if len(iend) == 0:
+                barss[k] = None
+                continue
+            else:
+                iend = iend[0] + 1
+                istart = max(0, iend - self.bs.warmup_peroid)
+                barss[k] = v[istart: iend]
+
+        self.bs.cursor = tf.shift(self.bs.cursor, 1, self._frame_type)
+        return barss
 
     async def peek(self, code: str, n: int):
         """允许策略偷看未来数据
@@ -126,10 +135,15 @@ class BaseStrategy:
             raise ValueError("data is not cached")
 
         if code in self.bs.barss:
-            if self.bs.cursor + n + 1 < len(self.bs.barss[code]):
-                return Stock.qfq(
-                    self.bs.barss[code][self.bs.cursor : self.bs.cursor + n]
-                )
+            bars = self.bs.barss[code]
+            istart = np.argwhere(bars["frame" == self.bs.cursor]).flatten()
+            if len(istart) == 0: # 如果当前周期处于停牌中，则不允许任何操作
+                raise ValueError("无数据或者停牌中")
+            
+            istart = istart[0]
+            return Stock.qfq(
+                self.bs.barss[code][istart : istart + n + 1]
+            )
 
         else:
             raise ValueError("data is not cached")
@@ -144,7 +158,7 @@ class BaseStrategy:
         """
         prefetch_stocks: List[str] = kwargs.get("prefetch_stocks")  # type: ignore
         await self._cache_bars_for_backtest(prefetch_stocks, self.warmup_period)
-        self.bs.cursor = self.warmup_period
+        self.bs.cursor = self.bs.start
 
         intra_day = self._frame_type in tf.minute_level_frames
         converter = tf.int2time if intra_day else tf.int2date

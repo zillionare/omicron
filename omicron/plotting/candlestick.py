@@ -321,7 +321,7 @@ class Candlestick:
         """
         if trace_name == "peaks":
             self.mark_peaks_and_valleys(
-                kwargs.get("up_thres", 0.03), kwargs.get("down_thres", -0.03)
+                kwargs.get("up_thres"), kwargs.get("down_thres")
             )
 
         # 标注矩形框
