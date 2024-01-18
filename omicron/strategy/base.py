@@ -44,6 +44,8 @@ class BaseStrategy:
         end: Optional[Frame] = None,
         frame_type: Optional[FrameType] = None,
         warmup_period: int = 0,
+        principal: float = 1_000_000,
+        commission: float = 1.5e-4
     ):
         """构造函数
 
@@ -60,6 +62,8 @@ class BaseStrategy:
             end: 如果是回测模式，则需要提供回测结束时间
             frame_type: 如果是回测模式，则需要提供回测时使用的主周期
             warmup_period: 策略执行时需要的最小bar数（以frame_type）计。
+            principal: 回测时初始资金。默认为100万。实盘时会自动忽略此参数
+            commission: 回测时的手续费率。默认为0.015%。实盘时会自动忽略此参数
         """
         self.ver = ver or "0.1"
         self.name = name or self.__class__.__name__.lower() + f"_v{self.ver}"
@@ -78,6 +82,9 @@ class BaseStrategy:
             if start is None or end is None or frame_type is None:
                 raise ValueError("start, end and frame_type must be presented.")
 
+            start = tf.floor(start, frame_type)
+            end = tf.floor(end, frame_type)
+
             self.bs = BacktestState(start, end, None, 0, warmup_period)
             self._frame_type = frame_type
             self.broker = TraderClient(
@@ -87,6 +94,8 @@ class BaseStrategy:
                 is_backtest=True,
                 start=self.bs.start,
                 end=self.bs.end,
+                principal=principal,
+                commission=commission
             )
         else:
             if account is None or token is None:
