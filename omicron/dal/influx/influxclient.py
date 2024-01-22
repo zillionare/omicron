@@ -17,7 +17,11 @@ from omicron.dal.influx.errors import (
     InfluxSchemaError,
 )
 from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.serialize import DataframeSerializer, NumpySerializer
+from omicron.dal.influx.serialize import (
+    DataframeDeserializer,
+    DataframeSerializer,
+    NumpySerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -454,3 +458,79 @@ class InfluxClient:
                 return org["id"]
 
         raise BadParameterError(f"can't find org with name: {name}")
+
+    async def query_reach_buy_limit(self, start: datetime.date, end:datetime.date):
+        """查询时间段[start, end]期间的涨停板
+        
+        import "math"
+        from(bucket: "zillionare")
+        |> range(start: 2024-01-04T00:00:00Z, stop: 2024-01-08T00:00:00Z)
+        |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")
+        |> filter(fn: (r) => r["_field"] == "close" or r["_field"] == "high_limit")
+        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> map(fn: (r) => ({r with _value: r.close - r.high_limit }))
+        |> map(fn: (r) => ({r with _value: math.abs(x: r._value) < 0.01}))
+        |> filter(fn: (r) => r._value)
+        """
+        flux = f"""
+        import "math"
+
+        from(bucket: "{self._bucket}")
+        |> range(start: {Flux.format_time(start)}, stop: {Flux.format_time(end,shift_forward=True)})
+        |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")
+        |> filter(fn: (r) => r["_field"] == "close" or r["_field"] == "high_limit")
+        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> map(fn: (r) => ({{r with _value: r.close - r.high_limit }}))
+        |> map(fn: (r) => ({{r with _value: math.abs(x: r._value) < 0.01}}))
+        |> filter(fn: (r) => r._value)
+        """
+
+        names = ["_", "result", "table", "_measurement","_start","_stop","_time","_value","close","code","high_limit"]
+
+        deserializer = DataframeDeserializer(
+            names=names,
+            encoding="utf-8",
+            time_col="_time",
+            engine="c",
+        )
+        
+        data = await self.query(flux, deserializer)
+        return data[["code", "close", "_time"]].rename(columns={"_time": "frame"}).set_index("frame")
+
+    async def query_reach_sell_limit(self, start: datetime.date, end:datetime.date):
+        """查询时间段[start, end]期间的跌停板
+        
+        import "math"
+        from(bucket: "zillionare")
+        |> range(start: 2024-01-04T00:00:00Z, stop: 2024-01-08T00:00:00Z)
+        |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")
+        |> filter(fn: (r) => r["_field"] == "close" or r["_field"] == "low_limit")
+        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> map(fn: (r) => ({r with _value: r.close - r.low_limit }))
+        |> map(fn: (r) => ({r with _value: math.abs(x: r._value) < 0.01}))
+        |> filter(fn: (r) => r._value)
+        """
+        flux = f"""
+        import "math"
+
+        from(bucket: "{self._bucket}")
+        |> range(start: {Flux.format_time(start)}, stop: {Flux.format_time(end,shift_forward=True)})
+        |> filter(fn: (r) => r["_measurement"] == "stock_bars_1d")
+        |> filter(fn: (r) => r["_field"] == "close" or r["_field"] == "low_limit")
+        |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+        |> map(fn: (r) => ({{r with _value: r.close - r.low_limit }}))
+        |> map(fn: (r) => ({{r with _value: math.abs(x: r._value) < 0.01}}))
+        |> filter(fn: (r) => r._value)
+        """
+
+        names = ["_", "result", "table", "_measurement","_start","_stop","_time","_value","close","code","low_limit"]
+
+        deserializer = DataframeDeserializer(
+            names=names,
+            encoding="utf-8",
+            time_col="_time",
+            engine="c",
+        )
+        
+        data = await self.query(flux, deserializer)
+        return data[["code", "close", "_time"]].rename(columns={"_time": "frame"}).set_index("frame")

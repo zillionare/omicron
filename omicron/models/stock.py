@@ -2,7 +2,7 @@ import datetime
 import itertools
 import logging
 import re
-from typing import Dict, Generator, Iterable, List, Tuple, Union
+from typing import Dict, Generator, Iterable, List, Optional, Tuple, Union
 
 import arrow
 import cfg4py
@@ -1460,3 +1460,39 @@ class Stock(Security):
             else:
                 _converted_data.append(float(_data))
         return _converted_data
+
+    @classmethod
+    async def get_buy_limit_secs(cls, start: datetime.date, end: Optional[datetime.date]=None)->pd.DataFrame:
+        """查询在[start, end]区间涨停的个股代码
+        
+            如果只查询某一天数据，则可省略end。本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
+            Args:
+                start: 起始时间，包含
+                end: 截止时间，包含
+            Returns:
+                区间内涨停列表，一个包含日期、code和收盘价的dataframe
+        """
+        end = end or start
+
+        client = get_influx_client()
+        data = await client.query_reach_buy_limit(start, end)
+
+        return data
+
+    @classmethod
+    async def get_sell_limit_secs(cls, start: datetime.date, end: Optional[datetime.date]=None)->pd.DataFrame:
+        """查询在[start, end]区间跌停的个股代码
+        
+            如果只查询某一天数据，则可省略end，本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
+            Args:
+                start: 起始时间，包含
+                end: 截止时间，包含
+            Returns:
+                区间内涨停列表，一个包含日期、code和收盘价的dataframe
+        """
+        end = end or start
+
+        client = get_influx_client()
+        data = await client.query_reach_sell_limit(start, end)
+
+        return data

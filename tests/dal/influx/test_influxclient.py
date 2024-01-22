@@ -19,6 +19,7 @@ from omicron.dal.influx.serialize import (
     NumpyDeserializer,
     NumpySerializer,
 )
+from omicron.extensions import numpy_append_fields
 from omicron.models.stock import Stock
 from tests import MockException, assert_bars_equal, init_test_env
 from tests.dal.influx import mock_data_for_influx
@@ -440,3 +441,285 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
                     "message": "mockerror",
                 }
                 await client.delete_bucket()
+
+    async def test_query_reach_buy_limit(self):
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 3, 22),
+                    3.0,
+                    3.14,
+                    2.7,
+                    3.14,
+                    1.64808427e08,
+                    4.86487509e08,
+                    1.0,
+                    3.14,
+                    2.57,
+                ),
+                # assume 2022-3-23 stop trading
+                (
+                    datetime.date(2022, 3, 24),
+                    3.45,
+                    3.8,
+                    3.27,
+                    3.8,
+                    2.78554700e08,
+                    9.86430823e08,
+                    1.0,
+                    3.8,
+                    3.11,
+                ),
+                (
+                    datetime.date(2022, 3, 25),
+                    3.76,
+                    4.11,
+                    3.52,
+                    3.76,
+                    2.68746669e08,
+                    1.02163013e09,
+                    1.0,
+                    4.18,
+                    3.42,
+                ),
+                (
+                    datetime.date(2022, 3, 28),
+                    3.38,
+                    4.0,
+                    3.38,
+                    3.76,
+                    2.36926943e08,
+                    8.49636557e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 29),
+                    3.58,
+                    3.68,
+                    3.38,
+                    3.38,
+                    1.29861905e08,
+                    4.46620979e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 30),
+                    3.1,
+                    3.35,
+                    3.05,
+                    3.07,
+                    1.71553784e08,
+                    5.43805962e08,
+                    1.0,
+                    3.72,
+                    3.04,
+                ),
+                (
+                    datetime.date(2022, 3, 31),
+                    3.07,
+                    3.19,
+                    2.9,
+                    3.14,
+                    1.74144017e08,
+                    5.28782426e08,
+                    1.0,
+                    3.38,
+                    2.76,
+                ),
+                (
+                    datetime.date(2022, 4, 1),
+                    3.01,
+                    3.06,
+                    2.91,
+                    2.94,
+                    1.03947342e08,
+                    3.09315863e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+
+        start = datetime.date(2022, 3, 22)
+        end = datetime.date(2022, 4, 6)
+
+        await Stock.save_trade_price_limits(limits, False)
+
+        df = await self.client.query_reach_buy_limit(start, end)
+        self.assertEqual(2, len(df))
+        self.assertListEqual(df.index.to_list(), [datetime.date(2022, 3, 22), datetime.date(2022, 3, 24)])
+        self.assertListEqual(df.columns.to_list(), ["code", "close"])
+
+    async def test_query_reach_sell_limit(self):
+        limits = np.array(
+            [
+                (
+                    datetime.date(2022, 3, 22),
+                    3.0,
+                    3.14,
+                    2.7,
+                    3.14,
+                    1.64808427e08,
+                    4.86487509e08,
+                    1.0,
+                    3.14,
+                    2.57,
+                ),
+                # assume 2022-3-23 stop trading
+                (
+                    datetime.date(2022, 3, 24),
+                    3.45,
+                    3.8,
+                    3.27,
+                    3.8,
+                    2.78554700e08,
+                    9.86430823e08,
+                    1.0,
+                    3.8,
+                    3.11,
+                ),
+                (
+                    datetime.date(2022, 3, 25),
+                    3.76,
+                    4.11,
+                    3.52,
+                    3.76,
+                    2.68746669e08,
+                    1.02163013e09,
+                    1.0,
+                    4.18,
+                    3.42,
+                ),
+                (
+                    datetime.date(2022, 3, 28),
+                    3.38,
+                    4.0,
+                    3.38,
+                    3.76,
+                    2.36926943e08,
+                    8.49636557e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 29),
+                    3.58,
+                    3.68,
+                    3.38,
+                    3.38,
+                    1.29861905e08,
+                    4.46620979e08,
+                    1.0,
+                    4.14,
+                    3.38,
+                ),
+                (
+                    datetime.date(2022, 3, 30),
+                    3.1,
+                    3.35,
+                    3.05,
+                    3.07,
+                    1.71553784e08,
+                    5.43805962e08,
+                    1.0,
+                    3.72,
+                    3.04,
+                ),
+                (
+                    datetime.date(2022, 3, 31),
+                    3.07,
+                    3.19,
+                    2.9,
+                    3.14,
+                    1.74144017e08,
+                    5.28782426e08,
+                    1.0,
+                    3.38,
+                    2.76,
+                ),
+                (
+                    datetime.date(2022, 4, 1),
+                    3.01,
+                    3.06,
+                    2.91,
+                    2.94,
+                    1.03947342e08,
+                    3.09315863e08,
+                    1.0,
+                    3.45,
+                    2.83,
+                ),
+                (
+                    datetime.date(2022, 4, 6),
+                    2.92,
+                    3.05,
+                    2.91,
+                    3.01,
+                    8.73678140e07,
+                    2.60495520e08,
+                    1.0,
+                    3.23,
+                    2.65,
+                ),
+            ],
+            dtype=[
+                ("frame", "O"),
+                ("open", "<f4"),
+                ("high", "<f4"),
+                ("low", "<f4"),
+                ("close", "<f4"),
+                ("volume", "<f8"),
+                ("amount", "<f8"),
+                ("factor", "<f4"),
+                ("high_limit", "<f4"),
+                ("low_limit", "<f4"),
+            ],
+        )
+        code = "002482.XSHE"
+        limits = numpy_append_fields(
+            limits, "code", [code] * len(limits), [("code", "O")]
+        )
+
+        start = datetime.date(2022, 3, 22)
+        end = datetime.date(2022, 4, 6)
+
+        await Stock.save_trade_price_limits(limits, False)
+
+        df = await self.client.query_reach_sell_limit(start, end)
+        self.assertEqual(1, len(df))
+        self.assertListEqual(df.index.to_list(), [datetime.date(2022, 3, 29)])
+        self.assertListEqual(df.columns.to_list(), ["code", "close"])

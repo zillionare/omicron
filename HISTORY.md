@@ -1,6 +1,8 @@
 # History
-#
-# 2.0.0-alpha78
+
+## 2.0.0-alpha79
+*增加get_buy_limit_secs和get_sell_limit_secs接口，以查询区间内涨停个股，增加此类查询的性能。
+## 2.0.0-alpha78
 * backtest中捕获异常时，如果是TradeError类型，打印该对象自带的stack
 * Candlestick中判断峰谷时使用2倍标准差参数，以实现自适应
 * 修复当行情数据缺失时，造成的backtest迭代frame与cursor指向不一致问题
