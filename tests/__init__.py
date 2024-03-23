@@ -1,19 +1,19 @@
 """Unit test package for omicron."""
+
 import datetime
 import json
 import logging
 import os
 from typing import List, Union
 
-import aioredis
 import cfg4py
 import numpy as np
+import redis.asyncio as redis
 from coretypes import Frame, FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import omicron
 from omicron.models.security import security_db_dtype
-from omicron.models.timeframe import TimeFrame
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)
@@ -25,10 +25,10 @@ class MockException(Exception):
 
 async def clear_cache(dsn):
     try:
-        redis = aioredis.from_url(dsn)
-        await redis.flushall()
+        cache = redis.from_url(dsn)
+        await cache.flushall()
     finally:
-        await redis.close()
+        await cache.close()
 
 
 _stocks_for_test = [
@@ -114,16 +114,16 @@ async def init_test_env():
 
     cfg = cfg4py.init(config_path, False)
 
-    redis = aioredis.from_url(
+    cache = redis.from_url(
         cfg.redis.dsn, encoding="utf-8", decode_responses=True, db=1
     )
 
     try:
-        await set_calendar_data(redis)
-        await set_security_data(redis)
+        await set_calendar_data(cache)
+        await set_security_data(cache)
     finally:
-        if redis:
-            await redis.close()
+        if cache:
+            await cache.close()
 
     return cfg
 

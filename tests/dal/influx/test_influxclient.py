@@ -580,7 +580,9 @@ class InfluxClientTest(unittest.IsolatedAsyncioTestCase):
 
         df = await self.client.query_reach_buy_limit(start, end)
         self.assertEqual(2, len(df))
-        self.assertListEqual(df.index.to_list(), [datetime.date(2022, 3, 22), datetime.date(2022, 3, 24)])
+        self.assertListEqual(
+            df.index.to_list(), [datetime.date(2022, 3, 22), datetime.date(2022, 3, 24)]
+        )
         self.assertListEqual(df.columns.to_list(), ["code", "close"])
 
     async def test_query_reach_sell_limit(self):

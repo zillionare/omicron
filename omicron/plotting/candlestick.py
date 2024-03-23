@@ -72,6 +72,7 @@ cs.plot()
 ![](https://images.jieyu.ai/images/2023/05/20230508164848.png)
 
 """
+
 from collections import defaultdict
 from typing import List, Optional, Tuple
 

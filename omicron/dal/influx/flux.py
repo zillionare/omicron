@@ -114,9 +114,9 @@ class Flux(object):
         if "measurement" in self.expressions:
             raise DuplicateOperationError("measurement has been set")
 
-        self.expressions[
-            "measurement"
-        ] = f'  |> filter(fn: (r) => r["_measurement"] == "{measurement}")'
+        self.expressions["measurement"] = (
+            f'  |> filter(fn: (r) => r["_measurement"] == "{measurement}")'
+        )
 
         return self
 
@@ -344,9 +344,9 @@ class Flux(object):
         columns = ",".join([f'"{name}"' for name in column_keys])
         rowkeys = ",".join([f'"{name}"' for name in row_keys])
 
-        self.expressions[
-            "pivot"
-        ] = f'  |> pivot(columnKey: [{columns}], rowKey: [{rowkeys}], valueColumn: "{value_column}")'
+        self.expressions["pivot"] = (
+            f'  |> pivot(columnKey: [{columns}], rowKey: [{rowkeys}], valueColumn: "{value_column}")'
+        )
 
         return self
 

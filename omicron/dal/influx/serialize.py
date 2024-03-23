@@ -615,9 +615,9 @@ class NumpyDeserializer(Serializer):
                         self.parse_date,
                     )
                 else:  # 增加parse_date到converters
-                    self.converters[
-                        parse_date
-                    ] = lambda x: ciso8601.parse_datetime_as_naive(x)
+                    self.converters[parse_date] = (
+                        lambda x: ciso8601.parse_datetime_as_naive(x)
+                    )
 
             stream.seek(0)
         except (IndexError, ValueError):

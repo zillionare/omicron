@@ -2122,9 +2122,10 @@ class StockTest(unittest.IsolatedAsyncioTestCase):
 
         df = await Stock.get_buy_limit_secs(start, end)
         self.assertEqual(2, len(df))
-        self.assertListEqual(df.index.to_list(), [datetime.date(2022, 3, 22), datetime.date(2022, 3, 24)])
+        self.assertListEqual(
+            df.index.to_list(), [datetime.date(2022, 3, 22), datetime.date(2022, 3, 24)]
+        )
         self.assertListEqual(df.columns.to_list(), ["code", "close"])
-
 
     async def test_query_reach_sell_limit(self):
         limits = np.array(

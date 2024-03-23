@@ -138,7 +138,15 @@ class BoardTest(unittest.IsolatedAsyncioTestCase):
                 [datetime.date(2022, 12, 2), 122, 128, 80, 103, 1000000, 2000000],
                 [datetime.date(2022, 12, 5), 130, 153, 80, 103, 1000000, 2000000],
             ],
-            columns=["日期", "开盘价", "最高价", "最低价", "收盘价", "成交量", "成交额"],
+            columns=[
+                "日期",
+                "开盘价",
+                "最高价",
+                "最低价",
+                "收盘价",
+                "成交量",
+                "成交额",
+            ],
         )
         new_df = df.rename(
             columns={

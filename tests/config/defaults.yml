@@ -1,0 +1,34 @@
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    default:
+      format: '%(asctime)s %(levelname)-1.1s %(name)s:%(funcName)s:%(lineno)s
+        | %(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: default
+  loggers:
+    apscheduler:
+      level: INFO
+  root:
+    handlers:
+      - console
+    level: INFO
+redis:
+  dsn: redis://localhost:6379
+
+haystore:
+  host: localhost
+  port: 8123
+  user: default
+  password: 123456
+  database: tests
+notify:
+    mail_from: ${MAIL_FROM}
+    mail_to:
+        - ${MAIL_TO}
+    mail_server: ${MAIL_SERVER}
+    dingtalk_access_token: ${DINGTALK_ACCESS_TOKEN}
+    dingtalk_secret: ${DINGTALK_SECRET}

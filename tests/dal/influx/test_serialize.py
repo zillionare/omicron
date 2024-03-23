@@ -316,7 +316,9 @@ class SerializerTest(unittest.IsolatedAsyncioTestCase):
             time_precision="ms",
         )
         for actual in serializer.serialize(8):
-            exp = "test,code=000002.XSHE,name=国联证券 close=0.2,open=0.1 1546335060000\n"
+            exp = (
+                "test,code=000002.XSHE,name=国联证券 close=0.2,open=0.1 1546335060000\n"
+            )
             self.assertLessEqual(exp, actual[:65])
 
         # no tag_keys

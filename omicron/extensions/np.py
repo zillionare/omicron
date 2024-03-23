@@ -1,5 +1,6 @@
 """Extension function related to numpy
 """
+
 from __future__ import annotations
 
 import datetime

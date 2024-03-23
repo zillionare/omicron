@@ -208,7 +208,9 @@ class Query:
             self.target_date = _date
 
         records = None
-        if self.target_date == _date:  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
+        if (
+            self.target_date == _date
+        ):  # 从内存中查找，如果缓存中的数据已更新，重新加载到内存
             secs = await cache.security.lrange("security:all", 0, -1)
             if len(secs) != 0:
                 # using np.datetime64[s]

@@ -1278,7 +1278,9 @@ class Stock(Security):
             if not date_str:
                 return  # skip clear action if date not found in cache
             date_in_cache = arrow.get(date_str).date()
-            if dt is None or date_in_cache != dt:  # 更新的时间和cache的时间相同，则清除cache
+            if (
+                dt is None or date_in_cache != dt
+            ):  # 更新的时间和cache的时间相同，则清除cache
                 return  # skip clear action
 
         await cache._security_.delete(TRADE_PRICE_LIMITS)
@@ -1408,7 +1410,11 @@ class Stock(Security):
         for i in range(len(bars)):
             if bars[i]["frame"].item().date() != limit_prices[i]["frame"]:
                 # aligned = False
-                logger.warning("数据同步错误，涨跌停价格与收盘价时间不一致: %s, %s", code, bars[i]["frame"])
+                logger.warning(
+                    "数据同步错误，涨跌停价格与收盘价时间不一致: %s, %s",
+                    code,
+                    bars[i]["frame"],
+                )
                 break
 
             results[limit_prices[i]["frame"]] = (
@@ -1462,15 +1468,17 @@ class Stock(Security):
         return _converted_data
 
     @classmethod
-    async def get_buy_limit_secs(cls, start: datetime.date, end: Optional[datetime.date]=None)->pd.DataFrame:
+    async def get_buy_limit_secs(
+        cls, start: datetime.date, end: Optional[datetime.date] = None
+    ) -> pd.DataFrame:
         """查询在[start, end]区间涨停的个股代码
-        
-            如果只查询某一天数据，则可省略end。本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
-            Args:
-                start: 起始时间，包含
-                end: 截止时间，包含
-            Returns:
-                区间内涨停列表，一个包含日期、code和收盘价的dataframe
+
+        如果只查询某一天数据，则可省略end。本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
+        Args:
+            start: 起始时间，包含
+            end: 截止时间，包含
+        Returns:
+            区间内涨停列表，一个包含日期、code和收盘价的dataframe
         """
         end = end or start
 
@@ -1480,15 +1488,17 @@ class Stock(Security):
         return data
 
     @classmethod
-    async def get_sell_limit_secs(cls, start: datetime.date, end: Optional[datetime.date]=None)->pd.DataFrame:
+    async def get_sell_limit_secs(
+        cls, start: datetime.date, end: Optional[datetime.date] = None
+    ) -> pd.DataFrame:
         """查询在[start, end]区间跌停的个股代码
-        
-            如果只查询某一天数据，则可省略end，本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
-            Args:
-                start: 起始时间，包含
-                end: 截止时间，包含
-            Returns:
-                区间内涨停列表，一个包含日期、code和收盘价的dataframe
+
+        如果只查询某一天数据，则可省略end，本方法查询出来的，有可能有很小的概率，因为浮点数舍入误差出现不准确的情况。
+        Args:
+            start: 起始时间，包含
+            end: 截止时间，包含
+        Returns:
+            区间内涨停列表，一个包含日期、code和收盘价的dataframe
         """
         end = end or start
 

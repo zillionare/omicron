@@ -1,4 +1,5 @@
 """形态检测相关方法"""
+
 import logging
 from enum import IntEnum
 from typing import Callable, List, Optional, Tuple
@@ -251,7 +252,7 @@ def plateaus(
     clusters = clustering(numbers, n)
 
     plats = []
-    for (start, length) in clusters:
+    for start, length in clusters:
         if length < min_size:
             continue
 

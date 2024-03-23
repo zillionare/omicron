@@ -1,0 +1,46 @@
+CREATE TABLE if not exists bars_1d
+(
+    `frame` Date,
+    `symbol` LowCardinality(String),
+    `open` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `high` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `low` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `close` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `volume` Float64 DEFAULT -1 ,
+    `money` Float64 DEFAULT -1 ,
+    `factor` Float64 DEFAULT -1 CODEC(Delta, ZSTD),
+    `hlim` Float32 DEFAULT -1 ,
+    `llim` Float32 DEFAULT -1 ,
+    `st` UInt8 DEFAULT 0 CODEC(Delta, ZSTD),
+    `suspend` UInt8 DEFAULT 0 CODEC(Delta, ZSTD),
+    `turnover` Float32 DEFAULT -1 
+)
+ENGINE = MergeTree()
+ORDER BY (frame, symbol)
+
+CREATE TABLE if not exists bars_1m
+(
+    `frame` DateTime64 CODEC(Delta, ZSTD),
+    `symbol` LowCardinality(String),
+    `open` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `high` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `low` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `close` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
+    `volume` Float64 DEFAULT -1 ,
+    `money` Float64 DEFAULT -1
+)
+ENGINE = MergeTree
+ORDER BY (frame, symbol)
+
+
+CREATE TABLE if not exists securities
+(
+    `dt` Date CODEC(Delta, ZSTD),
+    `symbol` LowCardinality(String),
+    `alias` LowCardinality(String),
+    `ipo` Date CODEC(Delta, ZSTD),
+    `type` LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY (dt, symbol)
+

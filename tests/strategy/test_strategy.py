@@ -100,7 +100,7 @@ class SMAStrategyTest(unittest.IsolatedAsyncioTestCase):
             start=datetime.date(2023, 2, 3),
             end=datetime.date(2023, 4, 28),
             frame_type=FrameType.DAY,
-            warmup_period = 20
+            warmup_period=20,
         )
 
         # setup the mock

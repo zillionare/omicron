@@ -10,16 +10,18 @@
     ".vscode",
     "docs",
     "**/__pycache__",
-    "zillionare_omega.egg-info"
+    "zillionare_omega.egg-info",
+    "tests/**"
   ],
 
   "ignore": [
-    "src/oldstuff"
+    "src/oldstuff",
+    "tests/**"
   ],
 
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
 
-  "pythonVersion": "3.8",
+  "pythonVersion": "3.11",
   "pythonPlatform": "Linux"
 }

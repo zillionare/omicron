@@ -235,7 +235,9 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_save_securitie(self):
         dt = datetime.date(2022, 8, 1)
-        secs = [["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]]
+        secs = [
+            ["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]
+        ]
         await Security.save_securities(secs, dt)
 
         items = await Security.load_securities_from_db(dt, "000001.XSHE")
@@ -243,7 +245,9 @@ class SecurityTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sec_data[0], "000001.XSHE")
 
         dt = datetime.date(2022, 8, 2)
-        secs = [["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]]
+        secs = [
+            ["000001.XSHE", "平安银行", "PAYH", "1991-04-03", "2200-01-01", "stock"]
+        ]
         await Security.save_securities(secs, dt)
 
         dt1, dt2 = await Security.get_datescope_from_db()

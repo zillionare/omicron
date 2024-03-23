@@ -459,9 +459,9 @@ class InfluxClient:
 
         raise BadParameterError(f"can't find org with name: {name}")
 
-    async def query_reach_buy_limit(self, start: datetime.date, end:datetime.date):
+    async def query_reach_buy_limit(self, start: datetime.date, end: datetime.date):
         """查询时间段[start, end]期间的涨停板
-        
+
         import "math"
         from(bucket: "zillionare")
         |> range(start: 2024-01-04T00:00:00Z, stop: 2024-01-08T00:00:00Z)
@@ -485,7 +485,19 @@ class InfluxClient:
         |> filter(fn: (r) => r._value)
         """
 
-        names = ["_", "result", "table", "_measurement","_start","_stop","_time","_value","close","code","high_limit"]
+        names = [
+            "_",
+            "result",
+            "table",
+            "_measurement",
+            "_start",
+            "_stop",
+            "_time",
+            "_value",
+            "close",
+            "code",
+            "high_limit",
+        ]
 
         deserializer = DataframeDeserializer(
             names=names,
@@ -493,13 +505,17 @@ class InfluxClient:
             time_col="_time",
             engine="c",
         )
-        
-        data = await self.query(flux, deserializer)
-        return data[["code", "close", "_time"]].rename(columns={"_time": "frame"}).set_index("frame")
 
-    async def query_reach_sell_limit(self, start: datetime.date, end:datetime.date):
+        data = await self.query(flux, deserializer)
+        return (
+            data[["code", "close", "_time"]]
+            .rename(columns={"_time": "frame"})
+            .set_index("frame")
+        )
+
+    async def query_reach_sell_limit(self, start: datetime.date, end: datetime.date):
         """查询时间段[start, end]期间的跌停板
-        
+
         import "math"
         from(bucket: "zillionare")
         |> range(start: 2024-01-04T00:00:00Z, stop: 2024-01-08T00:00:00Z)
@@ -523,7 +539,19 @@ class InfluxClient:
         |> filter(fn: (r) => r._value)
         """
 
-        names = ["_", "result", "table", "_measurement","_start","_stop","_time","_value","close","code","low_limit"]
+        names = [
+            "_",
+            "result",
+            "table",
+            "_measurement",
+            "_start",
+            "_stop",
+            "_time",
+            "_value",
+            "close",
+            "code",
+            "low_limit",
+        ]
 
         deserializer = DataframeDeserializer(
             names=names,
@@ -531,6 +559,10 @@ class InfluxClient:
             time_col="_time",
             engine="c",
         )
-        
+
         data = await self.query(flux, deserializer)
-        return data[["code", "close", "_time"]].rename(columns={"_time": "frame"}).set_index("frame")
+        return (
+            data[["code", "close", "_time"]]
+            .rename(columns={"_time": "frame"})
+            .set_index("frame")
+        )

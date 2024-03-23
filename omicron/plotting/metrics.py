@@ -13,6 +13,7 @@ await mg.plot()
 ![](https://images.jieyu.ai/images/2023/05/20230508160012.png)
 
 """
+
 import datetime
 import logging
 from collections import defaultdict

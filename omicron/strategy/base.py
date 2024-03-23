@@ -4,7 +4,6 @@ from asyncio import gather
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
-import jqdatasdk as jq
 import numpy as np
 import pandas as pd
 from coretypes import BarsArray, Frame, FrameType
@@ -45,7 +44,7 @@ class BaseStrategy:
         frame_type: Optional[FrameType] = None,
         warmup_period: int = 0,
         principal: float = 1_000_000,
-        commission: float = 1.5e-4
+        commission: float = 1.5e-4,
     ):
         """构造函数
 
@@ -95,7 +94,7 @@ class BaseStrategy:
                 start=self.bs.start,
                 end=self.bs.end,
                 principal=principal,
-                commission=commission
+                commission=commission,
             )
         else:
             if account is None or token is None:
@@ -123,14 +122,14 @@ class BaseStrategy:
         barss = {}
 
         for k, v in self.bs.barss.items():
-            iend = np.argwhere(v['frame'] == np.datetime64(self.bs.cursor)).flatten()
+            iend = np.argwhere(v["frame"] == np.datetime64(self.bs.cursor)).flatten()
             if len(iend) == 0:
                 barss[k] = None
                 continue
             else:
                 iend = iend[0] + 1
                 istart = max(0, iend - self.bs.warmup_peroid)
-                barss[k] = v[istart: iend]
+                barss[k] = v[istart:iend]
 
         self.bs.cursor = tf.shift(self.bs.cursor, 1, self._frame_type)
         return barss
@@ -146,13 +145,11 @@ class BaseStrategy:
         if code in self.bs.barss:
             bars = self.bs.barss[code]
             istart = np.argwhere(bars["frame" == self.bs.cursor]).flatten()
-            if len(istart) == 0: # 如果当前周期处于停牌中，则不允许任何操作
+            if len(istart) == 0:  # 如果当前周期处于停牌中，则不允许任何操作
                 raise ValueError("无数据或者停牌中")
-            
+
             istart = istart[0]
-            return Stock.qfq(
-                self.bs.barss[code][istart : istart + n + 1]
-            )
+            return Stock.qfq(self.bs.barss[code][istart : istart + n + 1])
 
         else:
             raise ValueError("data is not cached")
@@ -324,11 +321,13 @@ class BaseStrategy:
 
     async def filter_paused_stock(self, buylist: List[str], dt: datetime.date):
         secs = await Security.select(dt).eval()
-        in_trading = jq.get_price(
-            secs, fields=["paused"], start_date=dt, end_date=dt, skip_paused=True
-        )["code"].to_numpy()
+        # in_trading = jq.get_price(
+        #     secs, fields=["paused"], start_date=dt, end_date=dt, skip_paused=True
+        # )["code"].to_numpy()
 
-        return np.intersect1d(buylist, in_trading)
+        # todo: how to implement without jqdatasdk?
+        # return np.intersect1d(buylist, in_trading)
+        return buylist
 
     async def before_start(self):
         """策略启动前的准备工作。
@@ -346,7 +345,9 @@ class BaseStrategy:
         else:
             logger.info("BEFORE_START: %s", self.name)
 
-    async def before_trade(self, date: datetime.date, barss: Optional[Dict[str, BarsArray]]=None):
+    async def before_trade(
+        self, date: datetime.date, barss: Optional[Dict[str, BarsArray]] = None
+    ):
         """每日开盘前的准备工作
 
         Args:
@@ -355,7 +356,9 @@ class BaseStrategy:
         """
         logger.debug("BEFORE_TRADE: %s", self.name, date=date)
 
-    async def after_trade(self, date: Frame, barss: Optional[Dict[str, BarsArray]]=None):
+    async def after_trade(
+        self, date: Frame, barss: Optional[Dict[str, BarsArray]] = None
+    ):
         """每日收盘后的收尾工作
 
         Args:

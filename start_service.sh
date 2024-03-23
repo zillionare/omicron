@@ -3,18 +3,15 @@ if [ $IS_GITHUB ]; then
     exit 0
 fi
 
-echo "本地测试环境，将初始化redis和influxdb!"
+echo "本地测试环境，将初始化redis和haystore!"
 
 export TZ=Asia/Shanghai
-sudo -E apt-get update
+# sudo -E apt-get update
+
+echo "初始化网络"
 
 echo "初始化redis容器"
-sudo docker run -d --name tox-redis -p 6379:6379 redis
+sudo docker run -d --name tox-redis --network host redis
 
-echo "初始化influxdb容器"
-sudo docker run -d -p 8086:8086 --name tox-influxdb influxdb
-sleep 5
-sudo docker exec -i tox-influxdb bash -c 'influx setup --username my-user --password my-password --org my-org --bucket my-bucket --token my-token --force'
-
-# echo "初始化minio容器"
-# sudo docker run -d -p 9000:9000 -p 9001:9001 --name tox-minio minio/minio server /tmp --console-address ":9001"
+echo "初始化haystore容器"
+sudo docker run -d --name tox-haystore --network host --ulimit nofile=262144:262144 -e CLICKHOUSE_DB=tests -e CLICKHOUSE_USER=default -e CLICKHOUSE_PASSWORD=123456 -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 clickhouse/clickhouse-server
