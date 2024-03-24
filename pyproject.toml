@@ -86,6 +86,8 @@ TA-Lib = {version = "^0.4.25", platform = "linux"}
 retry = {version = "^0.9.2"}
 redis = {extras = ["hiredis"], version = "^5.0.3"}
 clickhouse_connect = { version = "^0.7" }
+pypinyin = "^0.51.0"
+pandera = {version = ">=0.18.3", optional = true}
 
 [tool.poetry.extras]
 test = [
@@ -101,7 +103,7 @@ test = [
     "unittest-parametrize"
     ]
 
-dev = ["tox", "pre-commit", "pip", "twine", "toml"]
+dev = ["tox", "pre-commit", "pip", "twine", "toml", "pandera"]
 
 doc = [
     "mkdocs",

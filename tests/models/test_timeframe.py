@@ -1,22 +1,31 @@
 import datetime
+import json
 import logging
+import os
 import unittest
 from unittest import mock
 
 import arrow
+import cfg4py
 import numpy as np
 from coretypes import FrameType
 
 import omicron
+from omicron.dal.cache import cache
 from omicron.models.timeframe import TimeFrame as tf
-from tests import init_test_env
+from tests.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
 
 class TimeFrameTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        await init_test_env()
+        cfg = cfg4py.init(get_config_dir())
+        await cache.init()
+        
+        with open(os.path.join(os.path.dirname(omicron.__file__), "config/calendar.json"), "r") as f:
+            frames = json.load(f)
+            await tf.save_calendar([tf.int2date(f) for f in frames["day_frames"]])
         await omicron.init()
         return await super().asyncSetUp()
 

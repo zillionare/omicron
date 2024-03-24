@@ -1,19 +1,19 @@
 import datetime
 import logging
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
 import arrow
 import cfg4py
 import numpy as np
-from coretypes import SecurityType, security_info_dtype
-from numpy.typing import NDArray
+import pandas as pd
+from coretypes import SecurityInfoSchema, SecurityType, security_info_dtype
+from deprecation import deprecated
+from pandera.typing import DataFrame
+from pypinyin import Style, lazy_pinyin
 
+from omicron import cache, haystore
 from omicron.core.errors import DataNotReadyError
-from omicron.dal import cache
-from omicron.dal.influx.flux import Flux
-from omicron.dal.influx.serialize import DataframeDeserializer
-from omicron.models import get_influx_client
 from omicron.models.timeframe import TimeFrame as tf
 from omicron.notify.dingtalk import ding
 
@@ -41,6 +41,13 @@ _delta = np.timedelta64(1, "s")
 _start = np.datetime64("1970-01-01 00:00:00")
 
 
+def get_pinyin_initials(hanz: str)->str:
+    """将汉字转换为拼音首字母
+    
+    本辅助函数用以获取证券名的拼音简写。
+    """
+    return "".join(lazy_pinyin(hanz, style = Style.FIRST_LETTER)).upper()
+
 def convert_nptime_to_datetime(x):
     # force using CST timezone
     ts = (x - _start) / _delta
@@ -64,7 +71,8 @@ class Query:
             self.target_date = tf.day_shift(target_date, 0)
 
         # 名字，显示名，类型过滤器
-        self._name_pattern = None  # 字母名字
+        self._name_pattern = None  # 字母名字, deprecated since 2.1
+        self._initials_pattern = None # 拼音首字母
         self._alias_pattern = None  # 显示名
         self._type_pattern = None  # 不指定则默认为全部，如果传入空值则只选择股票和指数
         # 开关选项
@@ -143,6 +151,16 @@ class Query:
 
         return self
 
+    def initials_like(self, initials: str) -> "Query":
+        """查找股票/证券拼音首字母为`initials`的品种
+        
+        Args:
+            initials: 证券拼音首字母，比如PAYH（平安银行）
+        """
+        self._initials_pattern = initials
+        return self
+
+    @deprecated("2.1", details = "Deprecated since 2.1, use initials_like instead")
     def name_like(self, name: str) -> "Query":
         """查找股票/证券名称中出现`name`的品种
 
@@ -172,7 +190,7 @@ class Query:
 
         return self
 
-    async def eval(self) -> List[str]:
+    async def eval(self) -> List[str]|None:
         """对查询结果进行求值，返回code列表
 
         Returns:
@@ -224,59 +242,56 @@ class Query:
 
         results = []
         self._type_pattern = self._type_pattern or SecurityType.STOCK.value
-        for record in records:
+        for record in records.itertuples():
             if self._type_pattern is not None:
-                if record["type"] not in self._type_pattern:
+                if record.type not in self._type_pattern:
                     continue
             if self._name_pattern is not None:
-                if record["name"].find(self._name_pattern) == -1:
+                if record.name.find(self._name_pattern) == -1:
+                    continue
+            if self._initials_pattern is not None:
+                if record.initials.find(self._initials_pattern) == -1:
                     continue
             if self._alias_pattern is not None:
-                if record["alias"].find(self._alias_pattern) == -1:
+                if record.alias.find(self._alias_pattern) == -1:
                     continue
 
             # 创业板，科创板，ST暂时限定为股票类型
             if self._only_cyb:
-                if record["type"] != SecurityType.STOCK.value or not (
-                    record["code"][:3] in ("300", "301")
+                if record.type != SecurityType.STOCK.value or not (
+                    record.code[:3] in ("300", "301")
                 ):
                     continue
             if self._only_kcb:
                 if (
-                    record["type"] != SecurityType.STOCK.value
-                    or record["code"].startswith("688") is False
+                    record.type != SecurityType.STOCK.value
+                    or record.code.startswith("688") is False
                 ):
                     continue
             if self._only_st:
                 if (
-                    record["type"] != SecurityType.STOCK.value
-                    or record["alias"].find("ST") == -1
+                    record.type != SecurityType.STOCK.value
+                    or record.alias.find("ST") == -1
                 ):
                     continue
             if self._exclude_cyb:
-                if record["type"] == SecurityType.STOCK.value and record["code"][
+                if record.type == SecurityType.STOCK.value and record.code[
                     :3
                 ] in ("300", "301"):
                     continue
             if self._exclude_st:
                 if (
-                    record["type"] == SecurityType.STOCK.value
-                    and record["alias"].find("ST") != -1
+                    record.type == SecurityType.STOCK.value
+                    and record.alias.find("ST") != -1
                 ):
                     continue
             if self._exclude_kcb:
-                if record["type"] == SecurityType.STOCK.value and record[
-                    "code"
-                ].startswith("688"):
+                if record.type == SecurityType.STOCK.value and record.code.startswith("688"):
                     continue
 
-            # 退市暂不限定是否为股票
-            if self._include_exit is False:
-                d1 = convert_nptime_to_datetime(record["end"]).date()
-                if d1 < self.target_date:
-                    continue
+            # todo: how to handle 退市股？
 
-            results.append(record["code"])
+            results.append(record.code)
 
         # 返回所有查询到的结果
         return results
@@ -322,7 +337,7 @@ class Security:
         secs = await cache.security.lrange("security:all", 0, -1)
         if len(secs) != 0:
             # using np.datetime64[s]
-            _securities = np.array(
+            _securities = pd.DataFrame(
                 [tuple(x.split(",")) for x in secs], dtype=security_info_dtype
             )
 
@@ -354,7 +369,7 @@ class Security:
             return None
 
     @classmethod
-    def get_stock(cls, code) -> NDArray[security_info_dtype]:
+    def get_stock(cls, code) -> SecurityInfoSchema|None:
         """根据`code`来查找对应的股票（含指数）对象信息。
 
         如果您只有股票代码，想知道该代码对应的股票名称、别名（显示名）、上市日期等信息，就可以使用此方法来获取相关信息。
@@ -512,73 +527,35 @@ class Security:
 
     @classmethod
     async def save_securities(cls, securities: List[str], dt: datetime.date):
-        """保存指定的证券信息到缓存中，并且存入influxdb，定时job调用本接口
+        """保存每日证券列表到haystore，定时job调用本接口
 
         Args:
-            securities: 证券代码列表。
+            securities: 证券列表，应该包含code, alias, ipo日期, type字段
         """
+        # TODO: omega要修改传入值，以适应无法获取initials的情况，比如在qmt中，就无法获取拼音首字母
         # stock: {'index', 'stock'}
         # funds: {'fjb', 'mmf', 'reits', 'fja', 'fjm'}
         # {'etf', 'lof'}
         if dt is None or len(securities) == 0:
             return
 
-        measurement = "security_list"
-        client = get_influx_client()
-
-        # code, alias, name, start, end, type
-        security_list = np.array(
+        # code, alias, start, type
+        security_list = pd.DataFrame(
             [
-                (dt, x[0], f"{x[0]},{x[1]},{x[2]},{x[3]},{x[4]},{x[5]}")
+                (dt, x[0], x[1], get_pinyin_initials(x[1]), x[2], x[3])
                 for x in securities
             ],
-            dtype=security_db_dtype,
+            columns = ["dt", "code", "alias", "initials", "ipo", "type"]
         )
-        await client.save(
-            security_list, measurement, time_key="frame", tag_keys=["code"]
-        )
+        haystore.save_securities(security_list)
 
     @classmethod
     async def load_securities_from_db(
-        cls, target_date: datetime.date, code: str = None
-    ):
-        if target_date is None:
-            return None
+        cls, target_date: datetime.date, code: str|None = None
+    )->DataFrame[SecurityInfoSchema]:
+        """从数据库中加载证券列表"""
+        return haystore.load_securities(target_date, code)
 
-        client = get_influx_client()
-        measurement = "security_list"
-
-        flux = (
-            Flux()
-            .measurement(measurement)
-            .range(target_date, target_date)
-            .bucket(client._bucket)
-            .fields(["info"])
-        )
-        if code is not None and len(code) > 0:
-            flux.tags({"code": code})
-
-        data = await client.query(flux)
-        if len(data) == 2:  # \r\n
-            return None
-
-        ds = DataframeDeserializer(
-            sort_values="_time",
-            usecols=["_time", "code", "info"],
-            time_col="_time",
-            engine="c",
-        )
-        actual = ds(data)
-        secs = actual.to_records(index=False)
-
-        if len(secs) != 0:
-            # "_time", "code", "code, alias, name, start, end, type"
-            _securities = np.array(
-                [tuple(x["info"].split(",")) for x in secs], dtype=security_info_dtype
-            )
-            return _securities
-        else:
-            return None
 
     @classmethod
     async def get_datescope_from_db(cls):

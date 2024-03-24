@@ -13,7 +13,6 @@ from coretypes import Frame, FrameType, bars_dtype
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import omicron
-from omicron.models.security import security_db_dtype
 
 cfg = cfg4py.get_instance()
 logger = logging.getLogger(__name__)

@@ -21,19 +21,7 @@ from omicron import extensions as ext
 from omicron.core.errors import DataNotReadyError
 
 logger = logging.getLogger(__file__)
-EPOCH = datetime.datetime(1970, 1, 1, 0, 0, 0)
 CALENDAR_START = datetime.date(2005, 1, 4)
-
-
-def datetime_to_utc_timestamp(tm: datetime.datetime) -> int:
-    return (tm - EPOCH).total_seconds()
-
-
-def date_to_utc_timestamp(dt: datetime.date) -> int:
-    tm = datetime.datetime(*dt.timetuple()[:-4])
-
-    return datetime_to_utc_timestamp(tm)
-
 
 class TimeFrame:
     minute_level_frames = [
@@ -77,7 +65,7 @@ class TimeFrame:
     def service_degrade(cls):
         """当cache中不存在日历时，启用随omicron版本一起发行时自带的日历。
 
-        注意：随omicron版本一起发行时自带的日历很可能不是最新的，并且可能包含错误。比如，存在这样的情况，在本版本的omicron发行时，日历更新到了2021年12月31日，在这之前的日历都是准确的，但在此之后的日历，则有可能出现错误。因此，只应该在特殊的情况下（比如测试）调用此方法，以获得一个降级的服务。
+        注意：随omicron版本一起发行时自带的日历很可能不是最新的，并且可能包含错误。比如，存在这样的情况，在本版本的omicron发行时，日历更新到了2024年3月23日，在这之前的日历都是准确的，但在此之后的日历，则有可能出现错误。因此，只应该在特殊的情况下（比如测试）调用此方法，以获得一个降级的服务。
         """
         _dir = os.path.dirname(__file__)
         file = os.path.join(_dir, "..", "config", "calendar.json")

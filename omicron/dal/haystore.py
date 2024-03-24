@@ -5,7 +5,8 @@ import cfg4py
 import clickhouse_connect
 import pandas as pd
 from clickhouse_connect.driver.client import Client
-from coretypes import Frame, FrameType, SecurityType
+from coretypes import Frame, FrameType, SecurityInfoSchema, SecurityType
+from pandera.typing import DataFrame
 
 
 class Haystore(object):
@@ -13,7 +14,7 @@ class Haystore(object):
     TBL_MIN1_BARS = "bars_1m"
     TBL_SECURITIES = "securities"
     
-    def __init__(self):
+    def init(self):
         cfg = cfg4py.get_instance()
         host = cfg.haystore.host
         port = cfg.haystore.port
@@ -42,17 +43,6 @@ class Haystore(object):
             table = Haystore.TBL_MIN1_BARS
 
         self.client.insert_df(table, bars)
-
-    def save_ashare_list(
-        self,
-        data: pd.DataFrame,
-    ):
-        """保存证券（股票、指数）列表
-
-        Args:
-            data: contains date, code, alias, ipo day, and type
-        """
-        self.client.insert_df(Haystore.TBL_SECURITIES, data)
 
     def get_bars(
         self, code: str, n: int, frame_type: FrameType, end: datetime.datetime
@@ -89,3 +79,28 @@ class Haystore(object):
             sql = "alter table bars_day update factor = %(v1)s where symbol = %(v2)s and frame = %(v3)s"
 
             self.client.command(sql, {"v1": factor, "v2": sec, "v3": dt})
+
+    def save_securities(self, securities: pd.DataFrame):
+        """将每日证券列表存入haystore
+        
+        Args:
+            securities应该包含dt, code, alias, initials, ipo, type字段
+        """
+        self.client.insert_df(self.TBL_SECURITIES, securities)
+
+    def load_securities(self, dt: datetime.date, code: str|None = None)->DataFrame[SecurityInfoSchema]:
+        """加载证券列表
+        """
+        assert dt is not None
+        if code is None:
+            sql = f"select * from {self.TBL_SECURITIES} where dt=%(v1)s"
+            df = self.client.query_df(sql, (dt, ))
+        else:
+            sql = f"select * from {self.TBL_SECURITIES} where dt=%(v1)s and code=%(v2)s"
+            df = self.client.query_df(sql, (dt, code))
+
+        return df
+
+haystore = Haystore()
+
+__all__ = ["haystore"]

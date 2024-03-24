@@ -1,7 +1,7 @@
 CREATE TABLE if not exists bars_1d
 (
     `frame` Date,
-    `symbol` LowCardinality(String),
+    `code` LowCardinality(String),
     `open` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
     `high` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
     `low` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
@@ -16,12 +16,12 @@ CREATE TABLE if not exists bars_1d
     `turnover` Float32 DEFAULT -1 
 )
 ENGINE = MergeTree()
-ORDER BY (frame, symbol)
+ORDER BY (frame, code)
 
 CREATE TABLE if not exists bars_1m
 (
     `frame` DateTime64 CODEC(Delta, ZSTD),
-    `symbol` LowCardinality(String),
+    `code` LowCardinality(String),
     `open` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
     `high` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
     `low` Float32 DEFAULT -1 CODEC(Delta, ZSTD),
@@ -30,17 +30,17 @@ CREATE TABLE if not exists bars_1m
     `money` Float64 DEFAULT -1
 )
 ENGINE = MergeTree
-ORDER BY (frame, symbol)
+ORDER BY (frame, code)
 
 
 CREATE TABLE if not exists securities
 (
     `dt` Date CODEC(Delta, ZSTD),
-    `symbol` LowCardinality(String),
+    `code` LowCardinality(String),
     `alias` LowCardinality(String),
     `ipo` Date CODEC(Delta, ZSTD),
     `type` LowCardinality(String)
 )
 ENGINE = MergeTree
-ORDER BY (dt, symbol)
+ORDER BY (dt, code)
 

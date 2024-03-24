@@ -37,13 +37,13 @@ class HaystoreTest(ParametrizedTestCase):
         codes = [f"{i:06d}.XSHG" for i in range(1, 8000)]
         df = pd.DataFrame(
             [],
-            columns=["frame", "symbol", "open", "high", "low", "close", "volume", "money"],
+            columns=["frame", "code", "open", "high", "low", "close", "volume", "money"],
         )
 
         end = datetime.datetime(2023, 12, 31)
         df["frame"] = [end - datetime.timedelta(minutes=i) for i in range(0, n)]
         sampled = random.sample(codes, 5000) * int(n / 5000)
-        df["symbol"] = sampled
+        df["code"] = sampled
         df["open"] = np.random.random(n)
         df["close"] = np.random.random(n)
         df["low"] = np.random.random(n)
@@ -62,13 +62,13 @@ class HaystoreTest(ParametrizedTestCase):
 
 
     def test_save_securities(self):
-        # ["dt", "symbol", "alias", "ipo", "type"]
+        # ["dt", "code", "alias", "ipo", "type"]
         tm = datetime.date(2024, 3, 11)
         shares = pd.DataFrame(
             [
                 (tm, "000001.SZ", "平安银行", tm, "stock"),
                 (tm, "600001.SH", "浦发银行", tm, "stock"),
             ],
-            columns=["dt", "symbol", "alias", "ipo", "type"],
+            columns=["dt", "code", "alias", "ipo", "type"],
         )
-        self.haystore.save_ashare_list(shares)
+        self.haystore.save_securities(shares)

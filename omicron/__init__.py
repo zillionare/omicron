@@ -5,6 +5,7 @@ import logging
 import pkg_resources
 
 from omicron.dal.cache import cache
+from omicron.dal.haystore import haystore
 from omicron.models.timeframe import TimeFrame as tf
 
 __version__ = pkg_resources.get_distribution("zillionare-omicron").version
@@ -22,6 +23,7 @@ async def init(app_cache: int = 5):
 
     await cache.init(app=app_cache)
     await tf.init()
+    haystore.init()
 
     from omicron.models.security import Security
 
@@ -33,8 +35,9 @@ async def close():
 
     try:
         await cache.close()
+        haystore.close()
     except Exception as e:  # noqa
         pass
 
 
-__all__ = ["tf", "cache", "db"]
+__all__ = ["tf", "cache", "haystore"]
